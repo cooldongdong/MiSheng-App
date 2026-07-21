@@ -8,10 +8,11 @@ const useNextId = (data, currentDialogue) => {
       return currentDialogue.nextId; // 如果有 nextId，返回它
     }
 
-    const nextRow = data.find(
-      (row) => row.id === String(Number(currentDialogue?.id) + 1)
-    );
-    return nextRow ? String(Number(currentDialogue?.id) + 1) : null; // 返回下一個 ID 或 null
+    // 沒有 nextId 時，取陣列中「物理的下一列」（物理順序＝流程順序），不再靠 id+1
+    // → id 不必連續、不必是數字；插入／刪除對白也不會讓後面整串要重編號
+    const idx = data.findIndex((row) => row.id === currentDialogue?.id);
+    const nextRow = idx >= 0 ? data[idx + 1] : null;
+    return nextRow ? nextRow.id : null; // 返回下一列的 id 或 null
   }, [data, currentDialogue]);
 
   const canProceedToNext = useCallback(() => !!getNextId(), [getNextId]);

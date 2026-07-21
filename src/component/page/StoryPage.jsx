@@ -6,12 +6,12 @@ import ContentList from '../common/ContentList';
 import ZoomableImage from '../common/ZoomableImage';
 
 const StoryPage = () => {
-  const { getImg, missionData, storyData, currentMissionId } =
+  const { getImg, getMissionById, storyData, currentMissionId } =
     useContext(GameContext);
   const [currentStories, setCurrentStories] = useState([]);
   const [fullScreenIndex, setFullScreenIndex] = useState(null); // 控制哪張圖全螢幕
 
-  const currentMission = missionData[currentMissionId];
+  const currentMission = getMissionById(currentMissionId);
 
   useEffect(() => {
     if (!currentMission) {

@@ -17,7 +17,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
   const {
     getImg,
     currentMissionId,
-    missionData,
+    getMissionById,
     playerMissionData,
     updateMissionStatus,
   } = useContext(GameContext);
@@ -34,10 +34,9 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
   const [similarAnswers, setSimilarAnswers] = useState([]);
 
   useEffect(() => {
-    if (currentMissionId && missionData[currentMissionId]) {
-      setCurrentMission(missionData[currentMissionId]);
-    }
-  }, [currentMissionId]);
+    const mission = getMissionById(currentMissionId);
+    if (mission) setCurrentMission(mission);
+  }, [currentMissionId, getMissionById]);
 
   useEffect(() => {
     if (currentMission) {

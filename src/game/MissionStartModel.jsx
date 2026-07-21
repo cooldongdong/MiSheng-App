@@ -12,8 +12,8 @@ import AssistantDirectionRoundedIcon from '@mui/icons-material/AssistantDirectio
 import EndIconButton from '../component/common/EndIconButton';
 
 const MissionStart = ({ onNext, canProceed }) => {
-  const { getImg, missionData, currentMissionId } = useContext(GameContext);
-  const currentMission = missionData[currentMissionId];
+  const { getImg, getMissionById, currentMissionId } = useContext(GameContext);
+  const currentMission = getMissionById(currentMissionId);
 
   return (
     <FloatingLayer>

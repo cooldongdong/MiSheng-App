@@ -7,12 +7,12 @@ import ZoomableImage from '../common/ZoomableImage';
 import Wheel from '../common/Wheel';
 
 const PropPage = () => {
-  const { getImg, missionData, propData, currentMissionId } =
+  const { getImg, getMissionById, propData, currentMissionId } =
     useContext(GameContext);
   const [currentProps, setCurrentProps] = useState([]);
   const [fullScreenIndex, setFullScreenIndex] = useState(null); // 控制哪張圖全螢幕
 
-  const currentMission = missionData[currentMissionId];
+  const currentMission = getMissionById(currentMissionId);
 
   useEffect(() => {
     if (!currentMission) {

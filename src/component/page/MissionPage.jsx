@@ -8,6 +8,7 @@ import ConfirmDialog from '../common/ConfirmDialog';
 const MissionPage = () => {
   const {
     missionData,
+    getMissionById,
     playerMissionData,
     rundownData,
     currentMissionId,
@@ -22,7 +23,7 @@ const MissionPage = () => {
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef(null);
 
-  const currentMission = missionData[currentMissionId];
+  const currentMission = getMissionById(currentMissionId);
 
   useEffect(() => {
     if (!currentMission) {

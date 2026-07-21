@@ -16,12 +16,12 @@ const Talk = ({ currentRow, onNext, canProceed }) => {
   const {
     getImg,
     characterData,
-    missionData,
+    getMissionById,
     rundownData,
     currentMissionId,
     customPairs,
   } = useContext(GameContext);
-  const currentMission = missionData[currentMissionId];
+  const currentMission = getMissionById(currentMissionId);
   const textContainerRef = useRef(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [showFullTextIcon, setShowFullTextIcon] = useState(false);

@@ -20,7 +20,7 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed }) => {
     getImg,
     currentMissionId,
     characterData,
-    missionData,
+    getMissionById,
     rundownData,
     customPairs,
     updateCustomPairs,
@@ -32,7 +32,7 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed }) => {
   const [isSubmit, setIsSubmit] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
-  const currentMission = missionData[currentMissionId];
+  const currentMission = getMissionById(currentMissionId);
 
   // 設定角色
   useEffect(() => {

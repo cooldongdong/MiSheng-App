@@ -40,6 +40,12 @@ export const GameProvider = ({ children, gameFolder }) => {
     [gameFolder]
   );
 
+  // 用 id 查 mission（靠 id 不靠陣列位置，mission 的 row 順序／是否連號都無所謂）
+  const getMissionById = useCallback(
+    (id) => missionData.find((m) => String(m.id) === String(id)) ?? null,
+    [missionData]
+  );
+
   useEffect(() => {
     if (!configData) {
       return;
@@ -180,6 +186,7 @@ export const GameProvider = ({ children, gameFolder }) => {
         setHintData,
         missionData,
         setMissionData,
+        getMissionById,
         propData,
         setPropData,
         rundownData,

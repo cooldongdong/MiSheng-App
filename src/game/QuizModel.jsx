@@ -14,7 +14,7 @@ const QuizModel = ({ currentRow }) => {
   const {
     getImg,
     characterData,
-    missionData,
+    getMissionById,
     rundownData,
     currentMissionId,
     currentId,
@@ -24,7 +24,7 @@ const QuizModel = ({ currentRow }) => {
   const [speaker, setSpeaker] = useState(null);
   const [backgroundImg, setBackgroundImg] = useState(null);
   const [options, setOptions] = useState([]);
-  const currentMission = missionData[currentMissionId];
+  const currentMission = getMissionById(currentMissionId);
 
   useEffect(() => {
     // Find options related to the current question

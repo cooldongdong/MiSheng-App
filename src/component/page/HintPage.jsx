@@ -10,7 +10,7 @@ const HintPage = () => {
   const {
     characterData,
     hintData,
-    missionData,
+    getMissionById,
     currentMissionId,
     unlockedHints,
     unlockHint,
@@ -20,7 +20,7 @@ const HintPage = () => {
   const [currentHintIndex, setCurrentHintIndex] = useState(null); // 當前選擇的提示索引
   const [expandedHints, setExpandedHints] = useState([]);
 
-  const currentMission = missionData[currentMissionId];
+  const currentMission = getMissionById(currentMissionId);
 
   useEffect(() => {
     if (!currentMission) {

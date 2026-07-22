@@ -31,7 +31,9 @@ export const VALID_PROP_TYPES = ['Img', 'Wheel'];
 
 // 至少要有一筆資料的表（遊戲核心；hint/prop/story 允許整張空）
 const MUST_HAVE_ROWS = ['character', 'mission', 'rundown'];
-// missionId 的特例：0 代表「這一頁沒有對應關卡」（如序章對白），不視為斷鏈
+// missionId 的特例：0 代表「這一頁沒有對應關卡」（如序章對白），不視為斷鏈。
+// 但 0 是「哨兵值」不是保留字——如果 mission 表真的有一列 id=0（例如拿它當入口關卡、
+// 用 answer 收啟動碼），那 0 就是一個真關卡，此時不再視為「沒有關卡」。
 const NO_MISSION = '0';
 
 const isEmpty = (v) => v === undefined || v === null || String(v).trim() === '';
@@ -124,11 +126,17 @@ export function validateGame(tables) {
     missionById.set(key, row);
   }
 
+  // mission 表真的有 id=0 這一列時，0 就不是哨兵值，而是一個真關卡
+  const missionZeroIsReal = missionById.has(NO_MISSION);
+  // 「這一列沒有對應關卡」＝欄位空；或填 0 而且 mission 表沒有 id=0 的關卡
+  const isNoMission = (v) =>
+    isEmpty(v) || (norm(v) === NO_MISSION && !missionZeroIsReal);
+
   // missionId → mission.id（hint / prop / story / rundown；空與 0 允許）
   for (const type of ['hint', 'prop', 'story', 'rundown']) {
     if (!tables[type]) continue;
     for (const { row, i } of rowsOf(type)) {
-      if (isEmpty(row.missionId) || norm(row.missionId) === NO_MISSION) continue;
+      if (isNoMission(row.missionId)) continue;
       if (!missionIds.has(norm(row.missionId))) add(type, sheetRow(i), 'missionId', `missionId「${row.missionId}」在 mission 表找不到對應關卡`);
     }
   }
@@ -148,7 +156,7 @@ export function validateGame(tables) {
   if (tables.rundown) {
     for (const { row, i } of rowsOf('rundown')) {
       if (norm(row.model) !== 'MissionAnswerInput') continue;
-      if (isEmpty(row.missionId) || norm(row.missionId) === NO_MISSION) {
+      if (isNoMission(row.missionId)) {
         add('rundown', sheetRow(i), 'missionId', 'MissionAnswerInput 需要 missionId 指向要作答的關卡');
         continue;
       }

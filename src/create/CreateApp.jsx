@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Alert,
   Box,
@@ -12,6 +12,7 @@ import {
 import GameShell from '../component/GameShell';
 import { loadGameFromSheet } from '../game/sheetLoader';
 import { validateGame } from '../validator/validateGame';
+import { checkSheetImages } from './checkSheetImages';
 import ValidationReport from './ValidationReport';
 
 // 即時轉化（/create）：貼一份 Google 試算表連結 → 驗證 → 當場試玩
@@ -23,6 +24,14 @@ const CreateApp = () => {
   const [issues, setIssues] = useState([]);
   const [gameData, setGameData] = useState(null);
 
+  // 表單頁要能捲（報告可能很長）；試玩時是固定一屏的遊戲畫面，要鎖住捲動
+  useEffect(() => {
+    document.body.style.overflow = status === 'playing' ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [status]);
+
   const handleImport = async () => {
     setStatus('loading');
     setError('');
@@ -31,7 +40,8 @@ const CreateApp = () => {
 
     try {
       const { csvFiles, tables } = await loadGameFromSheet(url);
-      setIssues(validateGame(tables));
+      // 共用 validator（結構／參照／列舉值）＋ 即時轉化專屬的圖片網址檢查
+      setIssues([...validateGame(tables), ...checkSheetImages(tables)]);
       setGameData(csvFiles);
       setStatus('checked');
     } catch (err) {

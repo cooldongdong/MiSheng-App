@@ -12,7 +12,10 @@ import {
   layoutFlow,
   nodeTitle,
   nodeSubtitle,
+  edgeLabel,
+  labelBoxWidth,
   MODEL_COLOR,
+  MODEL_TINT,
   NODE_W,
   NODE_H,
 } from '../src/create/flowLayout.js';
@@ -44,34 +47,36 @@ const view = layoutFlow(graph);
 const esc = (s) =>
   String(s ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 
-const EDGE_COLOR = { option: '#8e24aa', jump: '#0288d1', seq: '#b0bec5' };
+const EDGE_COLOR = { option: '#7c3aed', jump: '#0ea5e9', seq: '#cbd5e1' };
 
 const edgeSvg = view.edges
-  .map(
-    (e) => `  <path d="${e.d}" fill="none" stroke="${EDGE_COLOR[e.type] || '#b0bec5'}" stroke-width="${
-      e.type === 'seq' ? 1.4 : 1.8
-    }"${e.type === 'jump' ? ' stroke-dasharray="5 4"' : ''} marker-end="url(#arrow)"/>${
-      e.label
-        ? `\n  <text x="${e.labelX}" y="${e.labelY}" font-size="11" fill="#6a1b9a" text-anchor="middle" stroke="#fafafa" stroke-width="3" paint-order="stroke">${esc(
-            e.label.length > 9 ? `${e.label.slice(0, 9)}…` : e.label
-          )}</text>`
-        : ''
-    }`
-  )
+  .map((e) => {
+    const line = `  <path d="${e.d}" fill="none" stroke="${EDGE_COLOR[e.type] || '#cbd5e1'}" stroke-width="${
+      e.type === 'seq' ? 1.5 : 1.8
+    }"${e.type === 'jump' ? ' stroke-dasharray="6 4"' : ''} marker-end="url(#fm-arrow)"/>`;
+    if (!e.label) return line;
+    const w = labelBoxWidth(e.label);
+    return `${line}
+  <rect x="${e.labelX - w / 2}" y="${e.labelY - 9}" width="${w}" height="18" rx="9" fill="#fff" stroke="#e9d5ff"/>
+  <text x="${e.labelX}" y="${e.labelY + 4}" font-size="11" fill="#7c3aed" text-anchor="middle">${esc(edgeLabel(e.label))}</text>`;
+  })
   .join('\n');
 
 const nodeSvg = view.nodes
   .map((n) => {
-    const color = MODEL_COLOR[n.model] || '#607d8b';
+    const color = MODEL_COLOR[n.model] || '#64748b';
+    const tint = MODEL_TINT[n.model] || '#f8fafc';
     const bad = !n.reachable;
     return `  <g>
-    <rect x="${n.x}" y="${n.y}" width="${NODE_W}" height="${NODE_H}" rx="8" fill="#fff" stroke="${
-      bad ? '#d32f2f' : color
-    }" stroke-width="${bad ? 2 : 1.2}"${bad ? ' stroke-dasharray="6 4"' : ''}/>
-    <rect x="${n.x}" y="${n.y}" width="5" height="${NODE_H}" rx="2" fill="${color}"/>
-    <text x="${n.x + 14}" y="${n.y + 21}" font-size="12" fill="${color}">${esc(nodeTitle(n))}</text>
-    <text x="${n.x + 14}" y="${n.y + 39}" font-size="12" fill="#37474f">${esc(nodeSubtitle(n))}</text>
-    <text x="${n.x + NODE_W - 10}" y="${n.y + 21}" font-size="10" fill="#90a4ae" text-anchor="end">${esc(
+    <rect x="${n.x}" y="${n.y}" width="${NODE_W}" height="${NODE_H}" rx="10" fill="${
+      bad ? '#fef2f2' : tint
+    }" stroke="${bad ? '#dc2626' : '#e2e8f0'}" stroke-width="${bad ? 1.6 : 1}"${
+      bad ? ' stroke-dasharray="6 4"' : ''
+    }/>
+    <rect x="${n.x}" y="${n.y + 10}" width="3" height="${NODE_H - 20}" rx="1.5" fill="${color}"/>
+    <text x="${n.x + 16}" y="${n.y + 24}" font-size="11" fill="${color}">${esc(nodeTitle(n))}</text>
+    <text x="${n.x + 16}" y="${n.y + 44}" font-size="12.5" fill="#0f172a">${esc(nodeSubtitle(n))}</text>
+    <text x="${n.x + NODE_W - 12}" y="${n.y + 24}" font-size="10" fill="#94a3b8" text-anchor="end">${esc(
       n.merged > 1 ? `${n.id}–${n.lastId}` : n.id
     )}</text>
   </g>`;
@@ -79,10 +84,10 @@ const nodeSvg = view.nodes
   .join('\n');
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${view.width}" height="${view.height}" viewBox="${view.minX} 0 ${view.width} ${view.height}" font-family="system-ui, -apple-system, 'Noto Sans TC', sans-serif">
-  <rect x="${view.minX}" y="0" width="${view.width}" height="${view.height}" fill="#fafafa"/>
+  <rect x="${view.minX}" y="0" width="${view.width}" height="${view.height}" fill="#f8fafc"/>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#90a4ae"/>
+    <marker id="fm-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="#94a3b8"/>
     </marker>
   </defs>
 ${edgeSvg}

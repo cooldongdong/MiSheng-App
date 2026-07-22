@@ -6,14 +6,18 @@ import {
   layoutFlow,
   nodeTitle,
   nodeSubtitle,
+  edgeLabel,
+  labelBoxWidth,
   MODEL_COLOR,
+  MODEL_TINT,
   NODE_W,
   NODE_H,
 } from './flowLayout';
 
-const EDGE_COLOR = { option: '#8e24aa', jump: '#0288d1', seq: '#b0bec5' };
+const EDGE_COLOR = { option: '#7c3aed', jump: '#0ea5e9', seq: '#cbd5e1' };
+const CANVAS_BG = '#f8fafc';
 
-// rundown 的流程圖（唯讀）：看清楚頁面之間怎麼接、哪裡走不到、哪裡有迴圈
+// rundown 的流程圖（唯讀）：看清楚頁面之間怎麼接、哪裡走不到、哪裡回頭跳
 const FlowMap = ({ rundownRows }) => {
   const [collapse, setCollapse] = useState(true);
   const [zoom, setZoom] = useState(0.7);
@@ -43,15 +47,12 @@ const FlowMap = ({ rundownRows }) => {
         <Button size="small" onClick={() => setZoom((z) => Math.min(1.6, z + 0.15))}>
           放大
         </Button>
-        <Chip
-          size="small"
-          label={`${graph.nodes.length} 個節點／${graph.totalRows} 列`}
-        />
+        <Chip size="small" label={`${graph.nodes.length} 個節點／${graph.totalRows} 列`} />
         {graph.unreachable.length > 0 && (
           <Chip size="small" color="error" label={`${graph.unreachable.length} 個走不到`} />
         )}
         {graph.cycles.length > 0 && (
-          <Chip size="small" color="warning" label={`${graph.cycles.length} 處回頭跳`} />
+          <Chip size="small" variant="outlined" label={`${graph.cycles.length} 處回頭跳`} />
         )}
         {graph.broken.length > 0 && (
           <Chip size="small" color="error" label={`${graph.broken.length} 條斷鏈`} />
@@ -60,29 +61,30 @@ const FlowMap = ({ rundownRows }) => {
 
       <Box
         sx={{
-          border: '1px solid #e0e0e0',
-          borderRadius: 1,
+          border: '1px solid #e2e8f0',
+          borderRadius: 2,
           overflow: 'auto',
           maxHeight: '70vh',
-          bgcolor: '#fafafa',
+          bgcolor: CANVAS_BG,
         }}
       >
         <svg
           width={view.width * zoom}
           height={view.height * zoom}
           viewBox={`${view.minX} 0 ${view.width} ${view.height}`}
+          fontFamily="system-ui, -apple-system, 'Noto Sans TC', sans-serif"
         >
           <defs>
             <marker
-              id="arrow"
-              viewBox="0 0 10 10"
-              refX="9"
-              refY="5"
-              markerWidth="6"
-              markerHeight="6"
+              id="fm-arrow"
+              viewBox="0 0 8 8"
+              refX="7"
+              refY="4"
+              markerWidth="5"
+              markerHeight="5"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#90a4ae" />
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="#94a3b8" />
             </marker>
           </defs>
 
@@ -91,30 +93,39 @@ const FlowMap = ({ rundownRows }) => {
               <path
                 d={e.d}
                 fill="none"
-                stroke={EDGE_COLOR[e.type] || '#b0bec5'}
-                strokeWidth={e.type === 'seq' ? 1.4 : 1.8}
-                strokeDasharray={e.type === 'jump' ? '5 4' : undefined}
-                markerEnd="url(#arrow)"
+                stroke={EDGE_COLOR[e.type] || '#cbd5e1'}
+                strokeWidth={e.type === 'seq' ? 1.5 : 1.8}
+                strokeDasharray={e.type === 'jump' ? '6 4' : undefined}
+                markerEnd="url(#fm-arrow)"
               />
               {e.label && (
-                <text
-                  x={e.labelX}
-                  y={e.labelY}
-                  fontSize="11"
-                  fill="#6a1b9a"
-                  textAnchor="middle"
-                  stroke="#fafafa"
-                  strokeWidth="3"
-                  paintOrder="stroke"
-                >
-                  {e.label.length > 9 ? `${e.label.slice(0, 9)}…` : e.label}
-                </text>
+                <>
+                  <rect
+                    x={e.labelX - labelBoxWidth(e.label) / 2}
+                    y={e.labelY - 9}
+                    width={labelBoxWidth(e.label)}
+                    height="18"
+                    rx="9"
+                    fill="#fff"
+                    stroke="#e9d5ff"
+                  />
+                  <text
+                    x={e.labelX}
+                    y={e.labelY + 4}
+                    fontSize="11"
+                    fill="#7c3aed"
+                    textAnchor="middle"
+                  >
+                    {edgeLabel(e.label)}
+                  </text>
+                </>
               )}
             </g>
           ))}
 
           {view.nodes.map((n) => {
-            const color = MODEL_COLOR[n.model] || '#607d8b';
+            const color = MODEL_COLOR[n.model] || '#64748b';
+            const tint = MODEL_TINT[n.model] || '#f8fafc';
             const bad = !n.reachable;
             return (
               <g key={n.id}>
@@ -123,24 +134,31 @@ const FlowMap = ({ rundownRows }) => {
                   y={n.y}
                   width={NODE_W}
                   height={NODE_H}
-                  rx="8"
-                  fill="#fff"
-                  stroke={bad ? '#d32f2f' : color}
-                  strokeWidth={bad ? 2 : 1.2}
+                  rx="10"
+                  fill={bad ? '#fef2f2' : tint}
+                  stroke={bad ? '#dc2626' : '#e2e8f0'}
+                  strokeWidth={bad ? 1.6 : 1}
                   strokeDasharray={bad ? '6 4' : undefined}
                 />
-                <rect x={n.x} y={n.y} width="5" height={NODE_H} rx="2" fill={color} />
-                <text x={n.x + 14} y={n.y + 21} fontSize="12" fill={color}>
+                <rect
+                  x={n.x}
+                  y={n.y + 10}
+                  width="3"
+                  height={NODE_H - 20}
+                  rx="1.5"
+                  fill={color}
+                />
+                <text x={n.x + 16} y={n.y + 24} fontSize="11" fill={color}>
                   {nodeTitle(n)}
                 </text>
-                <text x={n.x + 14} y={n.y + 39} fontSize="12" fill="#37474f">
+                <text x={n.x + 16} y={n.y + 44} fontSize="12.5" fill="#0f172a">
                   {nodeSubtitle(n)}
                 </text>
                 <text
-                  x={n.x + NODE_W - 10}
-                  y={n.y + 21}
+                  x={n.x + NODE_W - 12}
+                  y={n.y + 24}
                   fontSize="10"
-                  fill="#90a4ae"
+                  fill="#94a3b8"
                   textAnchor="end"
                 >
                   {n.merged > 1 ? `${n.id}–${n.lastId}` : n.id}
@@ -152,8 +170,8 @@ const FlowMap = ({ rundownRows }) => {
       </Box>
 
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-        灰線＝照順序往下、藍虛線＝nextId 跳轉、紫線＝Quiz 選項（線上的字就是選項）。
-        紅色虛框＝從第一列走不到的節點。
+        灰線＝照順序往下、藍虛線＝nextId 跳轉、紫線＝Quiz 選項（圓框裡就是選項文字）。
+        跨層與回頭的線走圖的兩側，不會壓過方塊。紅色虛框＝從第一列走不到的節點。
       </Typography>
 
       {graph.broken.length > 0 && (

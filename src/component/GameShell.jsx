@@ -11,8 +11,17 @@ import GameController from '../game/GameController';
 
 // 遊戲外殼：底部分頁切換 ＋ 版面，資料從哪來由外面決定
 //   - App.jsx：build-time 的 src/gameFile/（gameFolder 有值，圖片走 IMAGE_MAP）
-//   - CreateApp.jsx：即時轉化的 Google 試算表（gameFolder 為空，圖片走外連網址）
-const GameShell = ({ gameData, gameFolder, previewMode = false, imgMap = null }) => {
+//   - CreateApp.jsx：即時轉化（gameFolder 為空，圖片走本機資料夾或外連網址）
+//
+// sidePanel：給開發用的並排面板（/create 的流程圖）。有值時遊戲縮到左半邊，
+// 面板放右邊；面板要跟遊戲共用 GameContext，所以掛在 Provider 裡面。
+const GameShell = ({
+  gameData,
+  gameFolder,
+  previewMode = false,
+  imgMap = null,
+  sidePanel = null,
+}) => {
   const [value, setValue] = useState(2);
 
   const renderMainContainer = () => {
@@ -40,19 +49,29 @@ const GameShell = ({ gameData, gameFolder, previewMode = false, imgMap = null })
       previewMode={previewMode}
       imgMap={imgMap}
     >
-      <Box sx={{ height: '100dvh' }}>
+      <Box
+        sx={{
+          height: '100dvh',
+          display: sidePanel ? 'flex' : 'block',
+          alignItems: 'stretch',
+        }}
+      >
         <Container
           maxWidth="sm"
+          disableGutters={!!sidePanel}
           sx={{
             height: 'calc(100dvh - 56px)',
             backgroundColor: '#eee',
-            width: '100%',
+            width: sidePanel ? 420 : '100%',
+            flex: sidePanel ? '0 0 420px' : undefined,
+            position: sidePanel ? 'relative' : undefined,
+            margin: sidePanel ? 0 : undefined,
           }}
         >
           <Box
             id="main-container"
             sx={{
-              position: 'fixed',
+              position: sidePanel ? 'absolute' : 'fixed',
               width: '100%',
               height: 'calc(100dvh - 56px)',
               zIndex: 550,
@@ -79,8 +98,8 @@ const GameShell = ({ gameData, gameFolder, previewMode = false, imgMap = null })
             id="TabBar"
             sx={{
               width: '100%',
-              position: 'fixed',
-              bottom: 0,
+              position: sidePanel ? 'absolute' : 'fixed',
+              bottom: sidePanel ? -56 : 0,
               left: 0,
             }}
           >
@@ -90,6 +109,12 @@ const GameShell = ({ gameData, gameFolder, previewMode = false, imgMap = null })
             />
           </Box>
         </Container>
+
+        {sidePanel && (
+          <Box sx={{ flex: 1, minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
+            {sidePanel}
+          </Box>
+        )}
       </Box>
     </GameProvider>
   );
@@ -100,6 +125,7 @@ GameShell.propTypes = {
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
   imgMap: PropTypes.instanceOf(Map),
+  sidePanel: PropTypes.node,
 };
 
 export default GameShell;

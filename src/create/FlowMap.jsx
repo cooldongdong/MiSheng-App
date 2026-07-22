@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import { buildFlowGraph } from './flowGraph';
@@ -18,15 +18,44 @@ const EDGE_COLOR = { option: '#7c3aed', jump: '#0ea5e9', seq: '#cbd5e1' };
 const CANVAS_BG = '#f8fafc';
 
 // rundown 的流程圖（唯讀）：看清楚頁面之間怎麼接、哪裡走不到、哪裡回頭跳
-const FlowMap = ({ rundownRows }) => {
+//   activeId    ——玩家現在在哪一列（並排模式下會高亮並自動捲過去）
+//   onNodeClick ——點節點要做什麼（並排模式下＝把遊戲跳到那一頁）
+const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = false }) => {
   const [collapse, setCollapse] = useState(true);
-  const [zoom, setZoom] = useState(0.7);
+  const [zoom, setZoom] = useState(dense ? 0.55 : 0.7);
+  const scrollRef = useRef(null);
 
   const graph = useMemo(
     () => buildFlowGraph(rundownRows, { collapse }),
     [rundownRows, collapse]
   );
   const view = useMemo(() => layoutFlow(graph), [graph]);
+
+  // 摺疊之後，玩家所在的那一列可能被併進某個節點裡，要找出「代表它的節點」
+  const activeNodeId = useMemo(() => {
+    if (!activeId) return null;
+    const rows = graph.nodes;
+    const exact = rows.find((n) => n.id === String(activeId));
+    if (exact) return exact.id;
+    const num = Number(activeId);
+    const inRange = rows.find(
+      (n) => n.merged > 1 && Number(n.id) <= num && num <= Number(n.lastId)
+    );
+    return inRange ? inRange.id : null;
+  }, [activeId, graph.nodes]);
+
+  // 玩家往前走時，圖跟著捲到目前位置
+  useEffect(() => {
+    if (!activeNodeId || !scrollRef.current) return;
+    const node = view.nodes.find((n) => n.id === activeNodeId);
+    if (!node) return;
+    const box = scrollRef.current;
+    box.scrollTo({
+      top: Math.max(0, node.y * zoom - box.clientHeight / 2),
+      left: Math.max(0, (node.x - view.minX) * zoom - box.clientWidth / 2),
+      behavior: 'smooth',
+    });
+  }, [activeNodeId, view, zoom]);
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -60,11 +89,13 @@ const FlowMap = ({ rundownRows }) => {
       </Stack>
 
       <Box
+        ref={scrollRef}
         sx={{
           border: '1px solid #e2e8f0',
           borderRadius: 2,
           overflow: 'auto',
-          maxHeight: '70vh',
+          maxHeight: dense ? 'calc(100dvh - 108px)' : '70vh',
+          height: dense ? 'calc(100dvh - 108px)' : undefined,
           bgcolor: CANVAS_BG,
         }}
       >
@@ -127,17 +158,35 @@ const FlowMap = ({ rundownRows }) => {
             const color = MODEL_COLOR[n.model] || '#64748b';
             const tint = MODEL_TINT[n.model] || '#f8fafc';
             const bad = !n.reachable;
+            const active = n.id === activeNodeId;
             return (
-              <g key={n.id}>
+              <g
+                key={n.id}
+                onClick={onNodeClick ? () => onNodeClick(n.id) : undefined}
+                style={onNodeClick ? { cursor: 'pointer' } : undefined}
+              >
+                {active && (
+                  <rect
+                    x={n.x - 5}
+                    y={n.y - 5}
+                    width={NODE_W + 10}
+                    height={NODE_H + 10}
+                    rx="13"
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="2.5"
+                    opacity="0.45"
+                  />
+                )}
                 <rect
                   x={n.x}
                   y={n.y}
                   width={NODE_W}
                   height={NODE_H}
                   rx="10"
-                  fill={bad ? '#fef2f2' : tint}
-                  stroke={bad ? '#dc2626' : '#e2e8f0'}
-                  strokeWidth={bad ? 1.6 : 1}
+                  fill={active ? '#fff' : bad ? '#fef2f2' : tint}
+                  stroke={active ? color : bad ? '#dc2626' : '#e2e8f0'}
+                  strokeWidth={active ? 2 : bad ? 1.6 : 1}
                   strokeDasharray={bad ? '6 4' : undefined}
                 />
                 <rect
@@ -172,6 +221,7 @@ const FlowMap = ({ rundownRows }) => {
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
         灰線＝照順序往下、藍虛線＝nextId 跳轉、紫線＝Quiz 選項（圓框裡就是選項文字）。
         跨層與回頭的線走圖的兩側，不會壓過方塊。紅色虛框＝從第一列走不到的節點。
+        {onNodeClick ? '點任一個方塊，遊戲就直接跳到那一頁。' : ''}
       </Typography>
 
       {graph.broken.length > 0 && (
@@ -187,6 +237,9 @@ const FlowMap = ({ rundownRows }) => {
 
 FlowMap.propTypes = {
   rundownRows: PropTypes.array.isRequired,
+  activeId: PropTypes.string,
+  onNodeClick: PropTypes.func,
+  dense: PropTypes.bool,
 };
 
 export default FlowMap;

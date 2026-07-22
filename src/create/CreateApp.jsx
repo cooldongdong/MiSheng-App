@@ -18,6 +18,7 @@ import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder } from './localFiles';
 import ValidationReport from './ValidationReport';
 import FlowMap from './FlowMap';
+import FlowPanel from './FlowPanel';
 
 // 即時轉化（/create）：資料進來 → 驗證 → 當場試玩
 // 兩條來源都支援：Google 試算表連結／本機 CSV 檔（全本機路線，什麼都不上傳）
@@ -33,6 +34,7 @@ const CreateApp = () => {
   const [imgMap, setImgMap] = useState(null);
   const [source, setSource] = useState(''); // 目前這份資料從哪來，顯示用
   const [showFlow, setShowFlow] = useState(false);
+  const [flowBeside, setFlowBeside] = useState(true); // 試玩時是否並排流程圖
   const [rundownRows, setRundownRows] = useState([]);
   const revokeImgs = useRef(null);
   const lastTables = useRef({}); // 換圖片來源時要能重驗，留住上一次的 tables
@@ -123,18 +125,34 @@ const CreateApp = () => {
   };
 
   if (status === 'playing' && gameData) {
+    const beside = flowBeside && rundownRows.length > 0;
     return (
       <>
-        <GameShell gameData={gameData} previewMode imgMap={imgMap} />
-        <Button
-          size="small"
-          variant="contained"
-          color="inherit"
-          onClick={reset}
+        <GameShell
+          gameData={gameData}
+          previewMode
+          imgMap={imgMap}
+          sidePanel={beside ? <FlowPanel rundownRows={rundownRows} /> : null}
+        />
+        <Stack
+          direction="row"
+          spacing={1}
           sx={{ position: 'fixed', top: 8, right: 8, zIndex: 2000 }}
         >
-          換一份
-        </Button>
+          {rundownRows.length > 0 && (
+            <Button
+              size="small"
+              variant="contained"
+              color="inherit"
+              onClick={() => setFlowBeside((v) => !v)}
+            >
+              {beside ? '只看遊戲' : '並排流程圖'}
+            </Button>
+          )}
+          <Button size="small" variant="contained" color="inherit" onClick={reset}>
+            換一份
+          </Button>
+        </Stack>
       </>
     );
   }

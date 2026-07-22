@@ -56,7 +56,7 @@ export const GameProvider = ({ children, gameFolder }) => {
   const getStorageKey = (key) => (gameId ? `${gameId}_${key}` : null);
 
   const [playerMissionData, setPlayerMissionData] = useState([]);
-  const [currentId, setCurrentId] = useState('1');
+  const [currentId, setCurrentId] = useState(null);
   const [currentMissionId, setCurrentMissionId] = useState('0');
   const [unlockedHints, setUnlockedHints] = useState({});
   const [customPairs, setCustomPairs] = useState({});
@@ -68,7 +68,7 @@ export const GameProvider = ({ children, gameFolder }) => {
     setPlayerMissionData(
       JSON.parse(localStorage.getItem(getStorageKey('playerMissionData'))) || []
     );
-    setCurrentId(localStorage.getItem(getStorageKey('currentId')) || '1');
+    setCurrentId(localStorage.getItem(getStorageKey('currentId')) || null);
     setCurrentMissionId(
       localStorage.getItem(getStorageKey('currentMissionId')) || '0'
     );
@@ -80,6 +80,15 @@ export const GameProvider = ({ children, gameFolder }) => {
     );
   }, [gameId]);
 
+  // 起點＝rundown 的第一列（不再假設第一列的 id 叫 "1"）
+  // 資料是非同步載入的，所以等 rundownData 就緒、且尚無 currentId（無存檔）時才設
+  useEffect(() => {
+    if (currentId) return;
+    if (!Array.isArray(rundownData)) return;
+    const firstRow = rundownData.find((row) => row?.id);
+    if (firstRow) setCurrentId(firstRow.id);
+  }, [rundownData, currentId]);
+
   // 當狀態改變時存入 localStorage（使用 gameId 作為 key）
   useEffect(() => {
     if (!gameId) return;
@@ -90,7 +99,7 @@ export const GameProvider = ({ children, gameFolder }) => {
   }, [playerMissionData]);
 
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || !currentId) return;
     localStorage.setItem(getStorageKey('currentId'), currentId);
   }, [currentId]);
 

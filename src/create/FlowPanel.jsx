@@ -23,7 +23,7 @@ const FlowPanel = ({ rundownRows }) => {
   };
 
   return (
-    <Box sx={{ px: 2, pb: 2, height: '100%', boxSizing: 'border-box' }}>
+    <Box sx={{ height: '100%' }}>
       <FlowMap
         rundownRows={rundownRows}
         activeId={currentId ? String(currentId) : null}

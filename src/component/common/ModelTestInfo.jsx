@@ -14,7 +14,8 @@ const ModelTestInfo = ({ model }) => {
       sx={{
         width: '100%',
         maxWidth: '600px',
-        position: 'fixed',
+        // absolute 而非 fixed：並排流程圖時才不會跨到右半邊、擋住工具列
+        position: 'absolute',
         top: '0',
         zIndex: '99',
         boxSizing: 'border-box',

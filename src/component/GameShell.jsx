@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Container } from '@mui/material';
 import { GameProvider } from '../store/game-provider';
 import FixedBottomNavigation from './BottomNavigation';
@@ -23,6 +23,32 @@ const GameShell = ({
   sidePanel = null,
 }) => {
   const [value, setValue] = useState(2);
+  // 並排時遊戲那半的寬度，可以拖分隔線調整
+  const [paneW, setPaneW] = useState(420);
+  const dragging = useRef(false);
+
+  const onSplitDown = useCallback((e) => {
+    dragging.current = true;
+    e.preventDefault();
+  }, []);
+
+  useEffect(() => {
+    if (!sidePanel) return undefined;
+    const onMove = (e) => {
+      if (!dragging.current) return;
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      setPaneW(Math.min(window.innerWidth - 280, Math.max(300, x)));
+    };
+    const onUp = () => {
+      dragging.current = false;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [sidePanel]);
 
   const renderMainContainer = () => {
     if (!gameData) return <div>載入中...</div>;
@@ -62,8 +88,8 @@ const GameShell = ({
           sx={{
             height: 'calc(100dvh - 56px)',
             backgroundColor: '#eee',
-            width: sidePanel ? 420 : '100%',
-            flex: sidePanel ? '0 0 420px' : undefined,
+            width: sidePanel ? paneW : '100%',
+            flex: sidePanel ? `0 0 ${paneW}px` : undefined,
             position: sidePanel ? 'relative' : undefined,
             margin: sidePanel ? 0 : undefined,
           }}
@@ -111,9 +137,34 @@ const GameShell = ({
         </Container>
 
         {sidePanel && (
-          <Box sx={{ flex: 1, minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
-            {sidePanel}
-          </Box>
+          <>
+            {/* 拖這條可以調整兩邊的比例 */}
+            <Box
+              onPointerDown={onSplitDown}
+              sx={{
+                flex: '0 0 8px',
+                cursor: 'col-resize',
+                bgcolor: '#e2e8f0',
+                position: 'relative',
+                zIndex: 600,
+                '&:hover': { bgcolor: '#cbd5e1' },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '2px',
+                  height: '28px',
+                  borderRadius: '1px',
+                  bgcolor: '#94a3b8',
+                },
+              }}
+            />
+            <Box sx={{ flex: 1, minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
+              {sidePanel}
+            </Box>
+          </>
         )}
       </Box>
     </GameProvider>

@@ -81,3 +81,30 @@ export const buildLocalImageMap = (fileList) => {
 
   return { map, revoke, count: urls.length };
 };
+
+/**
+ * 選一整個遊戲資料夾（CSV 和圖片都在裡面，含子資料夾如 img/）。
+ * 使用者只做一個動作，程式自己分辨誰是資料、誰是圖片——
+ * 心智模型跟現有的 `gameFile/{遊戲}/` 完全一樣：一個遊戲＝一個資料夾。
+ */
+export const readLocalGameFolder = async (fileList) => {
+  const all = Array.from(fileList || []);
+  const csvs = all.filter((f) => /\.csv$/i.test(f.name));
+  const imgs = all.filter((f) => IMG_EXT.test(f.name));
+
+  const { csvFiles, tables, missing, ignored } = await readLocalCsvFiles(csvs);
+  const { map, revoke, count } = buildLocalImageMap(imgs);
+
+  const folderName = all[0]?.webkitRelativePath?.split('/')[0] || '資料夾';
+
+  return {
+    csvFiles,
+    tables,
+    missing,
+    ignored,
+    imgMap: map,
+    revokeImgs: revoke,
+    imgCount: count,
+    folderName,
+  };
+};

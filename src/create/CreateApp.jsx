@@ -17,6 +17,7 @@ import { validateGame } from '../validator/validateGame';
 import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder } from './localFiles';
 import ValidationReport from './ValidationReport';
+import FlowMap from './FlowMap';
 
 // 即時轉化（/create）：資料進來 → 驗證 → 當場試玩
 // 兩條來源都支援：Google 試算表連結／本機 CSV 檔（全本機路線，什麼都不上傳）
@@ -31,6 +32,8 @@ const CreateApp = () => {
 
   const [imgMap, setImgMap] = useState(null);
   const [source, setSource] = useState(''); // 目前這份資料從哪來，顯示用
+  const [showFlow, setShowFlow] = useState(false);
+  const [rundownRows, setRundownRows] = useState([]);
   const revokeImgs = useRef(null);
   const lastTables = useRef({}); // 換圖片來源時要能重驗，留住上一次的 tables
 
@@ -47,6 +50,7 @@ const CreateApp = () => {
 
   const runChecks = (tables, csvFiles, map) => {
     lastTables.current = tables;
+    setRundownRows(tables.rundown?.rows || []);
     // 共用 validator（結構／參照／列舉值）＋ 即時轉化專屬的圖片來源檢查
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     setGameData(csvFiles);
@@ -216,16 +220,30 @@ const CreateApp = () => {
         {status === 'checked' && (
           <Box sx={{ mt: 3, mb: 3 }}>
             <ValidationReport issues={issues} />
-            <Button
-              fullWidth
-              variant="contained"
-              size="large"
-              sx={{ mt: 2 }}
-              disabled={hasError}
-              onClick={() => setStatus('playing')}
-            >
-              {hasError ? '請先修正錯誤' : '開始試玩'}
-            </Button>
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={hasError}
+                onClick={() => setStatus('playing')}
+              >
+                {hasError ? '請先修正錯誤' : '開始試玩'}
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                onClick={() => setShowFlow((v) => !v)}
+                disabled={!rundownRows.length}
+              >
+                {showFlow ? '收起流程圖' : '看流程圖'}
+              </Button>
+            </Stack>
+
+            {showFlow && rundownRows.length > 0 && (
+              <FlowMap rundownRows={rundownRows} />
+            )}
           </Box>
         )}
 

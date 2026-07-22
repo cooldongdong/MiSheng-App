@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { GameContext } from './game-context';
+import { resolveExternalImg } from '../game/imgUrl';
 
 
 // 在模組頂層把所有 img 檔一次攔進來（打包時會生成真實 URL）
@@ -9,7 +10,8 @@ const IMAGE_MAP = import.meta.glob(
   { eager: true, as: 'url' }
 );
 
-export const GameProvider = ({ children, gameFolder }) => {
+// previewMode：即時轉化（/create）的一次性試玩——不讀也不寫 localStorage，重整即消失
+export const GameProvider = ({ children, gameFolder, previewMode = false }) => {
   // 只需匯入一次的遊戲資料
   const [characterData, setCharacterData] = useState(null);
   const [hintData, setHintData] = useState(null);
@@ -26,7 +28,13 @@ export const GameProvider = ({ children, gameFolder }) => {
   // 用函式取圖，不再用 `src/...` 這種字串 ===
   const getImg = useCallback(
     (relPath) => {
-      if (!gameFolder || !relPath) return null;
+      if (!relPath) return null;
+
+      // 外連網址（即時轉化的遊戲只能這樣填）：直接用，不查 build-time 的 IMAGE_MAP
+      const external = resolveExternalImg(relPath);
+      if (external) return external;
+
+      if (!gameFolder) return null;
 
       // 支援子資料夾：relPath 可傳 'bg2.png' 或 'character/a.png'
       const keyA = `/src/gameFile/${gameFolder}/img/${relPath}`;
@@ -63,7 +71,7 @@ export const GameProvider = ({ children, gameFolder }) => {
 
   // 當 gameId 設定完成後，從 localStorage 載入數據
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || previewMode) return;
 
     setPlayerMissionData(
       JSON.parse(localStorage.getItem(getStorageKey('playerMissionData'))) || []
@@ -91,7 +99,7 @@ export const GameProvider = ({ children, gameFolder }) => {
 
   // 當狀態改變時存入 localStorage（使用 gameId 作為 key）
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || previewMode) return;
     localStorage.setItem(
       getStorageKey('playerMissionData'),
       JSON.stringify(playerMissionData)
@@ -99,17 +107,17 @@ export const GameProvider = ({ children, gameFolder }) => {
   }, [playerMissionData]);
 
   useEffect(() => {
-    if (!gameId || !currentId) return;
+    if (!gameId || !currentId || previewMode) return;
     localStorage.setItem(getStorageKey('currentId'), currentId);
   }, [currentId]);
 
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || previewMode) return;
     localStorage.setItem(getStorageKey('currentMissionId'), currentMissionId);
   }, [currentMissionId]);
 
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || previewMode) return;
     localStorage.setItem(
       getStorageKey('unlockedHints'),
       JSON.stringify(unlockedHints)
@@ -117,7 +125,7 @@ export const GameProvider = ({ children, gameFolder }) => {
   }, [unlockedHints]);
 
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || previewMode) return;
     localStorage.setItem(
       getStorageKey('customPairs'),
       JSON.stringify(customPairs)
@@ -233,4 +241,5 @@ export const GameProvider = ({ children, gameFolder }) => {
 GameProvider.propTypes = {
   children: PropTypes.node.isRequired,
   gameFolder: PropTypes.string,
+  previewMode: PropTypes.bool,
 };

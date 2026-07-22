@@ -88,25 +88,11 @@ export function validateGame(tables) {
     }
   }
 
-  // rundown.id 需為連續整數（useNextId 靠 id+1 推進，斷號會讓遊戲卡住）
-  if (tables.rundown) {
-    const nums = [];
-    for (const { row, i } of rowsOf('rundown')) {
-      if (isEmpty(row.id)) continue; // 已於上一段回報
-      const n = Number(norm(row.id));
-      if (!Number.isInteger(n)) add('rundown', sheetRow(i), 'id', `id「${row.id}」不是整數（rundown 的 id 必須是連續整數）`);
-      else nums.push(n);
-    }
-    if (nums.length) {
-      const present = new Set(nums);
-      const min = Math.min(...nums);
-      const max = Math.max(...nums);
-      if (min !== 1) add('rundown', null, 'id', `rundown 的 id 應從 1 開始，目前最小是 ${min}`);
-      for (let n = 1; n <= max; n++) {
-        if (!present.has(n)) add('rundown', null, 'id', `rundown 的 id 斷號：缺少 id=${n}（遊戲走到這裡會卡住）`);
-      }
-    }
-  }
+  // 註：rundown.id 不必連續、不必從 1 開始、也不必是數字（可用語意名稱當 id）。
+  // 流程靠「物理 row 順序」推進（見 useNextId），分支靠 nextId 字串比對，
+  // 起點取 rundown 第一列（見 game-provider）——都不看 id 的數值。
+  // id 只要「非空且唯一」即可（上一段已驗）；指向是否存在，由層 4 的參照檢查把關。
+  // ⚠️ 不要把「id 必須連續」加回來：那是舊 id+1 推進的遺留，會擋掉完全合法的資料。
 
   // rundown.model 必填 + 合法
   if (tables.rundown) {

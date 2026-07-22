@@ -12,7 +12,7 @@ import GameController from '../game/GameController';
 // 遊戲外殼：底部分頁切換 ＋ 版面，資料從哪來由外面決定
 //   - App.jsx：build-time 的 src/gameFile/（gameFolder 有值，圖片走 IMAGE_MAP）
 //   - CreateApp.jsx：即時轉化的 Google 試算表（gameFolder 為空，圖片走外連網址）
-const GameShell = ({ gameData, gameFolder, previewMode = false }) => {
+const GameShell = ({ gameData, gameFolder, previewMode = false, imgMap = null }) => {
   const [value, setValue] = useState(2);
 
   const renderMainContainer = () => {
@@ -35,7 +35,11 @@ const GameShell = ({ gameData, gameFolder, previewMode = false }) => {
   };
 
   return (
-    <GameProvider gameFolder={gameFolder} previewMode={previewMode}>
+    <GameProvider
+      gameFolder={gameFolder}
+      previewMode={previewMode}
+      imgMap={imgMap}
+    >
       <Box sx={{ height: '100dvh' }}>
         <Container
           maxWidth="sm"
@@ -95,6 +99,7 @@ GameShell.propTypes = {
   gameData: PropTypes.object,
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
+  imgMap: PropTypes.instanceOf(Map),
 };
 
 export default GameShell;

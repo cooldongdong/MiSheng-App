@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Alert,
   Box,
   Button,
+  Chip,
   Container,
+  Divider,
   Link,
   Stack,
   TextField,
@@ -13,9 +15,12 @@ import GameShell from '../component/GameShell';
 import { loadGameFromSheet } from '../game/sheetLoader';
 import { validateGame } from '../validator/validateGame';
 import { checkSheetImages } from './checkSheetImages';
+import { readLocalCsvFiles, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 
-// 即時轉化（/create）：貼一份 Google 試算表連結 → 驗證 → 當場試玩
+// 即時轉化（/create）：資料進來 → 驗證 → 當場試玩
+// 兩條來源都支援：Google 試算表連結／本機 CSV 檔（全本機路線，什麼都不上傳）
+// 圖片可選本機資料夾，表格就照舊填檔名——資料表完全不用改
 // 定位是「免費的一次性私人預覽」：重整就消失、不留存檔、不產生可分享網址
 const CreateApp = () => {
   const [url, setUrl] = useState('');
@@ -23,6 +28,12 @@ const CreateApp = () => {
   const [error, setError] = useState('');
   const [issues, setIssues] = useState([]);
   const [gameData, setGameData] = useState(null);
+
+  const [csvNames, setCsvNames] = useState([]);
+  const [imgMap, setImgMap] = useState(null);
+  const [imgFolderName, setImgFolderName] = useState('');
+  const revokeImgs = useRef(null);
+  const lastTables = useRef({}); // 換圖片來源時要能重驗，留住上一次的 tables
 
   // 表單頁要能捲（報告可能很長）；試玩時是固定一屏的遊戲畫面，要鎖住捲動
   useEffect(() => {
@@ -32,7 +43,18 @@ const CreateApp = () => {
     };
   }, [status]);
 
-  const handleImport = async () => {
+  // 離開頁面時釋放 blob 網址
+  useEffect(() => () => revokeImgs.current?.(), []);
+
+  const runChecks = (tables, csvFiles, map) => {
+    lastTables.current = tables;
+    // 共用 validator（結構／參照／列舉值）＋ 即時轉化專屬的圖片來源檢查
+    setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
+    setGameData(csvFiles);
+    setStatus('checked');
+  };
+
+  const handleImportSheet = async () => {
     setStatus('loading');
     setError('');
     setIssues([]);
@@ -40,13 +62,58 @@ const CreateApp = () => {
 
     try {
       const { csvFiles, tables } = await loadGameFromSheet(url);
-      // 共用 validator（結構／參照／列舉值）＋ 即時轉化專屬的圖片網址檢查
-      setIssues([...validateGame(tables), ...checkSheetImages(tables)]);
-      setGameData(csvFiles);
-      setStatus('checked');
+      setCsvNames([]);
+      runChecks(tables, csvFiles, imgMap);
     } catch (err) {
       setError(err.message || '匯入失敗');
       setStatus('idle');
+    }
+  };
+
+  const handlePickCsvFiles = async (event) => {
+    const files = event.target.files;
+    if (!files?.length) return;
+
+    setStatus('loading');
+    setError('');
+    setIssues([]);
+    setGameData(null);
+
+    try {
+      const { csvFiles, tables, ignored } = await readLocalCsvFiles(files);
+      setCsvNames(Array.from(files).map((f) => f.name));
+      setUrl('');
+      if (ignored.length) {
+        setError(
+          `這些檔名認不出是哪一張表，已略過：${ignored.join('、')}` +
+            '（檔名要是「遊戲名 - rundown.csv」或「rundown.csv」）',
+        );
+      }
+      runChecks(tables, csvFiles, imgMap);
+    } catch (err) {
+      setError(err.message || '讀取失敗');
+      setStatus('idle');
+    }
+  };
+
+  const handlePickImgFolder = (event) => {
+    const files = event.target.files;
+    if (!files?.length) return;
+
+    revokeImgs.current?.();
+    const { map, revoke, count } = buildLocalImageMap(files);
+    revokeImgs.current = revoke;
+    setImgMap(map);
+    setImgFolderName(
+      `${files[0].webkitRelativePath?.split('/')[0] || '資料夾'}（${count} 張圖）`,
+    );
+
+    // 已經驗過的話，用新的圖片來源重驗一次（保留非圖片的原有問題）
+    if (status === 'checked' && gameData) {
+      setIssues([
+        ...validateGame(lastTables.current),
+        ...checkSheetImages(lastTables.current, map),
+      ]);
     }
   };
 
@@ -59,7 +126,7 @@ const CreateApp = () => {
   if (status === 'playing' && gameData) {
     return (
       <>
-        <GameShell gameData={gameData} previewMode />
+        <GameShell gameData={gameData} previewMode imgMap={imgMap} />
         <Button
           size="small"
           variant="contained"
@@ -82,11 +149,15 @@ const CreateApp = () => {
           即時轉化
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          貼上你的 Google 試算表連結，當場檢查並試玩。
+          把你的遊戲資料丟進來，當場檢查並試玩。
           這是一次性的私人預覽——重新整理就會消失，也不會產生可以分享的網址。
         </Typography>
 
-        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          1. 遊戲資料（擇一）
+        </Typography>
+
+        <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
           <TextField
             fullWidth
             size="small"
@@ -95,26 +166,65 @@ const CreateApp = () => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && url) handleImport();
+              if (e.key === 'Enter' && url) handleImportSheet();
             }}
           />
           <Button
             variant="contained"
-            onClick={handleImport}
+            onClick={handleImportSheet}
             disabled={!url || status === 'loading'}
           >
             {status === 'loading' ? '檢查中…' : '檢查'}
           </Button>
         </Stack>
 
+        <Divider sx={{ my: 1.5 }}>或</Divider>
+
+        <Button variant="outlined" component="label" fullWidth>
+          選本機 CSV 檔（7 張表一起選）
+          <input
+            hidden
+            type="file"
+            multiple
+            accept=".csv,text/csv"
+            onChange={handlePickCsvFiles}
+          />
+        </Button>
+        {csvNames.length > 0 && (
+          <Typography variant="caption" color="text.secondary">
+            已讀 {csvNames.length} 個檔案：{csvNames.join('、')}
+          </Typography>
+        )}
+
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 3, mb: 1 }}>
+          2. 圖片（選填）
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          選一個本機圖片資料夾，表格就照舊填檔名（`fengmian.jpg`）即可，不用改成網址。
+          圖片不會上傳，只留在這台電腦。
+        </Typography>
+        <Button variant="outlined" component="label" fullWidth>
+          選本機圖片資料夾
+          <input
+            hidden
+            type="file"
+            webkitdirectory=""
+            multiple
+            onChange={handlePickImgFolder}
+          />
+        </Button>
+        {imgFolderName && (
+          <Chip size="small" sx={{ mt: 1 }} label={`已選：${imgFolderName}`} />
+        )}
+
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="warning" sx={{ mt: 2 }}>
             {error}
           </Alert>
         )}
 
         {status === 'checked' && (
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mt: 3, mb: 3 }}>
             <ValidationReport issues={issues} />
             <Button
               fullWidth
@@ -131,7 +241,7 @@ const CreateApp = () => {
 
         <Box sx={{ mt: 4 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            試算表要怎麼準備
+            資料要怎麼準備
           </Typography>
           <Typography variant="body2" component="ol" sx={{ pl: 2, m: 0 }}>
             <li>
@@ -146,12 +256,15 @@ const CreateApp = () => {
               複製一份，保留 7
               個分頁名稱：config、character、mission、rundown、hint、prop、story。
             </li>
-            <li>右上角「共用」→ 改成「知道連結的任何人」可以檢視。</li>
             <li>
-              圖片欄位填圖片網址。Google
-              雲端硬碟的圖片，把檔案設成「知道連結的任何人」後直接貼分享連結即可。
+              用連結匯入的話，右上角「共用」要改成「知道連結的任何人」可以檢視；
+              用本機 CSV 就不用設定任何權限。
             </li>
-            <li>把網址列的連結複製過來，貼進上面欄位。</li>
+            <li>
+              圖片兩種填法：①選本機圖片資料夾、表格填檔名；②表格直接填圖片網址
+              （Google
+              雲端硬碟的圖片設成「知道連結的任何人」後貼分享連結即可）。
+            </li>
           </Typography>
         </Box>
       </Container>

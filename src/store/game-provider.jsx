@@ -11,7 +11,13 @@ const IMAGE_MAP = import.meta.glob(
 );
 
 // previewMode：即時轉化（/create）的一次性試玩——不讀也不寫 localStorage，重整即消失
-export const GameProvider = ({ children, gameFolder, previewMode = false }) => {
+// imgMap：本機圖片資料夾的「檔名 → blob: 網址」對照表（只有 /create 會給）
+export const GameProvider = ({
+  children,
+  gameFolder,
+  previewMode = false,
+  imgMap = null,
+}) => {
   // 只需匯入一次的遊戲資料
   const [characterData, setCharacterData] = useState(null);
   const [hintData, setHintData] = useState(null);
@@ -30,10 +36,18 @@ export const GameProvider = ({ children, gameFolder, previewMode = false }) => {
     (relPath) => {
       if (!relPath) return null;
 
-      // 外連網址（即時轉化的遊戲只能這樣填）：直接用，不查 build-time 的 IMAGE_MAP
+      // ① 本機圖片資料夾（/create 選了資料夾時）：表格照舊填檔名就好
+      if (imgMap) {
+        const key = String(relPath).trim().replace(/^\/+/, '');
+        const local = imgMap.get(key) ?? imgMap.get(key.split('/').pop());
+        if (local) return local;
+      }
+
+      // ② 外連網址（Drive 分享連結／GitHub raw…）：直接用，不查 build-time 的 IMAGE_MAP
       const external = resolveExternalImg(relPath);
       if (external) return external;
 
+      // ③ build-time 打包進來的 src/gameFile/{遊戲}/img/
       if (!gameFolder) return null;
 
       // 支援子資料夾：relPath 可傳 'bg2.png' 或 'character/a.png'
@@ -45,7 +59,7 @@ export const GameProvider = ({ children, gameFolder, previewMode = false }) => {
 
       return IMAGE_MAP[keyA] ?? IMAGE_MAP[keyB] ?? null; // 找不到就回 null
     },
-    [gameFolder]
+    [gameFolder, imgMap]
   );
 
   // 用 id 查 mission（靠 id 不靠陣列位置，mission 的 row 順序／是否連號都無所謂）
@@ -242,4 +256,5 @@ GameProvider.propTypes = {
   children: PropTypes.node.isRequired,
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
+  imgMap: PropTypes.instanceOf(Map),
 };

@@ -32,9 +32,19 @@ const SMART_CHIP_HINT =
   '提醒：把 Google 雲端硬碟連結貼進試算表時，常會被自動轉成「智慧型晶片」，' +
   '匯出後就變成檔名而不是網址。用「編輯 → 選擇性貼上 → 只貼上值」貼純文字連結可以避免。';
 
-export const checkSheetImages = (tables) => {
+/**
+ * @param tables  { [type]: { fields, rows } }
+ * @param imgMap  本機圖片資料夾對照表（沒選資料夾時為 null）
+ */
+export const checkSheetImages = (tables, imgMap = null) => {
   const issues = [];
   let total = 0;
+
+  const inLocalFolder = (value) => {
+    if (!imgMap) return false;
+    const key = String(value).trim().replace(/^\/+/, '');
+    return imgMap.has(key) || imgMap.has(key.split('/').pop());
+  };
 
   for (const [table, columns] of Object.entries(IMG_FIELDS)) {
     const rows = tables[table]?.rows || [];
@@ -46,6 +56,7 @@ export const checkSheetImages = (tables) => {
         const value = row[column];
         if (isEmpty(value)) return;
         if (/^https?:\/\//i.test(String(value).trim())) return;
+        if (inLocalFolder(value)) return;
         bad.push({ row: sheetRow(i), value });
       });
 
@@ -63,14 +74,16 @@ export const checkSheetImages = (tables) => {
         table,
         row: null,
         column,
-        message:
-          `${bad.length} 格填的不是圖片網址（${sample}${more}），這些圖在畫面上會是空的。` +
-          '即時轉化的遊戲沒有本機圖檔，圖片欄位只能填網址。',
+        message: imgMap
+          ? `${bad.length} 格的圖在你選的資料夾裡找不到（${sample}${more}），這些圖在畫面上會是空的。` +
+            '請確認檔名一模一樣（含大小寫與副檔名），或改填圖片網址。'
+          : `${bad.length} 格填的不是圖片網址（${sample}${more}），這些圖在畫面上會是空的。` +
+            '請改填網址，或改用「本機圖片資料夾」讓程式用檔名去對。',
       });
     }
   }
 
-  if (total > 0) {
+  if (total > 0 && !imgMap) {
     issues.push({
       level: 'warn',
       table: 'config',

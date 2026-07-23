@@ -54,7 +54,7 @@ const FlowMap = ({
     handlers,
   } = useCanvasGestures();
   const started = useRef(false);
-  const [flashId, setFlashId] = useState(null); // 剛跳過去的節點，短暫閃一下
+  const [flash, setFlash] = useState({ id: null, seq: 0 }); // 剛跳過去的節點
   const [smooth, setSmooth] = useState(false); // 程式移動畫面時才開轉場
 
   const graph = useMemo(
@@ -98,17 +98,17 @@ const FlowMap = ({
       );
   }, [activeNodeId, view, centerOn]);
 
-  // 從大綱／搜尋跳過去：畫面用滑的（眼睛跟得上）＋ 到站後閃三下
+  // 從大綱／搜尋跳過去：畫面用滑的（眼睛跟得上）＋ 到站後放漣漪
   const focusWithFlash = (id) => {
     const node = view.nodes.find((n) => n.id === id);
     if (!node) return;
     setSmooth(true);
     centerOn(node.x + NODE_W / 2, node.y + NODE_H / 2, 0.8);
-    setFlashId(id);
+    setFlash((f) => ({ id, seq: f.seq + 1 }));
     window.setTimeout(() => setSmooth(false), 420);
     window.setTimeout(
-      () => setFlashId((cur) => (cur === id ? null : cur)),
-      2200,
+      () => setFlash((cur) => (cur.id === id ? { id: null, seq: cur.seq } : cur)),
+      2400,
     );
   };
 
@@ -155,17 +155,31 @@ const FlowMap = ({
         >
           <svg width="100%" height="100%">
             <defs>
-              <marker
-                id="fm-arrow"
-                viewBox="0 0 8 8"
-                refX="7"
-                refY="4"
-                markerWidth="5"
-                markerHeight="5"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 0 L 8 4 L 0 8 z" fill="#90a4ae" />
-              </marker>
+              <style>{`
+                @keyframes fmRipple {
+                  from { transform: scale(1); opacity: 0.85; }
+                  to   { transform: scale(1.6); opacity: 0; }
+                }
+                @keyframes fmHold {
+                  0%, 65% { opacity: 1; }
+                  100%    { opacity: 0; }
+                }
+              `}</style>
+              {/* 每種線各有自己的箭頭：只換線色不換箭頭會很突兀 */}
+              {Object.entries(EDGE_COLOR).map(([type, color]) => (
+                <marker
+                  key={type}
+                  id={`fm-arrow-${type}`}
+                  viewBox="0 0 8 8"
+                  refX="7"
+                  refY="4"
+                  markerWidth="5"
+                  markerHeight="5"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill={color} />
+                </marker>
+              ))}
               <pattern
                 id="fm-grid"
                 width="24"
@@ -195,7 +209,7 @@ const FlowMap = ({
                     stroke={EDGE_COLOR[e.type] || '#cbd5e1'}
                     strokeWidth={e.type === 'seq' ? 1.5 : 1.8}
                     strokeDasharray={e.type === 'jump' ? '6 4' : undefined}
-                    markerEnd="url(#fm-arrow)"
+                    markerEnd={`url(#fm-arrow-${e.type})`}
                   />
                   {e.label && (
                     <>
@@ -206,13 +220,14 @@ const FlowMap = ({
                         height="18"
                         rx="9"
                         fill="#fff"
-                        stroke="#cfd8dc"
+                        stroke={EDGE_COLOR[e.type] || '#cfd8dc'}
+                        strokeOpacity="0.45"
                       />
                       <text
                         x={e.labelX}
                         y={e.labelY + 4}
                         fontSize="11"
-                        fill="#00695c"
+                        fill={EDGE_COLOR[e.type] || '#546e7a'}
                         textAnchor="middle"
                       >
                         {edgeLabel(e.label)}
@@ -229,7 +244,7 @@ const FlowMap = ({
                 const active = n.id === activeNodeId;
                 // 章節錨點：實心深底＋白字，掃過去一眼就知道「新的一關從這裡開始」
                 const anchor = n.model === 'MissionStart';
-                const flashing = n.id === flashId;
+                const flashing = n.id === flash.id;
                 return (
                   <g
                     key={n.id}
@@ -237,9 +252,9 @@ const FlowMap = ({
                     style={onNodeClick ? { cursor: 'pointer' } : undefined}
                   >
                     {flashing && (
-                      <>
-                        {/* 雷達漣漪：兩圈由節點往外擴散並淡出，錯開 0.5 秒 */}
-                        {[0, 0.5].map((delay) => (
+                      <g key={`${flash.id}-${flash.seq}`}>
+                        {/* 雷達漣漪：兩圈往外擴散淡出（用節點自己的顏色，不另外配色）*/}
+                        {[0, 0.45].map((delay) => (
                           <rect
                             key={delay}
                             x={n.x}
@@ -248,54 +263,16 @@ const FlowMap = ({
                             height={NODE_H}
                             rx="10"
                             fill="none"
-                            stroke="#b2591f"
-                            strokeWidth="3"
-                          >
-                            <animate
-                              attributeName="x"
-                              values={`${n.x};${n.x - 46}`}
-                              dur="1s"
-                              begin={`${delay}s`}
-                              repeatCount="2"
-                            />
-                            <animate
-                              attributeName="y"
-                              values={`${n.y};${n.y - 46}`}
-                              dur="1s"
-                              begin={`${delay}s`}
-                              repeatCount="2"
-                            />
-                            <animate
-                              attributeName="width"
-                              values={`${NODE_W};${NODE_W + 92}`}
-                              dur="1s"
-                              begin={`${delay}s`}
-                              repeatCount="2"
-                            />
-                            <animate
-                              attributeName="height"
-                              values={`${NODE_H};${NODE_H + 92}`}
-                              dur="1s"
-                              begin={`${delay}s`}
-                              repeatCount="2"
-                            />
-                            <animate
-                              attributeName="rx"
-                              values="10;40"
-                              dur="1s"
-                              begin={`${delay}s`}
-                              repeatCount="2"
-                            />
-                            <animate
-                              attributeName="opacity"
-                              values="0.9;0"
-                              dur="1s"
-                              begin={`${delay}s`}
-                              repeatCount="2"
-                            />
-                          </rect>
+                            stroke={color}
+                            strokeWidth="2.5"
+                            style={{
+                              transformBox: 'fill-box',
+                              transformOrigin: 'center',
+                              animation: `fmRipple 1.1s ease-out ${delay}s 2 both`,
+                            }}
+                          />
                         ))}
-                        {/* 漣漪散掉後，外框仍留著，讓人知道「就是這個」 */}
+                        {/* 外框先留著，再自己淡出 */}
                         <rect
                           x={n.x - 5}
                           y={n.y - 5}
@@ -303,10 +280,11 @@ const FlowMap = ({
                           height={NODE_H + 10}
                           rx="14"
                           fill="none"
-                          stroke="#b2591f"
+                          stroke={color}
                           strokeWidth="2.5"
+                          style={{ animation: 'fmHold 2.4s ease-out both' }}
                         />
-                      </>
+                      </g>
                     )}
                     {active && (
                       <rect

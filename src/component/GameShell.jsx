@@ -20,6 +20,7 @@ const GameShell = ({
   gameFolder,
   previewMode = false,
   imgMap = null,
+  leftPanel = null,
   sidePanel = null,
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
   resizable = true,
@@ -80,10 +81,11 @@ const GameShell = ({
       <Box
         sx={{
           height: '100dvh',
-          display: sidePanel ? 'flex' : 'block',
+          display: sidePanel || leftPanel ? 'flex' : 'block',
           alignItems: 'stretch',
         }}
       >
+        {leftPanel}
         <Container
           maxWidth="sm"
           disableGutters={!!sidePanel}
@@ -91,8 +93,13 @@ const GameShell = ({
             height: 'calc(100dvh - 56px)',
             backgroundColor: '#eee',
             width: sidePanel && resizable ? paneW : '100%',
-            flex: sidePanel && resizable ? `0 0 ${paneW}px` : sidePanel ? 1 : undefined,
-            position: sidePanel ? 'relative' : undefined,
+            flex:
+              sidePanel && resizable
+                ? `0 0 ${paneW}px`
+                : sidePanel || leftPanel
+                  ? 1
+                  : undefined,
+            position: leftPanel || sidePanel ? 'relative' : undefined,
             // 收起流程圖時遊戲要置中，不然會黏在左邊、右側一片空白
             margin: sidePanel && resizable ? 0 : undefined,
           }}
@@ -100,7 +107,7 @@ const GameShell = ({
           <Box
             id="main-container"
             sx={{
-              position: sidePanel ? 'absolute' : 'fixed',
+              position: sidePanel || leftPanel ? 'absolute' : 'fixed',
               width: '100%',
               height: 'calc(100dvh - 56px)',
               zIndex: 550,
@@ -127,8 +134,8 @@ const GameShell = ({
             id="TabBar"
             sx={{
               width: '100%',
-              position: sidePanel ? 'absolute' : 'fixed',
-              bottom: sidePanel ? -56 : 0,
+              position: sidePanel || leftPanel ? 'absolute' : 'fixed',
+              bottom: sidePanel || leftPanel ? -56 : 0,
               left: 0,
             }}
           >
@@ -181,6 +188,7 @@ GameShell.propTypes = {
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
   imgMap: PropTypes.instanceOf(Map),
+  leftPanel: PropTypes.node,
   sidePanel: PropTypes.node,
   sideFlex: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   resizable: PropTypes.bool,

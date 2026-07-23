@@ -1,48 +1,50 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Chip,
-  Container,
-  Divider,
-  Link,
+  Fade,
+  IconButton,
+  Slide,
   Stack,
-  TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
 import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded';
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import GameShell from '../component/GameShell';
 import { loadGameFromSheet } from '../game/sheetLoader';
 import { validateGame } from '../validator/validateGame';
 import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder } from './localFiles';
 import ValidationReport from './ValidationReport';
-import FlowMap from './FlowMap';
+import SourcePicker from './SourcePicker';
+import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 
 // 即時轉化（/create）：資料進來 → 驗證 → 當場試玩
-// 兩條來源都支援：Google 試算表連結／本機 CSV 檔（全本機路線，什麼都不上傳）
-// 圖片可選本機資料夾，表格就照舊填檔名——資料表完全不用改
+//
+// 三個畫面狀態：
+//   idle/loading —— 只有一個動作：把遊戲資料夾丟進來（SourcePicker）
+//   checked      —— 檢查結果 ＋ 開始試玩
+//   playing      —— 左：資料來源與驗證報告／中：遊戲／右：流程圖
+//
 // 定位是「免費的一次性私人預覽」：重整就消失、不留存檔、不產生可分享網址
 const CreateApp = () => {
-  const [url, setUrl] = useState('');
   const [status, setStatus] = useState('idle'); // idle | loading | checked | playing
   const [error, setError] = useState('');
   const [issues, setIssues] = useState([]);
   const [gameData, setGameData] = useState(null);
-
   const [imgMap, setImgMap] = useState(null);
-  const [source, setSource] = useState(''); // 目前這份資料從哪來，顯示用
-  const [showFlow, setShowFlow] = useState(false);
-  const [flowBeside, setFlowBeside] = useState(true); // 試玩時是否並排流程圖
+  const [source, setSource] = useState('');
   const [rundownRows, setRundownRows] = useState([]);
-  const revokeImgs = useRef(null);
-  const lastTables = useRef({}); // 換圖片來源時要能重驗，留住上一次的 tables
 
-  // 表單頁要能捲（報告可能很長）；試玩時是固定一屏的遊戲畫面，要鎖住捲動
+  const [showSource, setShowSource] = useState(true); // 左側面板
+  const [showFlow, setShowFlow] = useState(true); // 右側流程圖
+
+  const revokeImgs = useRef(null);
+
+  // 表單頁要能捲；試玩時是固定一屏的版面，要鎖住捲動
   useEffect(() => {
     document.body.style.overflow = status === 'playing' ? 'hidden' : '';
     return () => {
@@ -50,24 +52,18 @@ const CreateApp = () => {
     };
   }, [status]);
 
-  // 離開頁面時釋放 blob 網址
   useEffect(() => () => revokeImgs.current?.(), []);
 
   const runChecks = (tables, csvFiles, map) => {
-    lastTables.current = tables;
     setRundownRows(tables.rundown?.rows || []);
-    // 共用 validator（結構／參照／列舉值）＋ 即時轉化專屬的圖片來源檢查
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     setGameData(csvFiles);
     setStatus('checked');
   };
 
-  const handleImportSheet = async () => {
+  const handleSheet = async (url) => {
     setStatus('loading');
     setError('');
-    setIssues([]);
-    setGameData(null);
-
     try {
       const { csvFiles, tables } = await loadGameFromSheet(url);
       revokeImgs.current?.();
@@ -81,16 +77,10 @@ const CreateApp = () => {
     }
   };
 
-  // 選一整個遊戲資料夾：CSV 和圖片都在裡面，使用者只做一個動作
-  const handlePickGameFolder = async (event) => {
-    const files = event.target.files;
+  const handleFolder = async (files) => {
     if (!files?.length) return;
-
     setStatus('loading');
     setError('');
-    setIssues([]);
-    setGameData(null);
-
     try {
       const {
         csvFiles,
@@ -105,15 +95,12 @@ const CreateApp = () => {
       revokeImgs.current?.();
       revokeImgs.current = revoke;
       setImgMap(map);
-      setUrl('');
       setSource(
-        `資料夾「${folderName}」：${Object.keys(csvFiles).length} 張表 ＋ ${imgCount} 張圖，全部在本機讀取完成`
+        `${folderName}：${Object.keys(csvFiles).length} 張表 ＋ ${imgCount} 張圖`
       );
-
       if (ignored.length) {
         setError(
-          `這些 CSV 的檔名認不出是哪一張表，已略過：${ignored.join('、')}` +
-            '（檔名要是「遊戲名 - rundown.csv」或「rundown.csv」）',
+          `這些 CSV 的檔名認不出是哪一張表，已略過：${ignored.join('、')}`
         );
       }
       runChecks(tables, csvFiles, map);
@@ -127,34 +114,14 @@ const CreateApp = () => {
     setStatus('idle');
     setGameData(null);
     setIssues([]);
+    setError('');
   };
 
-  if (status === 'playing' && gameData) {
-    const beside = flowBeside && rundownRows.length > 0;
+  const hasError = issues.some((it) => it.level === 'error');
 
-    // 固定在畫面右上角，位置不隨流程圖／大綱收合而變
-    const actions = (
-      <>
-        <Tooltip title="換一份遊戲資料">
-          <IconButton size="small" onClick={reset}>
-            <Box
-              component="img"
-              src="/MiSheng-logo-w.svg"
-              alt="換一份"
-              sx={{ width: 20, height: 20, filter: 'invert(0.35)' }}
-            />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={beside ? '收起流程圖' : '並排流程圖'}>
-          <IconButton size="small" onClick={() => setFlowBeside((v) => !v)}>
-            <ViewSidebarRoundedIcon
-              fontSize="small"
-              color={beside ? 'primary' : 'inherit'}
-            />
-          </IconButton>
-        </Tooltip>
-      </>
-    );
+  // ---- 試玩中：三欄 ----
+  if (status === 'playing' && gameData) {
+    const beside = showFlow && rundownRows.length > 0;
 
     return (
       <>
@@ -162,13 +129,19 @@ const CreateApp = () => {
           gameData={gameData}
           previewMode
           imgMap={imgMap}
+          leftPanel={
+            <Slide direction="right" in={showSource} mountOnEnter unmountOnExit appear>
+              <Box>
+                <SourcePanel source={source} issues={issues} onReset={reset} />
+              </Box>
+            </Slide>
+          }
           sideFlex={beside ? 1 : undefined}
           resizable={beside}
-          sidePanel={
-            beside ? <FlowPanel rundownRows={rundownRows} /> : null
-          }
+          sidePanel={beside ? <FlowPanel rundownRows={rundownRows} /> : null}
         />
-        {/* 固定在右上角：不管流程圖收起或展開都在同一個位置 */}
+
+        {/* 固定右上角：兩側面板的開關，位置不隨面板收合而變 */}
         <Stack
           direction="row"
           spacing={0.5}
@@ -183,157 +156,97 @@ const CreateApp = () => {
             px: 0.5,
           }}
         >
-          {actions}
+          <Tooltip title={showSource ? '收起資料來源' : '顯示資料來源'}>
+            <IconButton size="small" onClick={() => setShowSource((v) => !v)}>
+              <Box
+                component="img"
+                src="/MiSheng-logo-w.svg"
+                alt="資料來源"
+                sx={{
+                  width: 20,
+                  height: 20,
+                  filter: showSource ? 'invert(0.2)' : 'invert(0.6)',
+                }}
+              />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={beside ? '收起流程圖' : '並排流程圖'}>
+            <IconButton size="small" onClick={() => setShowFlow((v) => !v)}>
+              <ViewSidebarRoundedIcon
+                fontSize="small"
+                color={beside ? 'primary' : 'inherit'}
+              />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </>
     );
   }
 
-  const hasError = issues.some((it) => it.level === 'error');
-
-  return (
-    <Box sx={{ minHeight: '100dvh', bgcolor: '#fff', width: '100%' }}>
-      <Container maxWidth="sm" sx={{ py: 4 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-          即時轉化
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          把你的遊戲資料丟進來，當場檢查並試玩。
-          這是一次性的私人預覽——重新整理就會消失，也不會產生可以分享的網址。
-        </Typography>
-
-        <Button
-          variant="contained"
-          component="label"
-          fullWidth
-          size="large"
-          sx={{ py: 1.5 }}
+  // ---- 檢查結果 ----
+  if (status === 'checked') {
+    return (
+      <Fade in>
+        <Box
+          sx={{
+            minHeight: '100dvh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 2,
+          }}
         >
-          選擇遊戲資料夾
-          <input
-            hidden
-            type="file"
-            webkitdirectory=""
-            multiple
-            onChange={handlePickGameFolder}
-          />
-        </Button>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', mt: 1 }}
-        >
-          整個資料夾選進來就好——7 張 CSV 和圖片都在裡面，程式自己分，
-          表格照舊填檔名不用改成網址。
-        </Typography>
-        <Alert severity="info" icon={false} sx={{ mt: 1, py: 0.5 }}>
-          <Typography variant="caption" component="div">
-            <strong>你的檔案不會離開這台電腦。</strong>
-            瀏覽器接下來會問「要將 N 個檔案<u>上傳</u>到這個網站嗎？」——那是瀏覽器
-            對「讀取資料夾」的固定說法，我們改不了它的用字。謎生沒有伺服器可以收檔案，
-            全部都在你的瀏覽器裡讀完就結束；
-            你可以先<strong>關掉網路</strong>再操作一次，功能一樣正常。
-          </Typography>
-        </Alert>
+          <Box sx={{ width: '100%', maxWidth: 560 }}>
+            <Typography variant="overline" sx={{ color: '#90a4ae', letterSpacing: 1 }}>
+              檢查結果
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#263238', mb: 0.5 }}>
+              {source}
+            </Typography>
 
-        {source && (
-          <Chip size="small" sx={{ mt: 1.5 }} label={`已載入：${source}`} />
-        )}
+            <Stack direction="row" spacing={1} sx={{ mb: 2.5, mt: 1.5 }}>
+              <Chip
+                size="small"
+                color={hasError ? 'error' : 'success'}
+                variant={hasError ? 'filled' : 'outlined'}
+                label={hasError ? '需要修正' : '可以生成'}
+              />
+              <Chip size="small" variant="outlined" label={`${rundownRows.length} 列流程`} />
+            </Stack>
 
-        <Divider sx={{ my: 3 }}>或</Divider>
-
-        <Stack direction="row" spacing={1}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Google 試算表連結"
-            placeholder="https://docs.google.com/spreadsheets/d/..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && url) handleImportSheet();
-            }}
-          />
-          <Button
-            variant="outlined"
-            onClick={handleImportSheet}
-            disabled={!url || status === 'loading'}
-          >
-            {status === 'loading' ? '檢查中…' : '檢查'}
-          </Button>
-        </Stack>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', mt: 1 }}
-        >
-          試算表要「共用給知道連結的任何人」。這條路的圖片欄位目前要填圖片網址。
-        </Typography>
-
-        {error && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {status === 'checked' && (
-          <Box sx={{ mt: 3, mb: 3 }}>
-            <ValidationReport issues={issues} />
-            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+            <Stack direction="row" spacing={1}>
               <Button
                 fullWidth
-                variant="contained"
                 size="large"
+                variant="contained"
+                startIcon={<PlayArrowRoundedIcon />}
                 disabled={hasError}
                 onClick={() => setStatus('playing')}
               >
                 {hasError ? '請先修正錯誤' : '開始試玩'}
               </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                onClick={() => setShowFlow((v) => !v)}
-                disabled={!rundownRows.length}
-              >
-                {showFlow ? '收起流程圖' : '看流程圖'}
+              <Button size="large" variant="text" onClick={reset}>
+                換一份
               </Button>
             </Stack>
 
-            {showFlow && rundownRows.length > 0 && (
-              <FlowMap rundownRows={rundownRows} />
-            )}
+            <Box sx={{ mt: 3, maxHeight: '46vh', overflow: 'auto' }}>
+              <ValidationReport issues={issues} />
+            </Box>
           </Box>
-        )}
-
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            資料要怎麼準備
-          </Typography>
-          <Typography variant="body2" component="ol" sx={{ pl: 2, m: 0 }}>
-            <li>
-              從{' '}
-              <Link
-                href="https://docs.google.com/spreadsheets/d/16U8l6eeu7BaWwH3TOf09T40FkHmVKJepNWtA9pjBQfU/edit"
-                target="_blank"
-                rel="noreferrer"
-              >
-                謎生範本
-              </Link>{' '}
-              複製一份，保留 7
-              個分頁名稱：config、character、mission、rundown、hint、prop、story。
-            </li>
-            <li>
-              把 7 張表匯出成 CSV，跟圖片放進同一個資料夾（圖片可以放 img/
-              子資料夾），然後整個資料夾選進來。不用設定任何權限。
-            </li>
-            <li>
-              圖片欄位照舊填檔名（`fengmian.jpg`），程式會在你選的資料夾裡找。
-            </li>
-          </Typography>
         </Box>
-      </Container>
-    </Box>
+      </Fade>
+    );
+  }
+
+  // ---- 開始畫面 ----
+  return (
+    <SourcePicker
+      loading={status === 'loading'}
+      onFolder={handleFolder}
+      onSheet={handleSheet}
+      error={error}
+    />
   );
 };
 

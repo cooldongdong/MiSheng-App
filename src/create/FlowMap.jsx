@@ -5,6 +5,7 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import MouseRoundedIcon from '@mui/icons-material/MouseRounded';
 import GestureRoundedIcon from '@mui/icons-material/GestureRounded';
 import FormatListBulletedRoundedIcon from '@mui/icons-material/FormatListBulletedRounded';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import WidthFullRoundedIcon from '@mui/icons-material/WidthFullRounded';
 import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
@@ -41,6 +42,7 @@ const FlowMap = ({
   // 預設展開全部列：Dong 的使用習慣是先看到全貌，再自己決定要不要摺疊
   const [collapse, setCollapse] = useState(false);
   const [showOutline, setShowOutline] = useState(dense);
+  const [showLegend, setShowLegend] = useState(true);
   const {
     boxRef,
     transform,
@@ -157,8 +159,8 @@ const FlowMap = ({
             <defs>
               <style>{`
                 @keyframes fmRipple {
-                  from { transform: scale(1); opacity: 0.85; }
-                  to   { transform: scale(1.6); opacity: 0; }
+                  from { transform: scale(1); opacity: 0.9; }
+                  to   { transform: scale(1.45); opacity: 0; }
                 }
                 @keyframes fmHold {
                   0%, 65% { opacity: 1; }
@@ -253,25 +255,23 @@ const FlowMap = ({
                   >
                     {flashing && (
                       <g key={`${flash.id}-${flash.seq}`}>
-                        {/* 雷達漣漪：兩圈往外擴散淡出（用節點自己的顏色，不另外配色）*/}
-                        {[0, 0.45].map((delay) => (
-                          <rect
-                            key={delay}
-                            x={n.x}
-                            y={n.y}
-                            width={NODE_W}
-                            height={NODE_H}
-                            rx="10"
-                            fill="none"
-                            stroke={color}
-                            strokeWidth="2.5"
-                            style={{
-                              transformBox: 'fill-box',
-                              transformOrigin: 'center',
-                              animation: `fmRipple 1.1s ease-out ${delay}s 2 both`,
-                            }}
-                          />
-                        ))}
+                        {/* 漣漪：整個外框以節點中心等比放大並淡出，只放一次 */}
+                        <rect
+                          x={n.x}
+                          y={n.y}
+                          width={NODE_W}
+                          height={NODE_H}
+                          rx="10"
+                          fill="none"
+                          stroke={color}
+                          strokeWidth="2.5"
+                          style={{
+                            transformOrigin: `${n.x + NODE_W / 2}px ${
+                              n.y + NODE_H / 2
+                            }px`,
+                            animation: 'fmRipple 900ms ease-out both',
+                          }}
+                        />
                         {/* 外框先留著，再自己淡出 */}
                         <rect
                           x={n.x - 5}
@@ -461,6 +461,14 @@ const FlowMap = ({
               )}
             </IconButton>
           </Tooltip>
+          <Tooltip title={showLegend ? '隱藏圖例' : '顯示圖例'}>
+            <IconButton size="small" onClick={() => setShowLegend((v) => !v)}>
+              <InfoOutlinedIcon
+                fontSize="small"
+                color={showLegend ? 'primary' : 'inherit'}
+              />
+            </IconButton>
+          </Tooltip>
           <Tooltip title={showOutline ? '收起大綱' : '顯示大綱／搜尋'}>
             <IconButton size="small" onClick={() => setShowOutline((v) => !v)}>
               <FormatListBulletedRoundedIcon
@@ -471,7 +479,7 @@ const FlowMap = ({
           </Tooltip>
         </Stack>
 
-        <FlowLegend clickable={!!onNodeClick} />
+        {showLegend && <FlowLegend clickable={!!onNodeClick} />}
       </Box>
 
       {showOutline && (

@@ -37,6 +37,7 @@ const CreateApp = () => {
   const [gameData, setGameData] = useState(null);
   const [imgMap, setImgMap] = useState(null);
   const [source, setSource] = useState('');
+  const [sheetUrl, setSheetUrl] = useState(''); // 記住來源，才能就地重新讀取
   const [rundownRows, setRundownRows] = useState([]);
 
   const [showSource, setShowSource] = useState(true); // 左側面板
@@ -54,14 +55,16 @@ const CreateApp = () => {
 
   useEffect(() => () => revokeImgs.current?.(), []);
 
-  const runChecks = (tables, csvFiles, map) => {
+  // keepPlaying：在左側面板就地換資料時，不要退回檢查畫面
+  const runChecks = (tables, csvFiles, map, keepPlaying) => {
     setRundownRows(tables.rundown?.rows || []);
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     setGameData(csvFiles);
-    setStatus('checked');
+    setStatus(keepPlaying ? 'playing' : 'checked');
   };
 
   const handleSheet = async (url) => {
+    const keepPlaying = status === 'playing';
     setStatus('loading');
     setError('');
     try {
@@ -69,8 +72,9 @@ const CreateApp = () => {
       revokeImgs.current?.();
       revokeImgs.current = null;
       setImgMap(null);
+      setSheetUrl(url);
       setSource('Google 試算表');
-      runChecks(tables, csvFiles, null);
+      runChecks(tables, csvFiles, null, keepPlaying);
     } catch (err) {
       setError(err.message || '匯入失敗');
       setStatus('idle');
@@ -79,6 +83,7 @@ const CreateApp = () => {
 
   const handleFolder = async (files) => {
     if (!files?.length) return;
+    const keepPlaying = status === 'playing';
     setStatus('loading');
     setError('');
     try {
@@ -95,6 +100,7 @@ const CreateApp = () => {
       revokeImgs.current?.();
       revokeImgs.current = revoke;
       setImgMap(map);
+      setSheetUrl('');
       setSource(
         `${folderName}：${Object.keys(csvFiles).length} 張表 ＋ ${imgCount} 張圖`
       );
@@ -103,7 +109,7 @@ const CreateApp = () => {
           `這些 CSV 的檔名認不出是哪一張表，已略過：${ignored.join('、')}`
         );
       }
-      runChecks(tables, csvFiles, map);
+      runChecks(tables, csvFiles, map, keepPlaying);
     } catch (err) {
       setError(err.message || '讀取失敗');
       setStatus('idle');
@@ -132,7 +138,13 @@ const CreateApp = () => {
           leftPanel={
             <Slide direction="right" in={showSource} mountOnEnter unmountOnExit appear>
               <Box>
-                <SourcePanel source={source} issues={issues} onReset={reset} />
+                <SourcePanel
+                  source={source}
+                  issues={issues}
+                  onPickFolder={handleFolder}
+                  onReload={() => handleSheet(sheetUrl)}
+                  canReload={!!sheetUrl}
+                />
               </Box>
             </Slide>
           }

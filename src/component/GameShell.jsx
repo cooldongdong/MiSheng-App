@@ -26,24 +26,40 @@ const GameShell = ({
   resizable = true,
 }) => {
   const [value, setValue] = useState(2);
-  // 並排時遊戲那半的寬度，可以拖分隔線調整
+  // 兩條分隔線：左面板寬度、遊戲那欄的寬度
+  const [leftW, setLeftW] = useState(268);
   const [paneW, setPaneW] = useState(420);
-  const dragging = useRef(false);
+  const dragging = useRef(null); // 'left' | 'right' | null
+  const gameRef = useRef(null);
 
-  const onSplitDown = useCallback((e) => {
-    dragging.current = true;
-    e.preventDefault();
-  }, []);
+  const startDrag = useCallback(
+    (which) => (e) => {
+      dragging.current = which;
+      e.preventDefault();
+    },
+    []
+  );
 
   useEffect(() => {
-    if (!sidePanel) return undefined;
     const onMove = (e) => {
       if (!dragging.current) return;
       const x = e.touches ? e.touches[0].clientX : e.clientX;
-      setPaneW(Math.min(window.innerWidth - 280, Math.max(300, x)));
+
+      // 視窗寬度取不到時（例如分頁在背景）會是 0，夾擠順序要讓「最小值」在最外層，
+      // 否則會算出負寬度、整欄塌掉
+      const vw = document.documentElement.clientWidth || window.innerWidth || 1280;
+
+      if (dragging.current === 'left') {
+        setLeftW(Math.max(200, Math.min(x, vw - 420)));
+        return;
+      }
+      // 遊戲那欄的寬度＝游標位置減掉它的左邊界（有左面板時不能直接用 clientX，
+      // 不然分隔線會超前游標一個左面板的寬度，拖起來就跟不上手）
+      const left = gameRef.current?.getBoundingClientRect().left ?? 0;
+      setPaneW(Math.max(300, Math.min(x - left, vw - left - 280)));
     };
     const onUp = () => {
-      dragging.current = false;
+      dragging.current = null;
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -51,7 +67,28 @@ const GameShell = ({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [sidePanel]);
+  }, []);
+
+  // 兩條分隔線長一樣
+  const splitterSx = {
+    flex: '0 0 8px',
+    cursor: 'col-resize',
+    bgcolor: '#e2e8f0',
+    position: 'relative',
+    zIndex: 600,
+    '&:hover': { bgcolor: '#cbd5e1' },
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '2px',
+      height: '28px',
+      borderRadius: '1px',
+      bgcolor: '#94a3b8',
+    },
+  };
 
   const renderMainContainer = () => {
     if (!gameData) return <div>載入中...</div>;
@@ -85,8 +122,16 @@ const GameShell = ({
           alignItems: 'stretch',
         }}
       >
-        {leftPanel}
+        {leftPanel && (
+          <>
+            <Box sx={{ flex: `0 0 ${leftW}px`, minWidth: 0, height: '100dvh' }}>
+              {leftPanel}
+            </Box>
+            <Box onPointerDown={startDrag('left')} sx={splitterSx} />
+          </>
+        )}
         <Container
+          ref={gameRef}
           maxWidth="sm"
           disableGutters={!!sidePanel}
           sx={{
@@ -150,28 +195,7 @@ const GameShell = ({
           <>
             {/* 拖這條可以調整兩邊的比例 */}
             {resizable && (
-            <Box
-              onPointerDown={onSplitDown}
-              sx={{
-                flex: '0 0 8px',
-                cursor: 'col-resize',
-                bgcolor: '#e2e8f0',
-                position: 'relative',
-                zIndex: 600,
-                '&:hover': { bgcolor: '#cbd5e1' },
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '2px',
-                  height: '28px',
-                  borderRadius: '1px',
-                  bgcolor: '#94a3b8',
-                },
-              }}
-            />
+              <Box onPointerDown={startDrag('right')} sx={splitterSx} />
             )}
             <Box sx={{ flex: sideFlex, minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
               {sidePanel}

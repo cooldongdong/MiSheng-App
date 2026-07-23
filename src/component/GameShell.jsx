@@ -21,6 +21,8 @@ const GameShell = ({
   previewMode = false,
   imgMap = null,
   sidePanel = null,
+  sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
+  resizable = true,
 }) => {
   const [value, setValue] = useState(2);
   // 並排時遊戲那半的寬度，可以拖分隔線調整
@@ -88,10 +90,11 @@ const GameShell = ({
           sx={{
             height: 'calc(100dvh - 56px)',
             backgroundColor: '#eee',
-            width: sidePanel ? paneW : '100%',
-            flex: sidePanel ? `0 0 ${paneW}px` : undefined,
+            width: sidePanel && resizable ? paneW : '100%',
+            flex: sidePanel && resizable ? `0 0 ${paneW}px` : sidePanel ? 1 : undefined,
             position: sidePanel ? 'relative' : undefined,
-            margin: sidePanel ? 0 : undefined,
+            // 收起流程圖時遊戲要置中，不然會黏在左邊、右側一片空白
+            margin: sidePanel && resizable ? 0 : undefined,
           }}
         >
           <Box
@@ -139,6 +142,7 @@ const GameShell = ({
         {sidePanel && (
           <>
             {/* 拖這條可以調整兩邊的比例 */}
+            {resizable && (
             <Box
               onPointerDown={onSplitDown}
               sx={{
@@ -161,7 +165,8 @@ const GameShell = ({
                 },
               }}
             />
-            <Box sx={{ flex: 1, minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
+            )}
+            <Box sx={{ flex: sideFlex, minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
               {sidePanel}
             </Box>
           </>
@@ -177,6 +182,8 @@ GameShell.propTypes = {
   previewMode: PropTypes.bool,
   imgMap: PropTypes.instanceOf(Map),
   sidePanel: PropTypes.node,
+  sideFlex: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  resizable: PropTypes.bool,
 };
 
 export default GameShell;

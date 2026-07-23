@@ -72,7 +72,9 @@ export const useCanvasGestures = () => {
       const zooming = modeRef.current === 'mouse' ? !e.shiftKey : pinchGesture;
 
       if (zooming) {
-        zoomAt(cx, cy, Math.exp(-e.deltaY * 0.0015));
+        // 觸控板捏合每次只送幾個 delta，倍率要放大很多倍才跟得上手指
+        const rate = pinchGesture ? 0.012 : 0.0022;
+        zoomAt(cx, cy, Math.exp(-e.deltaY * rate));
       } else {
         setT((p) => ({ ...p, x: p.x - e.deltaX, y: p.y - e.deltaY }));
       }
@@ -152,21 +154,18 @@ export const useCanvasGestures = () => {
     }
   };
 
-  const fit = useCallback((view) => {
+  // 「撐滿左右」：把節點欄寬度填滿畫布寬度（不是把整張圖縮成一顆芝麻）
+  const fitWidth = useCallback((view) => {
     const box = boxRef.current;
-    if (!box || !view?.width) return;
-    const pad = 24;
-    const k = clampK(
-      Math.min(
-        (box.clientWidth - pad * 2) / view.width,
-        (box.clientHeight - pad * 2) / view.height
-      )
-    );
-    setT({
+    if (!box || !view?.nodeWidth) return;
+    const pad = 40;
+    const k = clampK((box.clientWidth - pad * 2) / view.nodeWidth);
+    setT((p) => ({
       k,
-      x: (box.clientWidth - view.width * k) / 2 - view.minX * k,
-      y: pad,
-    });
+      x: box.clientWidth / 2 - view.nodeCenterX * k,
+      // 維持目前看的高度位置，只換縮放
+      y: p.k ? (p.y * k) / p.k : 16,
+    }));
   }, []);
 
   // 把某個座標移到畫面中央；可指定縮放
@@ -197,7 +196,7 @@ export const useCanvasGestures = () => {
     mode,
     toggleMode,
     zoomAt,
-    fit,
+    fitWidth,
     centerOn,
     resetView,
     wasDragged: () => dragged.current,

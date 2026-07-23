@@ -6,7 +6,7 @@ import MouseRoundedIcon from '@mui/icons-material/MouseRounded';
 import TouchAppRoundedIcon from '@mui/icons-material/TouchAppRounded';
 import ListAltRoundedIcon from '@mui/icons-material/ListAltRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
-import FitScreenRoundedIcon from '@mui/icons-material/FitScreenRounded';
+import WidthFullRoundedIcon from '@mui/icons-material/WidthFullRounded';
 import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
 import UnfoldLessRoundedIcon from '@mui/icons-material/UnfoldLessRounded';
 import { buildFlowGraph } from './flowGraph';
@@ -36,6 +36,7 @@ const FlowMap = ({
   onNodeClick = null,
   dense = false,
   missionTitles = null,
+  toolbarActions = null,
 }) => {
   const [collapse, setCollapse] = useState(true);
   const [showOutline, setShowOutline] = useState(dense);
@@ -45,7 +46,7 @@ const FlowMap = ({
     mode,
     toggleMode,
     zoomAt,
-    fit,
+    fitWidth,
     centerOn,
     resetView,
     wasDragged,
@@ -55,7 +56,7 @@ const FlowMap = ({
 
   const graph = useMemo(
     () => buildFlowGraph(rundownRows, { collapse }),
-    [rundownRows, collapse]
+    [rundownRows, collapse],
   );
   const view = useMemo(() => layoutFlow(graph), [graph]);
 
@@ -77,7 +78,7 @@ const FlowMap = ({
     if (exact) return exact.id;
     const num = Number(activeId);
     const inRange = graph.nodes.find(
-      (n) => n.merged > 1 && Number(n.id) <= num && num <= Number(n.lastId)
+      (n) => n.merged > 1 && Number(n.id) <= num && num <= Number(n.lastId),
     );
     return inRange ? inRange.id : null;
   }, [activeId, graph.nodes]);
@@ -86,7 +87,12 @@ const FlowMap = ({
   useEffect(() => {
     if (!activeNodeId) return;
     const node = view.nodes.find((n) => n.id === activeNodeId);
-    if (node) centerOn(node.x + NODE_W / 2, node.y + NODE_H / 2, started.current ? undefined : 0.6);
+    if (node)
+      centerOn(
+        node.x + NODE_W / 2,
+        node.y + NODE_H / 2,
+        started.current ? undefined : 0.6,
+      );
   }, [activeNodeId, view, centerOn]);
 
   const handleNodeClick = (id) => {
@@ -101,251 +107,341 @@ const FlowMap = ({
   };
 
   return (
-    <Box sx={{ display: 'flex', height: dense ? '100dvh' : '70vh', mt: dense ? 0 : 2 }}>
     <Box
       sx={{
-        position: 'relative',
-        flex: 1,
-        minWidth: 0,
-        height: '100%',
-        border: dense ? 'none' : '1px solid #e0e0e0',
-        borderLeft: dense ? '1px solid #e0e0e0' : undefined,
-        borderRadius: dense ? 0 : 2,
-        overflow: 'hidden',
-        bgcolor: '#fafafa',
+        display: 'flex',
+        height: dense ? '100dvh' : '70vh',
+        mt: dense ? 0 : 2,
       }}
     >
       <Box
-        ref={boxRef}
-        {...handlers}
         sx={{
-          position: 'absolute',
-          inset: 0,
-          cursor: 'grab',
-          touchAction: 'none',
-          // 拖曳畫布時不要把節點文字整片選起來（這是畫布不是文件）
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          '&:active': { cursor: 'grabbing' },
+          position: 'relative',
+          flex: 1,
+          minWidth: 0,
+          height: '100%',
+          border: dense ? 'none' : '1px solid #e0e0e0',
+          borderLeft: dense ? '1px solid #e0e0e0' : undefined,
+          borderRadius: dense ? 0 : 2,
+          overflow: 'hidden',
+          bgcolor: '#fafafa',
         }}
       >
-        <svg width="100%" height="100%">
-          <defs>
-            <marker
-              id="fm-arrow"
-              viewBox="0 0 8 8"
-              refX="7"
-              refY="4"
-              markerWidth="5"
-              markerHeight="5"
-              orient="auto-start-reverse"
+        <Box
+          ref={boxRef}
+          {...handlers}
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            cursor: 'grab',
+            touchAction: 'none',
+            // 拖曳畫布時不要把節點文字整片選起來（這是畫布不是文件）
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            '&:active': { cursor: 'grabbing' },
+          }}
+        >
+          <svg width="100%" height="100%">
+            <defs>
+              <marker
+                id="fm-arrow"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="5"
+                markerHeight="5"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#90a4ae" />
+              </marker>
+              <pattern
+                id="fm-grid"
+                width="24"
+                height="24"
+                patternUnits="userSpaceOnUse"
+              >
+                <circle cx="1" cy="1" r="1" fill="#dfe3e6" />
+              </pattern>
+            </defs>
+
+            <rect width="100%" height="100%" fill="url(#fm-grid)" />
+
+            <g
+              transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}
+              fontFamily="system-ui, -apple-system, 'Noto Sans TC', sans-serif"
             >
-              <path d="M 0 0 L 8 4 L 0 8 z" fill="#90a4ae" />
-            </marker>
-            <pattern id="fm-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="#dfe3e6" />
-            </pattern>
-          </defs>
-
-          <rect width="100%" height="100%" fill="url(#fm-grid)" />
-
-          <g
-            transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}
-            fontFamily="system-ui, -apple-system, 'Noto Sans TC', sans-serif"
-          >
-            {view.edges.map((e, i) => (
-              <g key={`${e.from}-${e.to}-${i}`}>
-                <path
-                  d={e.d}
-                  fill="none"
-                  stroke={EDGE_COLOR[e.type] || '#cbd5e1'}
-                  strokeWidth={e.type === 'seq' ? 1.5 : 1.8}
-                  strokeDasharray={e.type === 'jump' ? '6 4' : undefined}
-                  markerEnd="url(#fm-arrow)"
-                />
-                {e.label && (
-                  <>
-                    <rect
-                      x={e.labelX - labelBoxWidth(e.label) / 2}
-                      y={e.labelY - 9}
-                      width={labelBoxWidth(e.label)}
-                      height="18"
-                      rx="9"
-                      fill="#fff"
-                      stroke="#cfd8dc"
-                    />
-                    <text
-                      x={e.labelX}
-                      y={e.labelY + 4}
-                      fontSize="11"
-                      fill="#00695c"
-                      textAnchor="middle"
-                    >
-                      {edgeLabel(e.label)}
-                    </text>
-                  </>
-                )}
-              </g>
-            ))}
-
-            {view.nodes.map((n) => {
-              const color = MODEL_COLOR[n.model] || '#64748b';
-              const tint = MODEL_TINT[n.model] || '#f8fafc';
-              const bad = !n.reachable;
-              const active = n.id === activeNodeId;
-              return (
-                <g
-                  key={n.id}
-                  onClick={() => handleNodeClick(n.id)}
-                  style={onNodeClick ? { cursor: 'pointer' } : undefined}
-                >
-                  {active && (
-                    <rect
-                      x={n.x - 5}
-                      y={n.y - 5}
-                      width={NODE_W + 10}
-                      height={NODE_H + 10}
-                      rx="13"
-                      fill="none"
-                      stroke={color}
-                      strokeWidth="2.5"
-                      opacity="0.45"
-                    />
+              {view.edges.map((e, i) => (
+                <g key={`${e.from}-${e.to}-${i}`}>
+                  <path
+                    d={e.d}
+                    fill="none"
+                    stroke={EDGE_COLOR[e.type] || '#cbd5e1'}
+                    strokeWidth={e.type === 'seq' ? 1.5 : 1.8}
+                    strokeDasharray={e.type === 'jump' ? '6 4' : undefined}
+                    markerEnd="url(#fm-arrow)"
+                  />
+                  {e.label && (
+                    <>
+                      <rect
+                        x={e.labelX - labelBoxWidth(e.label) / 2}
+                        y={e.labelY - 9}
+                        width={labelBoxWidth(e.label)}
+                        height="18"
+                        rx="9"
+                        fill="#fff"
+                        stroke="#cfd8dc"
+                      />
+                      <text
+                        x={e.labelX}
+                        y={e.labelY + 4}
+                        fontSize="11"
+                        fill="#00695c"
+                        textAnchor="middle"
+                      >
+                        {edgeLabel(e.label)}
+                      </text>
+                    </>
                   )}
-                  <rect
-                    x={n.x}
-                    y={n.y}
-                    width={NODE_W}
-                    height={NODE_H}
-                    rx="10"
-                    fill={active ? '#fff' : bad ? '#fbeceb' : tint}
-                    stroke={active ? color : bad ? '#b23c2f' : '#dfe3e6'}
-                    strokeWidth={active ? 2 : bad ? 1.6 : 1}
-                    strokeDasharray={bad ? '6 4' : undefined}
-                  />
-                  <rect
-                    x={n.x}
-                    y={n.y + 10}
-                    width="3"
-                    height={NODE_H - 20}
-                    rx="1.5"
-                    fill={color}
-                  />
-                  <text x={n.x + 16} y={n.y + 24} fontSize="11" fill={color}>
-                    {nodeTitle(n)}
-                  </text>
-                  <text x={n.x + 16} y={n.y + 44} fontSize="12.5" fill="#263238">
-                    {nodeSubtitle(n)}
-                  </text>
-                  <text
-                    x={n.x + NODE_W - 12}
-                    y={n.y + 24}
-                    fontSize="10"
-                    fill="#90a4ae"
-                    textAnchor="end"
-                  >
-                    {n.merged > 1 ? `${n.id}–${n.lastId}` : n.id}
-                  </text>
                 </g>
-              );
-            })}
-          </g>
-        </svg>
-      </Box>
+              ))}
 
-      {/* 左上：這張圖的體檢數字 */}
-      <Stack
-        direction="row"
-        spacing={0.75}
-        sx={{ position: 'absolute', top: 10, left: 12, pointerEvents: 'none' }}
-      >
-        <Chip
-          size="small"
-          label={`${graph.nodes.length} 節點／${graph.totalRows} 列`}
-          sx={{ bgcolor: 'rgba(255,255,255,0.94)' }}
-        />
-        {graph.unreachable.length > 0 && (
-          <Chip size="small" color="error" label={`${graph.unreachable.length} 走不到`} />
-        )}
-        {graph.broken.length > 0 && (
-          <Chip size="small" color="error" label={`${graph.broken.length} 條斷鏈`} />
-        )}
-        {graph.cycles.length > 0 && (
+              {view.nodes.map((n) => {
+                const color = MODEL_COLOR[n.model] || '#64748b';
+                const tint = MODEL_TINT[n.model] || '#f8fafc';
+                const bad = !n.reachable;
+                const active = n.id === activeNodeId;
+                // 章節錨點：實心深底＋白字，掃過去一眼就知道「新的一關從這裡開始」
+                const anchor = n.model === 'MissionStart';
+                return (
+                  <g
+                    key={n.id}
+                    onClick={() => handleNodeClick(n.id)}
+                    style={onNodeClick ? { cursor: 'pointer' } : undefined}
+                  >
+                    {active && (
+                      <rect
+                        x={n.x - 5}
+                        y={n.y - 5}
+                        width={NODE_W + 10}
+                        height={NODE_H + 10}
+                        rx="13"
+                        fill="none"
+                        stroke={color}
+                        strokeWidth="2.5"
+                        opacity="0.45"
+                      />
+                    )}
+                    <rect
+                      x={n.x}
+                      y={n.y}
+                      width={NODE_W}
+                      height={NODE_H}
+                      rx="10"
+                      fill={
+                        bad
+                          ? '#fbeceb'
+                          : anchor
+                            ? color
+                            : active
+                              ? '#fff'
+                              : tint
+                      }
+                      stroke={
+                        active
+                          ? color
+                          : bad
+                            ? '#b23c2f'
+                            : anchor
+                              ? color
+                              : '#dfe3e6'
+                      }
+                      strokeWidth={active ? 2 : bad ? 1.6 : 1}
+                      strokeDasharray={bad ? '6 4' : undefined}
+                    />
+                    {!anchor && (
+                      <rect
+                        x={n.x}
+                        y={n.y + 10}
+                        width="3"
+                        height={NODE_H - 20}
+                        rx="1.5"
+                        fill={color}
+                      />
+                    )}
+                    <text
+                      x={n.x + 16}
+                      y={n.y + 24}
+                      fontSize="11"
+                      fill={anchor ? 'rgba(255,255,255,0.72)' : color}
+                    >
+                      {nodeTitle(n)}
+                    </text>
+                    <text
+                      x={n.x + 16}
+                      y={n.y + 44}
+                      fontSize="12.5"
+                      fill={anchor ? '#fff' : '#263238'}
+                      fontWeight={anchor ? 600 : 400}
+                    >
+                      {nodeSubtitle(n, missionTitles)}
+                    </text>
+                    <text
+                      x={n.x + NODE_W - 12}
+                      y={n.y + 24}
+                      fontSize="10"
+                      fill={anchor ? 'rgba(255,255,255,0.6)' : '#90a4ae'}
+                      textAnchor="end"
+                    >
+                      {n.merged > 1 ? `${n.id}–${n.lastId}` : n.id}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+        </Box>
+
+        {/* 左上：這張圖的體檢數字 */}
+        <Stack
+          direction="row"
+          spacing={0.75}
+          sx={{
+            position: 'absolute',
+            top: 10,
+            left: 12,
+            pointerEvents: 'none',
+          }}
+        >
           <Chip
             size="small"
-            label={`${graph.cycles.length} 回頭跳`}
+            label={`${graph.nodes.length} 節點／${graph.totalRows} 列`}
             sx={{ bgcolor: 'rgba(255,255,255,0.94)' }}
           />
-        )}
-      </Stack>
+          {graph.unreachable.length > 0 && (
+            <Chip
+              size="small"
+              color="error"
+              label={`${graph.unreachable.length} 走不到`}
+            />
+          )}
+          {graph.broken.length > 0 && (
+            <Chip
+              size="small"
+              color="error"
+              label={`${graph.broken.length} 條斷鏈`}
+            />
+          )}
+          {graph.cycles.length > 0 && (
+            <Chip
+              size="small"
+              label={`${graph.cycles.length} 回頭跳`}
+              sx={{ bgcolor: 'rgba(255,255,255,0.94)' }}
+            />
+          )}
+        </Stack>
 
-      {/* 右上：畫布控制 */}
-      <Stack
-        direction="row"
-        spacing={0.5}
-        sx={{
-          position: 'absolute',
-          bottom: 12,
-          left: 12,
-          bgcolor: 'rgba(255,255,255,0.94)',
-          border: '1px solid #e0e0e0',
-          borderRadius: 2,
-          px: 0.5,
-        }}
-      >
-        <Tooltip title={collapse ? '展開全部列' : '摺疊連續對白'}>
-          <IconButton size="small" onClick={() => setCollapse((v) => !v)}>
-            {collapse ? <UnfoldMoreRoundedIcon fontSize="small" /> : <UnfoldLessRoundedIcon fontSize="small" />}
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="縮小">
-          <IconButton size="small" onClick={() => zoomAt(0, 0, 1 / 1.25)}>
-            <RemoveRoundedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="放大">
-          <IconButton size="small" onClick={() => zoomAt(0, 0, 1.25)}>
-            <AddRoundedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="縮到看得完">
-          <IconButton size="small" onClick={() => fit(view)}>
-            <FitScreenRoundedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip
-          title={
-            mode === 'mouse'
-              ? '目前：滑鼠（滾輪縮放）→ 切成觸控板'
-              : '目前：觸控板（兩指移動、⌘＋滾輪縮放）→ 切成滑鼠'
-          }
+        {/* 右上：畫布控制 */}
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{
+            position: 'absolute',
+            bottom: 12,
+            left: 12,
+            bgcolor: 'rgba(255,255,255,0.94)',
+            border: '1px solid #e0e0e0',
+            borderRadius: 2,
+            px: 0.5,
+          }}
         >
-          <IconButton size="small" onClick={toggleMode}>
-            {mode === 'mouse' ? (
-              <MouseRoundedIcon fontSize="small" />
-            ) : (
-              <TouchAppRoundedIcon fontSize="small" />
-            )}
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={showOutline ? '收起大綱' : '顯示大綱／搜尋'}>
-          <IconButton size="small" onClick={() => setShowOutline((v) => !v)}>
-            <ListAltRoundedIcon fontSize="small" color={showOutline ? 'primary' : 'inherit'} />
-          </IconButton>
-        </Tooltip>
-      </Stack>
+          <Tooltip title={collapse ? '展開全部列' : '摺疊連續對白'}>
+            <IconButton size="small" onClick={() => setCollapse((v) => !v)}>
+              {collapse ? (
+                <UnfoldMoreRoundedIcon fontSize="small" />
+              ) : (
+                <UnfoldLessRoundedIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="縮小">
+            <IconButton size="small" onClick={() => zoomAt(0, 0, 1 / 1.25)}>
+              <RemoveRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="放大">
+            <IconButton size="small" onClick={() => zoomAt(0, 0, 1.25)}>
+              <AddRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="撐滿左右">
+            <IconButton size="small" onClick={() => fitWidth(view)}>
+              <WidthFullRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip
+            title={
+              mode === 'mouse'
+                ? '目前：滑鼠（滾輪縮放）→ 切成觸控板'
+                : '目前：觸控板（兩指移動、⌘＋滾輪縮放）→ 切成滑鼠'
+            }
+          >
+            <IconButton size="small" onClick={toggleMode}>
+              {mode === 'mouse' ? (
+                <MouseRoundedIcon fontSize="small" />
+              ) : (
+                <TouchAppRoundedIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={showOutline ? '收起大綱' : '顯示大綱／搜尋'}>
+            <IconButton size="small" onClick={() => setShowOutline((v) => !v)}>
+              <ListAltRoundedIcon
+                fontSize="small"
+                color={showOutline ? 'primary' : 'inherit'}
+              />
+            </IconButton>
+          </Tooltip>
+        </Stack>
 
-      <FlowLegend clickable={!!onNodeClick} />
-    </Box>
+        <FlowLegend clickable={!!onNodeClick} />
+      </Box>
 
-    {showOutline && (
-      <FlowOutline
-        nodes={graph.nodes}
-        activeId={activeNodeId}
-        onPick={focusNode}
-        missionTitles={missionTitles}
-      />
-    )}
+      {(showOutline || toolbarActions) && (
+        <Box
+          sx={{
+            width: showOutline ? 232 : 52,
+            flexShrink: 0,
+            borderLeft: '1px solid #e0e0e0',
+            bgcolor: '#fff',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+          }}
+        >
+          {toolbarActions && (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: showOutline ? 'flex-end' : 'center',
+                gap: 0.5,
+                px: 1,
+                py: 0.75,
+                borderBottom: '1px solid #eceff1',
+              }}
+            >
+              {toolbarActions}
+            </Box>
+          )}
+          {showOutline && (
+            <FlowOutline
+              nodes={graph.nodes}
+              activeId={activeNodeId}
+              onPick={focusNode}
+              missionTitles={missionTitles}
+            />
+          )}
+        </Box>
+      )}
     </Box>
   );
 };
@@ -356,6 +452,7 @@ FlowMap.propTypes = {
   onNodeClick: PropTypes.func,
   dense: PropTypes.bool,
   missionTitles: PropTypes.object,
+  toolbarActions: PropTypes.node,
 };
 
 export default FlowMap;

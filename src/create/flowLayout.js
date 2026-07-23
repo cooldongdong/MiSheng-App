@@ -7,22 +7,23 @@
 //   2. 直角折線 ＋ 圓角，比貝茲曲線容易判讀「這條線從哪來、往哪去」
 //   3. 選項文字放在線真正經過的地方，底下墊一塊底色，不會飄到別的線上
 
+// 低明度彩虹：色相拉開才分得出來，明度壓低才不會有「AI 感」的亮藍紫
 export const MODEL_COLOR = {
-  MissionStart: '#263238', // 章節錨點，最深
-  Quiz: '#00695c', // 分支＝墨綠
-  MissionAnswerInput: '#8d6e63', // 作答＝陶土
-  CustomValueInput: '#6d4c41', // 輸入＝深褐
-  Img: '#7e6b52', // 圖＝暗金
-  Talk: '#37474f', // 主色（misheng app 既有）
+  MissionStart: '#2f3e46', // 章節錨點：深墨，實心底、白字
+  Talk: '#4a6fa5', // 對白：靛藍
+  Quiz: '#8d5a97', // 選擇：低明度紫
+  MissionAnswerInput: '#b5533c', // 作答：磚紅
+  CustomValueInput: '#b07d2b', // 輸入：琥珀
+  Img: '#3f7d6e', // 圖片：青綠
 };
 
 export const MODEL_TINT = {
-  MissionStart: '#eceff1',
-  Quiz: '#e8f0ee',
-  MissionAnswerInput: '#f2ece9',
-  CustomValueInput: '#f1ebe8',
-  Img: '#f4f1ea',
-  Talk: '#f7f8f9',
+  MissionStart: '#2f3e46', // 實心
+  Talk: '#eef2f8',
+  Quiz: '#f5eef7',
+  MissionAnswerInput: '#fbeeea',
+  CustomValueInput: '#fbf3e3',
+  Img: '#eaf4f1',
 };
 
 export const NODE_W = 216;
@@ -211,6 +212,7 @@ export const layoutFlow = (graph) => {
     // 節點自己的水平範圍（不含兩側車道）——預設視角要對齊「方塊」而不是
     // 「含車道的整張圖」，否則畫面會被空的車道區拉偏
     nodeCenterX: (minX + maxX) / 2,
+    nodeWidth: maxX - minX,
   };
 };
 
@@ -227,10 +229,15 @@ export const nodeTitle = (n) =>
     11
   );
 
-export const nodeSubtitle = (n) =>
-  fitText(
-    (n.speaker ? `${n.speaker}：` : '') + (n.text || `第 ${n.id} 列`),
-    NODE_W - 32,
-    12.5
-  );
+// MissionStart 這種「章節起點」列本身沒有對白，顯示關卡名稱才有意義
+export const nodeSubtitle = (n, missionTitles = null) => {
+  const missionName =
+    n.model === 'MissionStart' && missionTitles?.[n.missionId]
+      ? missionTitles[n.missionId]
+      : null;
+  const body =
+    missionName ||
+    (n.speaker ? `${n.speaker}：` : '') + (n.text || `第 ${n.id} 列`);
+  return fitText(body, NODE_W - 32, 12.5);
+};
 

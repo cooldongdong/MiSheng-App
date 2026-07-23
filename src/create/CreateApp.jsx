@@ -11,6 +11,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
+import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded';
 import GameShell from '../component/GameShell';
 import { loadGameFromSheet } from '../game/sheetLoader';
 import { validateGame } from '../validator/validateGame';
@@ -126,33 +129,62 @@ const CreateApp = () => {
 
   if (status === 'playing' && gameData) {
     const beside = flowBeside && rundownRows.length > 0;
+
+    // 這兩個動作放在右側面板頂端（搜尋框上方），收起大綱也不會消失
+    const actions = (
+      <>
+        <Tooltip title="換一份遊戲資料">
+          <IconButton size="small" onClick={reset}>
+            <Box
+              component="img"
+              src="/MiSheng-logo-w.svg"
+              alt="換一份"
+              sx={{ width: 20, height: 20, filter: 'invert(0.35)' }}
+            />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={beside ? '收起流程圖' : '並排流程圖'}>
+          <IconButton size="small" onClick={() => setFlowBeside((v) => !v)}>
+            <ViewSidebarRoundedIcon
+              fontSize="small"
+              color={beside ? 'primary' : 'inherit'}
+            />
+          </IconButton>
+        </Tooltip>
+      </>
+    );
+
     return (
       <>
         <GameShell
           gameData={gameData}
           previewMode
           imgMap={imgMap}
-          sidePanel={beside ? <FlowPanel rundownRows={rundownRows} /> : null}
+          sideFlex={beside ? 1 : '0 0 auto'}
+          resizable={beside}
+          sidePanel={
+            rundownRows.length === 0 ? null : beside ? (
+              <FlowPanel rundownRows={rundownRows} toolbarActions={actions} />
+            ) : (
+              // 收起流程圖時只留一條細軌，切換鈕永遠在
+              <Box
+                sx={{
+                  width: 52,
+                  height: '100%',
+                  borderLeft: '1px solid #e0e0e0',
+                  bgcolor: '#fff',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  py: 0.75,
+                }}
+              >
+                {actions}
+              </Box>
+            )
+          }
         />
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{ position: 'fixed', bottom: 68, left: 12, zIndex: 2000 }}
-        >
-          {rundownRows.length > 0 && (
-            <Button
-              size="small"
-              variant="contained"
-              color="inherit"
-              onClick={() => setFlowBeside((v) => !v)}
-            >
-              {beside ? '只看遊戲' : '並排流程圖'}
-            </Button>
-          )}
-          <Button size="small" variant="contained" color="inherit" onClick={reset}>
-            換一份
-          </Button>
-        </Stack>
       </>
     );
   }

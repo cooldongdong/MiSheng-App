@@ -10,7 +10,7 @@ import FlowMap from './FlowMap';
 //
 // 掛在 GameProvider 裡面才拿得到 currentId／setCurrentId，
 // 所以是用 GameShell 的 sidePanel 插進去，而不是自己另外包一層。
-const FlowPanel = ({ rundownRows }) => {
+const FlowPanel = ({ rundownRows, toolbarActions = null }) => {
   const { currentId, setCurrentId, setCurrentMissionId, rundownData, missionData } =
     useContext(GameContext);
 
@@ -39,6 +39,7 @@ const FlowPanel = ({ rundownRows }) => {
         activeId={currentId ? String(currentId) : null}
         onNodeClick={jumpTo}
         missionTitles={missionTitles}
+        toolbarActions={toolbarActions}
         dense
       />
     </Box>
@@ -47,6 +48,7 @@ const FlowPanel = ({ rundownRows }) => {
 
 FlowPanel.propTypes = {
   rundownRows: PropTypes.array.isRequired,
+  toolbarActions: PropTypes.node,
 };
 
 export default FlowPanel;

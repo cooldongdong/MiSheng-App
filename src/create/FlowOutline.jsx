@@ -32,13 +32,10 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
   return (
     <Box
       sx={{
-        width: 232,
-        flexShrink: 0,
-        borderLeft: '1px solid #e0e0e0',
-        bgcolor: '#fff',
+        flex: 1,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
       }}
     >
       <Box sx={{ p: 1.25, borderBottom: '1px solid #eceff1' }}>

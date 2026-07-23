@@ -136,17 +136,20 @@ const CreateApp = () => {
           previewMode
           imgMap={imgMap}
           leftPanel={
-            <Slide direction="right" in={showSource} mountOnEnter unmountOnExit appear>
-              <Box>
-                <SourcePanel
-                  source={source}
-                  issues={issues}
-                  onPickFolder={handleFolder}
-                  onReload={() => handleSheet(sheetUrl)}
-                  canReload={!!sheetUrl}
-                />
-              </Box>
-            </Slide>
+            // 收起時整欄不渲染，否則會留一條空白佔著畫面
+            showSource ? (
+              <Slide direction="right" in mountOnEnter appear timeout={260}>
+                <Box sx={{ height: '100%' }}>
+                  <SourcePanel
+                    source={source}
+                    issues={issues}
+                    onPickFolder={handleFolder}
+                    onReload={() => handleSheet(sheetUrl)}
+                    canReload={!!sheetUrl}
+                  />
+                </Box>
+              </Slide>
+            ) : null
           }
           sideFlex={beside ? 1 : undefined}
           resizable={beside}

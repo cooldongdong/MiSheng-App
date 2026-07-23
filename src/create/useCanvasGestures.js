@@ -154,20 +154,6 @@ export const useCanvasGestures = () => {
     }
   };
 
-  // 「撐滿左右」：把節點欄寬度填滿畫布寬度（不是把整張圖縮成一顆芝麻）
-  const fitWidth = useCallback((view) => {
-    const box = boxRef.current;
-    if (!box || !view?.nodeWidth) return;
-    const pad = 40;
-    const k = clampK((box.clientWidth - pad * 2) / view.nodeWidth);
-    setT((p) => ({
-      k,
-      x: box.clientWidth / 2 - view.nodeCenterX * k,
-      // 維持目前看的高度位置，只換縮放
-      y: p.k ? (p.y * k) / p.k : 16,
-    }));
-  }, []);
-
   // 把某個座標移到畫面中央；可指定縮放
   const centerOn = useCallback((x, y, k) => {
     const box = boxRef.current;
@@ -196,7 +182,6 @@ export const useCanvasGestures = () => {
     mode,
     toggleMode,
     zoomAt,
-    fitWidth,
     centerOn,
     resetView,
     wasDragged: () => dragged.current,

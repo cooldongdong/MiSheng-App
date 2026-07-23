@@ -7,7 +7,7 @@ import GestureRoundedIcon from '@mui/icons-material/GestureRounded';
 import FormatListBulletedRoundedIcon from '@mui/icons-material/FormatListBulletedRounded';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
-import WidthFullRoundedIcon from '@mui/icons-material/WidthFullRounded';
+import MyLocationRoundedIcon from '@mui/icons-material/MyLocationRounded';
 import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
 import UnfoldLessRoundedIcon from '@mui/icons-material/UnfoldLessRounded';
 import { buildFlowGraph } from './flowGraph';
@@ -49,7 +49,6 @@ const FlowMap = ({
     mode,
     toggleMode,
     zoomAt,
-    fitWidth,
     centerOn,
     resetView,
     wasDragged,
@@ -158,12 +157,13 @@ const FlowMap = ({
           <svg width="100%" height="100%">
             <defs>
               <style>{`
-                @keyframes fmRipple {
-                  from { transform: scale(1); opacity: 0.9; }
-                  to   { transform: scale(1.45); opacity: 0; }
+                @keyframes fmRing {
+                  0%   { opacity: 0; }
+                  18%  { opacity: 0.85; }
+                  100% { opacity: 0; }
                 }
                 @keyframes fmHold {
-                  0%, 65% { opacity: 1; }
+                  0%, 78% { opacity: 1; }
                   100%    { opacity: 0; }
                 }
               `}</style>
@@ -255,24 +255,27 @@ const FlowMap = ({
                   >
                     {flashing && (
                       <g key={`${flash.id}-${flash.seq}`}>
-                        {/* 漣漪：整個外框以節點中心等比放大並淡出，只放一次 */}
-                        <rect
-                          x={n.x}
-                          y={n.y}
-                          width={NODE_W}
-                          height={NODE_H}
-                          rx="10"
-                          fill="none"
-                          stroke={color}
-                          strokeWidth="2.5"
-                          style={{
-                            transformOrigin: `${n.x + NODE_W / 2}px ${
-                              n.y + NODE_H / 2
-                            }px`,
-                            animation: 'fmRipple 900ms ease-out both',
-                          }}
-                        />
-                        {/* 外框先留著，再自己淡出 */}
+                        {/* 漣漪：四個等距外擴的框依序亮起（+8/+20/+32/+44），
+                            四邊距離一律相同——所以只動 opacity，不用 scale
+                            （scale 會讓上下的間距比左右窄很多），也不靠 CSS
+                            動 x/width（瀏覽器不見得會插值） */}
+                        {[8, 20, 32, 44].map((gap, i) => (
+                          <rect
+                            key={gap}
+                            x={n.x - gap}
+                            y={n.y - gap}
+                            width={NODE_W + gap * 2}
+                            height={NODE_H + gap * 2}
+                            rx={10 + gap}
+                            fill="none"
+                            stroke={color}
+                            strokeWidth="2.5"
+                            style={{
+                              animation: `fmRing 800ms ease-out ${i * 0.11}s 3 both`,
+                            }}
+                          />
+                        ))}
+                        {/* 漣漪跑完，外框再留一下才淡出 */}
                         <rect
                           x={n.x - 5}
                           y={n.y - 5}
@@ -282,7 +285,7 @@ const FlowMap = ({
                           fill="none"
                           stroke={color}
                           strokeWidth="2.5"
-                          style={{ animation: 'fmHold 2.4s ease-out both' }}
+                          style={{ animation: 'fmHold 3.4s ease-out both' }}
                         />
                       </g>
                     )}
@@ -441,10 +444,16 @@ const FlowMap = ({
               <AddRoundedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="撐滿左右">
-            <IconButton size="small" onClick={() => fitWidth(view)}>
-              <WidthFullRoundedIcon fontSize="small" />
-            </IconButton>
+          <Tooltip title="回到目前這一頁">
+            <span>
+              <IconButton
+                size="small"
+                disabled={!activeNodeId}
+                onClick={() => focusWithFlash(activeNodeId)}
+              >
+                <MyLocationRoundedIcon fontSize="small" />
+              </IconButton>
+            </span>
           </Tooltip>
           <Tooltip
             title={

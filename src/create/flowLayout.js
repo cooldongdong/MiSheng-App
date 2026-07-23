@@ -8,22 +8,23 @@
 //   3. 選項文字放在線真正經過的地方，底下墊一塊底色，不會飄到別的線上
 
 // 低明度彩虹：色相拉開才分得出來，明度壓低才不會有「AI 感」的亮藍紫
+// 低明度彩虹：色相拉開才分得出來，明度壓低才不會有「AI 感」的亮藍紫
 export const MODEL_COLOR = {
   MissionStart: '#2f3e46', // 章節錨點：深墨，實心底、白字
-  Talk: '#4a6fa5', // 對白：靛藍
-  Quiz: '#8d5a97', // 選擇：低明度紫
-  MissionAnswerInput: '#b5533c', // 作答：磚紅
-  CustomValueInput: '#b07d2b', // 輸入：琥珀
-  Img: '#3f7d6e', // 圖片：青綠
+  Talk: '#3d5a80', // 對白：藏青
+  Quiz: '#b2591f', // 選擇：鏽橘（分岔要醒目）
+  MissionAnswerInput: '#9c3d54', // 作答：酒紅
+  CustomValueInput: '#6b7d3a', // 輸入：橄欖綠
+  Img: '#2b7a78', // 圖片：深青綠
 };
 
 export const MODEL_TINT = {
   MissionStart: '#2f3e46', // 實心
-  Talk: '#eef2f8',
-  Quiz: '#f5eef7',
-  MissionAnswerInput: '#fbeeea',
-  CustomValueInput: '#fbf3e3',
-  Img: '#eaf4f1',
+  Talk: '#eef1f7',
+  Quiz: '#fbf0e7',
+  MissionAnswerInput: '#f9edf0',
+  CustomValueInput: '#f2f4e9',
+  Img: '#e9f4f3',
 };
 
 export const NODE_W = 216;

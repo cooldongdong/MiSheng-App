@@ -3,8 +3,8 @@ import PropTypes from 'prop-types';
 import { Box, Chip, IconButton, Stack, Tooltip } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import MouseRoundedIcon from '@mui/icons-material/MouseRounded';
-import TouchAppRoundedIcon from '@mui/icons-material/TouchAppRounded';
-import ListAltRoundedIcon from '@mui/icons-material/ListAltRounded';
+import GestureRoundedIcon from '@mui/icons-material/GestureRounded';
+import FormatListBulletedRoundedIcon from '@mui/icons-material/FormatListBulletedRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import WidthFullRoundedIcon from '@mui/icons-material/WidthFullRounded';
 import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
@@ -25,7 +25,7 @@ import { useCanvasGestures } from './useCanvasGestures';
 import FlowLegend from './FlowLegend';
 import FlowOutline from './FlowOutline';
 
-const EDGE_COLOR = { option: '#00695c', jump: '#78909c', seq: '#b0bec5' };
+const EDGE_COLOR = { option: '#b2591f', jump: '#78909c', seq: '#b0bec5' };
 
 // rundown 的流程圖。白板式操作：滾輪／捏合縮放、拖曳平移。
 //   activeId    ——玩家現在在哪一列（高亮並自動移到畫面中央）
@@ -38,7 +38,8 @@ const FlowMap = ({
   missionTitles = null,
   toolbarActions = null,
 }) => {
-  const [collapse, setCollapse] = useState(true);
+  // 預設展開全部列：Dong 的使用習慣是先看到全貌，再自己決定要不要摺疊
+  const [collapse, setCollapse] = useState(false);
   const [showOutline, setShowOutline] = useState(dense);
   const {
     boxRef,
@@ -53,6 +54,8 @@ const FlowMap = ({
     handlers,
   } = useCanvasGestures();
   const started = useRef(false);
+  const [flashId, setFlashId] = useState(null); // 剛跳過去的節點，短暫閃一下
+  const [smooth, setSmooth] = useState(false); // 程式移動畫面時才開轉場
 
   const graph = useMemo(
     () => buildFlowGraph(rundownRows, { collapse }),
@@ -95,15 +98,24 @@ const FlowMap = ({
       );
   }, [activeNodeId, view, centerOn]);
 
+  // 從大綱／搜尋跳過去：畫面用滑的（眼睛跟得上）＋ 到站後閃三下
+  const focusWithFlash = (id) => {
+    const node = view.nodes.find((n) => n.id === id);
+    if (!node) return;
+    setSmooth(true);
+    centerOn(node.x + NODE_W / 2, node.y + NODE_H / 2, 0.8);
+    setFlashId(id);
+    window.setTimeout(() => setSmooth(false), 420);
+    window.setTimeout(
+      () => setFlashId((cur) => (cur === id ? null : cur)),
+      2200,
+    );
+  };
+
   const handleNodeClick = (id) => {
     // 拖曳結束時不要誤觸成點擊
     if (!onNodeClick || wasDragged()) return;
     onNodeClick(id);
-  };
-
-  const focusNode = (id) => {
-    const node = view.nodes.find((n) => n.id === id);
-    if (node) centerOn(node.x + NODE_W / 2, node.y + NODE_H / 2, 0.8);
   };
 
   return (
@@ -169,6 +181,11 @@ const FlowMap = ({
             <g
               transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}
               fontFamily="system-ui, -apple-system, 'Noto Sans TC', sans-serif"
+              style={{
+                transition: smooth
+                  ? 'transform 380ms cubic-bezier(.22,.61,.36,1)'
+                  : 'none',
+              }}
             >
               {view.edges.map((e, i) => (
                 <g key={`${e.from}-${e.to}-${i}`}>
@@ -212,12 +229,85 @@ const FlowMap = ({
                 const active = n.id === activeNodeId;
                 // 章節錨點：實心深底＋白字，掃過去一眼就知道「新的一關從這裡開始」
                 const anchor = n.model === 'MissionStart';
+                const flashing = n.id === flashId;
                 return (
                   <g
                     key={n.id}
                     onClick={() => handleNodeClick(n.id)}
                     style={onNodeClick ? { cursor: 'pointer' } : undefined}
                   >
+                    {flashing && (
+                      <>
+                        {/* 雷達漣漪：兩圈由節點往外擴散並淡出，錯開 0.5 秒 */}
+                        {[0, 0.5].map((delay) => (
+                          <rect
+                            key={delay}
+                            x={n.x}
+                            y={n.y}
+                            width={NODE_W}
+                            height={NODE_H}
+                            rx="10"
+                            fill="none"
+                            stroke="#b2591f"
+                            strokeWidth="3"
+                          >
+                            <animate
+                              attributeName="x"
+                              values={`${n.x};${n.x - 46}`}
+                              dur="1s"
+                              begin={`${delay}s`}
+                              repeatCount="2"
+                            />
+                            <animate
+                              attributeName="y"
+                              values={`${n.y};${n.y - 46}`}
+                              dur="1s"
+                              begin={`${delay}s`}
+                              repeatCount="2"
+                            />
+                            <animate
+                              attributeName="width"
+                              values={`${NODE_W};${NODE_W + 92}`}
+                              dur="1s"
+                              begin={`${delay}s`}
+                              repeatCount="2"
+                            />
+                            <animate
+                              attributeName="height"
+                              values={`${NODE_H};${NODE_H + 92}`}
+                              dur="1s"
+                              begin={`${delay}s`}
+                              repeatCount="2"
+                            />
+                            <animate
+                              attributeName="rx"
+                              values="10;40"
+                              dur="1s"
+                              begin={`${delay}s`}
+                              repeatCount="2"
+                            />
+                            <animate
+                              attributeName="opacity"
+                              values="0.9;0"
+                              dur="1s"
+                              begin={`${delay}s`}
+                              repeatCount="2"
+                            />
+                          </rect>
+                        ))}
+                        {/* 漣漪散掉後，外框仍留著，讓人知道「就是這個」 */}
+                        <rect
+                          x={n.x - 5}
+                          y={n.y - 5}
+                          width={NODE_W + 10}
+                          height={NODE_H + 10}
+                          rx="14"
+                          fill="none"
+                          stroke="#b2591f"
+                          strokeWidth="2.5"
+                        />
+                      </>
+                    )}
                     {active && (
                       <rect
                         x={n.x - 5}
@@ -389,13 +479,13 @@ const FlowMap = ({
               {mode === 'mouse' ? (
                 <MouseRoundedIcon fontSize="small" />
               ) : (
-                <TouchAppRoundedIcon fontSize="small" />
+                <GestureRoundedIcon fontSize="small" />
               )}
             </IconButton>
           </Tooltip>
           <Tooltip title={showOutline ? '收起大綱' : '顯示大綱／搜尋'}>
             <IconButton size="small" onClick={() => setShowOutline((v) => !v)}>
-              <ListAltRoundedIcon
+              <FormatListBulletedRoundedIcon
                 fontSize="small"
                 color={showOutline ? 'primary' : 'inherit'}
               />
@@ -406,10 +496,11 @@ const FlowMap = ({
         <FlowLegend clickable={!!onNodeClick} />
       </Box>
 
-      {(showOutline || toolbarActions) && (
+      {showOutline && (
         <Box
           sx={{
-            width: showOutline ? 232 : 52,
+            width: 232,
+            pt: '44px', // 讓出右上角固定按鈕的位置
             flexShrink: 0,
             borderLeft: '1px solid #e0e0e0',
             bgcolor: '#fff',
@@ -436,7 +527,7 @@ const FlowMap = ({
             <FlowOutline
               nodes={graph.nodes}
               activeId={activeNodeId}
-              onPick={focusNode}
+              onPick={focusWithFlash}
               missionTitles={missionTitles}
             />
           )}

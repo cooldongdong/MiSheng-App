@@ -106,7 +106,9 @@ const CreateApp = () => {
       revokeImgs.current = revoke;
       setImgMap(map);
       setUrl('');
-      setSource(`資料夾「${folderName}」（${imgCount} 張圖）`);
+      setSource(
+        `資料夾「${folderName}」：${Object.keys(csvFiles).length} 張表 ＋ ${imgCount} 張圖，全部在本機讀取完成`
+      );
 
       if (ignored.length) {
         setError(
@@ -130,7 +132,7 @@ const CreateApp = () => {
   if (status === 'playing' && gameData) {
     const beside = flowBeside && rundownRows.length > 0;
 
-    // 這兩個動作放在右側面板頂端（搜尋框上方），收起大綱也不會消失
+    // 固定在畫面右上角，位置不隨流程圖／大綱收合而變
     const actions = (
       <>
         <Tooltip title="換一份遊戲資料">
@@ -160,31 +162,29 @@ const CreateApp = () => {
           gameData={gameData}
           previewMode
           imgMap={imgMap}
-          sideFlex={beside ? 1 : '0 0 auto'}
+          sideFlex={beside ? 1 : undefined}
           resizable={beside}
           sidePanel={
-            rundownRows.length === 0 ? null : beside ? (
-              <FlowPanel rundownRows={rundownRows} toolbarActions={actions} />
-            ) : (
-              // 收起流程圖時只留一條細軌，切換鈕永遠在
-              <Box
-                sx={{
-                  width: 52,
-                  height: '100%',
-                  borderLeft: '1px solid #e0e0e0',
-                  bgcolor: '#fff',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  py: 0.75,
-                }}
-              >
-                {actions}
-              </Box>
-            )
+            beside ? <FlowPanel rundownRows={rundownRows} /> : null
           }
         />
+        {/* 固定在右上角：不管流程圖收起或展開都在同一個位置 */}
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{
+            position: 'fixed',
+            top: 6,
+            right: 10,
+            zIndex: 2000,
+            bgcolor: 'rgba(255,255,255,0.94)',
+            border: '1px solid #e0e0e0',
+            borderRadius: 2,
+            px: 0.5,
+          }}
+        >
+          {actions}
+        </Stack>
       </>
     );
   }
@@ -223,9 +223,18 @@ const CreateApp = () => {
           color="text.secondary"
           sx={{ display: 'block', mt: 1 }}
         >
-          整個資料夾選進來就好——7 張 CSV 和圖片都在裡面，程式自己分。
-          表格照舊填檔名，不用改成網址。檔案不會上傳，只留在這台電腦。
+          整個資料夾選進來就好——7 張 CSV 和圖片都在裡面，程式自己分，
+          表格照舊填檔名不用改成網址。
         </Typography>
+        <Alert severity="info" icon={false} sx={{ mt: 1, py: 0.5 }}>
+          <Typography variant="caption" component="div">
+            <strong>你的檔案不會離開這台電腦。</strong>
+            瀏覽器接下來會問「要將 N 個檔案<u>上傳</u>到這個網站嗎？」——那是瀏覽器
+            對「讀取資料夾」的固定說法，我們改不了它的用字。謎生沒有伺服器可以收檔案，
+            全部都在你的瀏覽器裡讀完就結束；
+            你可以先<strong>關掉網路</strong>再操作一次，功能一樣正常。
+          </Typography>
+        </Alert>
 
         {source && (
           <Chip size="small" sx={{ mt: 1.5 }} label={`已載入：${source}`} />

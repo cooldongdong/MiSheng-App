@@ -49,7 +49,7 @@ const FlowLegend = ({ clickable = false }) => (
       nextId 跳轉
     </Row>
     <Row>
-      <Line color="#00695c" />
+      <Line color="#b2591f" />
       Quiz 選項
     </Row>
     <Row>

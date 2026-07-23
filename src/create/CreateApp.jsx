@@ -137,7 +137,7 @@ const CreateApp = () => {
         <Stack
           direction="row"
           spacing={1}
-          sx={{ position: 'fixed', top: 8, right: 8, zIndex: 2000 }}
+          sx={{ position: 'fixed', bottom: 68, left: 12, zIndex: 2000 }}
         >
           {rundownRows.length > 0 && (
             <Button

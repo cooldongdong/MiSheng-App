@@ -8,21 +8,21 @@
 //   3. 選項文字放在線真正經過的地方，底下墊一塊底色，不會飄到別的線上
 
 export const MODEL_COLOR = {
-  MissionStart: '#2563eb',
-  Quiz: '#7c3aed',
-  MissionAnswerInput: '#db2777',
-  CustomValueInput: '#0d9488',
-  Img: '#b45309',
-  Talk: '#475569',
+  MissionStart: '#263238', // 章節錨點，最深
+  Quiz: '#00695c', // 分支＝墨綠
+  MissionAnswerInput: '#8d6e63', // 作答＝陶土
+  CustomValueInput: '#6d4c41', // 輸入＝深褐
+  Img: '#7e6b52', // 圖＝暗金
+  Talk: '#37474f', // 主色（misheng app 既有）
 };
 
 export const MODEL_TINT = {
-  MissionStart: '#eff6ff',
-  Quiz: '#f5f3ff',
-  MissionAnswerInput: '#fdf2f8',
-  CustomValueInput: '#f0fdfa',
-  Img: '#fffbeb',
-  Talk: '#f8fafc',
+  MissionStart: '#eceff1',
+  Quiz: '#e8f0ee',
+  MissionAnswerInput: '#f2ece9',
+  CustomValueInput: '#f1ebe8',
+  Img: '#f4f1ea',
+  Talk: '#f7f8f9',
 };
 
 export const NODE_W = 216;
@@ -52,11 +52,32 @@ const polyline = (pts) => {
   return d;
 };
 
-export const edgeLabel = (label) =>
-  label.length > 8 ? `${label.slice(0, 8)}…` : label;
+// 量字寬：中日韓字元約等於字級，西文與數字約 0.55 倍
+const CJK = /[\u2e80-\u9fff\uff00-\uffef\u3000-\u303f]/;
+export const textWidth = (text, size) =>
+  [...String(text ?? '')].reduce(
+    (w, ch) => w + (CJK.test(ch) ? size : size * 0.55),
+    0
+  );
 
-// 標籤底色塊的寬度（中文字寬約等於字級）
-export const labelBoxWidth = (label) => edgeLabel(label).length * 11 + 12;
+// 截到塞得進 maxW 為止（塞不下才加省略號）——用字數截會爆框，因為中英文寬度不同
+export const fitText = (text, maxW, size) => {
+  const str = String(text ?? '');
+  if (textWidth(str, size) <= maxW) return str;
+  const ellipsis = textWidth('…', size);
+  let w = 0;
+  let out = '';
+  for (const ch of str) {
+    const cw = CJK.test(ch) ? size : size * 0.55;
+    if (w + cw + ellipsis > maxW) break;
+    out += ch;
+    w += cw;
+  }
+  return `${out}…`;
+};
+
+export const edgeLabel = (label) => fitText(label, 96, 11);
+export const labelBoxWidth = (label) => textWidth(edgeLabel(label), 11) + 16;
 
 export const layoutFlow = (graph) => {
   const pos = new Map();
@@ -187,20 +208,29 @@ export const layoutFlow = (graph) => {
     minX: laneLeft - PAD,
     width: laneRight - laneLeft + PAD * 2,
     height: maxY + PAD,
+    // 節點自己的水平範圍（不含兩側車道）——預設視角要對齊「方塊」而不是
+    // 「含車道的整張圖」，否則畫面會被空的車道區拉偏
+    nodeCenterX: (minX + maxX) / 2,
   };
 };
 
-// 節點上的字
+// 節點上的字（依實際寬度截，右上角的 id 要留位置）
 export const nodeTitle = (n) =>
-  [
-    n.model + (n.merged > 1 ? ` ×${n.merged}` : ''),
-    n.missionId && n.missionId !== '0' ? `關卡 ${n.missionId}` : '',
-  ]
-    .filter(Boolean)
-    .join('　·　');
+  fitText(
+    [
+      n.model + (n.merged > 1 ? ` ×${n.merged}` : ''),
+      n.missionId && n.missionId !== '0' ? `關卡 ${n.missionId}` : '',
+    ]
+      .filter(Boolean)
+      .join('　·　'),
+    NODE_W - 32 - 46,
+    11
+  );
 
-export const nodeSubtitle = (n) => {
-  const body = (n.speaker ? `${n.speaker}：` : '') + (n.text || `第 ${n.id} 列`);
-  return body.length > 19 ? `${body.slice(0, 19)}…` : body;
-};
+export const nodeSubtitle = (n) =>
+  fitText(
+    (n.speaker ? `${n.speaker}：` : '') + (n.text || `第 ${n.id} 列`),
+    NODE_W - 32,
+    12.5
+  );
 

@@ -2,6 +2,9 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Chip, IconButton, Stack, Tooltip } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import MouseRoundedIcon from '@mui/icons-material/MouseRounded';
+import TouchAppRoundedIcon from '@mui/icons-material/TouchAppRounded';
+import ListAltRoundedIcon from '@mui/icons-material/ListAltRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import FitScreenRoundedIcon from '@mui/icons-material/FitScreenRounded';
 import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
@@ -20,16 +23,34 @@ import {
 } from './flowLayout';
 import { useCanvasGestures } from './useCanvasGestures';
 import FlowLegend from './FlowLegend';
+import FlowOutline from './FlowOutline';
 
-const EDGE_COLOR = { option: '#7c3aed', jump: '#0ea5e9', seq: '#cbd5e1' };
+const EDGE_COLOR = { option: '#00695c', jump: '#78909c', seq: '#b0bec5' };
 
 // rundown 的流程圖。白板式操作：滾輪／捏合縮放、拖曳平移。
 //   activeId    ——玩家現在在哪一列（高亮並自動移到畫面中央）
 //   onNodeClick ——點節點要做什麼（並排模式＝把遊戲跳到那一頁）
-const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = false }) => {
+const FlowMap = ({
+  rundownRows,
+  activeId = null,
+  onNodeClick = null,
+  dense = false,
+  missionTitles = null,
+}) => {
   const [collapse, setCollapse] = useState(true);
-  const { boxRef, transform, zoomAt, fit, centerOn, resetView, wasDragged, handlers } =
-    useCanvasGestures();
+  const [showOutline, setShowOutline] = useState(dense);
+  const {
+    boxRef,
+    transform,
+    mode,
+    toggleMode,
+    zoomAt,
+    fit,
+    centerOn,
+    resetView,
+    wasDragged,
+    handlers,
+  } = useCanvasGestures();
   const started = useRef(false);
 
   const graph = useMemo(
@@ -41,9 +62,13 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
   // 預設視角：用看得清楚字的比例，而不是把整張圖硬縮到看得完
   //（六千像素長的流程整張塞進畫面＝每個字都糊掉，「縮到看得完」留給按鈕）
   useEffect(() => {
-    resetView(view);
-    started.current = true;
-  }, [view, resetView]);
+    // 等版面安頓（大綱欄、分隔線都會改變畫布寬度）再算視角，否則會偏掉
+    const id = requestAnimationFrame(() => {
+      resetView(view);
+      started.current = true;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [view, resetView, showOutline]);
 
   // 摺疊之後，玩家所在的列可能被併進某個節點，要找出代表它的節點
   const activeNodeId = useMemo(() => {
@@ -70,17 +95,24 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
     onNodeClick(id);
   };
 
+  const focusNode = (id) => {
+    const node = view.nodes.find((n) => n.id === id);
+    if (node) centerOn(node.x + NODE_W / 2, node.y + NODE_H / 2, 0.8);
+  };
+
   return (
+    <Box sx={{ display: 'flex', height: dense ? '100dvh' : '70vh', mt: dense ? 0 : 2 }}>
     <Box
       sx={{
         position: 'relative',
-        height: dense ? '100dvh' : '70vh',
-        border: dense ? 'none' : '1px solid #e2e8f0',
-        borderLeft: dense ? '1px solid #e2e8f0' : undefined,
+        flex: 1,
+        minWidth: 0,
+        height: '100%',
+        border: dense ? 'none' : '1px solid #e0e0e0',
+        borderLeft: dense ? '1px solid #e0e0e0' : undefined,
         borderRadius: dense ? 0 : 2,
         overflow: 'hidden',
-        bgcolor: '#f8fafc',
-        mt: dense ? 0 : 2,
+        bgcolor: '#fafafa',
       }}
     >
       <Box
@@ -91,6 +123,9 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
           inset: 0,
           cursor: 'grab',
           touchAction: 'none',
+          // 拖曳畫布時不要把節點文字整片選起來（這是畫布不是文件）
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
           '&:active': { cursor: 'grabbing' },
         }}
       >
@@ -105,10 +140,10 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
               markerHeight="5"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 8 4 L 0 8 z" fill="#94a3b8" />
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="#90a4ae" />
             </marker>
             <pattern id="fm-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="#e2e8f0" />
+              <circle cx="1" cy="1" r="1" fill="#dfe3e6" />
             </pattern>
           </defs>
 
@@ -137,13 +172,13 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
                       height="18"
                       rx="9"
                       fill="#fff"
-                      stroke="#e9d5ff"
+                      stroke="#cfd8dc"
                     />
                     <text
                       x={e.labelX}
                       y={e.labelY + 4}
                       fontSize="11"
-                      fill="#7c3aed"
+                      fill="#00695c"
                       textAnchor="middle"
                     >
                       {edgeLabel(e.label)}
@@ -183,8 +218,8 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
                     width={NODE_W}
                     height={NODE_H}
                     rx="10"
-                    fill={active ? '#fff' : bad ? '#fef2f2' : tint}
-                    stroke={active ? color : bad ? '#dc2626' : '#e2e8f0'}
+                    fill={active ? '#fff' : bad ? '#fbeceb' : tint}
+                    stroke={active ? color : bad ? '#b23c2f' : '#dfe3e6'}
                     strokeWidth={active ? 2 : bad ? 1.6 : 1}
                     strokeDasharray={bad ? '6 4' : undefined}
                   />
@@ -199,14 +234,14 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
                   <text x={n.x + 16} y={n.y + 24} fontSize="11" fill={color}>
                     {nodeTitle(n)}
                   </text>
-                  <text x={n.x + 16} y={n.y + 44} fontSize="12.5" fill="#0f172a">
+                  <text x={n.x + 16} y={n.y + 44} fontSize="12.5" fill="#263238">
                     {nodeSubtitle(n)}
                   </text>
                   <text
                     x={n.x + NODE_W - 12}
                     y={n.y + 24}
                     fontSize="10"
-                    fill="#94a3b8"
+                    fill="#90a4ae"
                     textAnchor="end"
                   >
                     {n.merged > 1 ? `${n.id}–${n.lastId}` : n.id}
@@ -253,7 +288,7 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
           bottom: 12,
           left: 12,
           bgcolor: 'rgba(255,255,255,0.94)',
-          border: '1px solid #e2e8f0',
+          border: '1px solid #e0e0e0',
           borderRadius: 2,
           px: 0.5,
         }}
@@ -278,9 +313,39 @@ const FlowMap = ({ rundownRows, activeId = null, onNodeClick = null, dense = fal
             <FitScreenRoundedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
+        <Tooltip
+          title={
+            mode === 'mouse'
+              ? '目前：滑鼠（滾輪縮放）→ 切成觸控板'
+              : '目前：觸控板（兩指移動、⌘＋滾輪縮放）→ 切成滑鼠'
+          }
+        >
+          <IconButton size="small" onClick={toggleMode}>
+            {mode === 'mouse' ? (
+              <MouseRoundedIcon fontSize="small" />
+            ) : (
+              <TouchAppRoundedIcon fontSize="small" />
+            )}
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={showOutline ? '收起大綱' : '顯示大綱／搜尋'}>
+          <IconButton size="small" onClick={() => setShowOutline((v) => !v)}>
+            <ListAltRoundedIcon fontSize="small" color={showOutline ? 'primary' : 'inherit'} />
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       <FlowLegend clickable={!!onNodeClick} />
+    </Box>
+
+    {showOutline && (
+      <FlowOutline
+        nodes={graph.nodes}
+        activeId={activeNodeId}
+        onPick={focusNode}
+        missionTitles={missionTitles}
+      />
+    )}
     </Box>
   );
 };
@@ -290,6 +355,7 @@ FlowMap.propTypes = {
   activeId: PropTypes.string,
   onNodeClick: PropTypes.func,
   dense: PropTypes.bool,
+  missionTitles: PropTypes.object,
 };
 
 export default FlowMap;

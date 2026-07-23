@@ -29,27 +29,27 @@ const FlowLegend = ({ clickable = false }) => (
       right: 12,
       bottom: 12,
       bgcolor: 'rgba(255,255,255,0.94)',
-      border: '1px solid #e2e8f0',
+      border: '1px solid #e0e0e0',
       borderRadius: 2,
       px: 1.5,
       py: 1,
       fontSize: 11.5,
-      color: '#475569',
+      color: '#546e7a',
       boxShadow: '0 1px 3px rgba(15,23,42,0.08)',
       pointerEvents: 'none',
       userSelect: 'none',
     }}
   >
     <Row>
-      <Line color="#cbd5e1" />
+      <Line color="#b0bec5" />
       依順序
     </Row>
     <Row>
-      <Line color="#0ea5e9" dash="6 4" />
+      <Line color="#78909c" dash="6 4" />
       nextId 跳轉
     </Row>
     <Row>
-      <Line color="#7c3aed" />
+      <Line color="#00695c" />
       Quiz 選項
     </Row>
     <Row>
@@ -60,8 +60,8 @@ const FlowLegend = ({ clickable = false }) => (
           width="24"
           height="10"
           rx="3"
-          fill="#fef2f2"
-          stroke="#dc2626"
+          fill="#fbeceb"
+          stroke="#b23c2f"
           strokeDasharray="4 3"
         />
       </svg>

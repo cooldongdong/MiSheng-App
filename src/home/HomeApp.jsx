@@ -10,8 +10,7 @@ import SportsEsportsRoundedIcon from '@mui/icons-material/SportsEsportsRounded';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 
-// TODO(Dong 確認)：對外公開的 repo 是 rr37 還是 cooldongdong？暫用 app README 的 clone 網址
-const GITHUB_URL = 'https://github.com/rr37/MiSheng-App';
+const GITHUB_URL = 'https://github.com/cooldongdong/MiSheng-App';
 
 const INK = '#263238';
 const BODY = '#546e7a';

@@ -1,0 +1,12 @@
+/* 轉化頁專用的全域樣式。
+   不沿用 index.css：那份給的是「固定一屏的遊戲畫面」（html/body overflow:hidden），
+   套在這種會愈長愈高的表單頁上，驗證報告一多就會被裁掉、按鈕捲不到。 */
+html,
+body {
+  margin: 0;
+  background: #fff;
+}
+
+body {
+  min-height: 100dvh;
+}

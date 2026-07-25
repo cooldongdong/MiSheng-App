@@ -1,0 +1,12 @@
+/* 官網首頁專用全域樣式。
+   跟 /create 一樣不沿用 index.css（那份是給固定一屏的遊戲畫面、html/body overflow:hidden），
+   首頁是會往下捲的內容頁，需要正常的捲動與白底。 */
+html,
+body {
+  margin: 0;
+  background: #fff;
+}
+
+body {
+  min-height: 100dvh;
+}

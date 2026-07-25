@@ -11,9 +11,10 @@ export default defineConfig({
   assetsInclude: ['**/*.csv'], // 允許讀取 .csv 文件
   build: {
     rollupOptions: {
-      // 兩個入口：index.html＝播放器（build-time 遊戲）、create.html＝即時轉化
+      // 三個入口：index.html＝官網首頁、demo.html＝播放器（build-time 遊戲）、create.html＝即時轉化
       input: {
         main: resolve(root, 'index.html'),
+        demo: resolve(root, 'demo.html'),
         create: resolve(root, 'create.html'),
       },
     },

@@ -27,3 +27,6 @@ dist-ssr
 # gameFile
 src/gameFile/*
 !src/gameFile/.gitkeep
+
+# 個人本機指示（含指向私有知識庫的 import）
+CLAUDE.local.md

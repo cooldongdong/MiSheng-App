@@ -24,9 +24,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# gameFile
+# gameFile：自己的遊戲不進 repo，但 demo 是 submodule（見 CLAUDE.md）
 src/gameFile/*
 !src/gameFile/.gitkeep
+!src/gameFile/demo
 
 # 個人本機指示（含指向私有知識庫的 import）
 CLAUDE.local.md

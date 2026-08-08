@@ -13,8 +13,8 @@
 
 # Installation
 ```
-# Clone the repository
-git clone https://github.com/rr37/MiSheng-App/
+# Clone the repository (--recurse-submodules pulls in the demo game)
+git clone --recurse-submodules https://github.com/rr37/MiSheng-App/
 
 # Go to the project folder
 cd MiSheng-App
@@ -28,6 +28,11 @@ npm run dev
 Then open your browser and navigate to the address shown in the terminal (usually http://localhost:5173).
 ```
 # Adding a Game File 
+> The example game at `src/gameFile/demo/` is a **git submodule** pointing to
+> [MiSheng-demo-game](https://github.com/rr37/MiSheng-demo-game) (CC BY-NC 4.0).
+> If `/demo` is blank, you cloned without submodules — run `git submodule update --init`.
+> Your own games go straight into `src/gameFile/` and are gitignored.
+
 1. Locate the src/gameFile/ folder.
 
 2. Copy your game folder (or the provided example) into this directory.

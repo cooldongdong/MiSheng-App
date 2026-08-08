@@ -52,13 +52,32 @@ src/gameFile/{game}/*.csv
 使用者貼了有問題的 sheet 時，validator 先擋下並指出**哪張表哪一格**錯，
 而不是丟一個白畫面。改動資料模型時兩邊要一起看。
 
-## ⚠️ `src/gameFile/` 不在這個 repo 裡
+## ⚠️ demo 遊戲是 submodule，不是這個 repo 的檔案
 
-`.gitignore` 刻意排除 `src/gameFile/*`（只留 `.gitkeep`）。
+`src/gameFile/demo` 是指向獨立 repo [MiSheng-demo-game](https://github.com/rr37/MiSheng-demo-game)
+的 git submodule。`.gitignore` 仍排除 `src/gameFile/*`（自己的遊戲不進 repo），
+只對 `demo` 開例外。
 
-**所以乾淨 clone 之後 `/demo` 會是空的**——demo 用的 CSV 與圖片不在這裡，
-它們的家是獨立 repo `MiSheng-demo-game`。要在本機看 demo，得自己準備
-`src/gameFile/{game}/` 的資料。
+**clone 一定要帶 `--recurse-submodules`，否則 `/demo` 會是空白的**：
+
+```bash
+git clone --recurse-submodules https://github.com/rr37/MiSheng-App.git
+# 已經 clone 了才想起來：
+git submodule update --init
+```
+
+分兩個 repo 不是為了好玩，是**授權邊界**：App 是 GPL-3.0，demo 遊戲的圖與
+CSV 是 CC BY-NC 4.0。混進同一個 repo 會把兩套條款攪在一起。
+
+**demo 遊戲改了之後**，要回到這個 repo 更新指標，否則線上還是舊版：
+
+```bash
+git submodule update --remote src/gameFile/demo
+git commit -am "chore: bump demo game submodule"
+```
+
+> submodule 最常見的失敗不是壞掉，是**忘記做上面這步**——遊戲明明改了，
+> 線上卻沒變。症狀是「沒反應」而不是報錯，所以會找很久。
 
 ## 授權
 

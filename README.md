@@ -29,7 +29,7 @@ Then open your browser and navigate to the address shown in the terminal (usuall
 ```
 # Adding a Game File 
 > The example game at `src/gameFile/demo/` is a **git submodule** pointing to
-> [MiSheng-demo-game](https://github.com/rr37/MiSheng-demo-game) (CC BY-NC 4.0).
+> [MiSheng-demo-game](https://github.com/cooldongdong/MiSheng-demo-game) (CC BY-NC 4.0).
 > If `/demo` is blank, you cloned without submodules — run `git submodule update --init`.
 > Your own games go straight into `src/gameFile/` and are gitignored.
 
@@ -66,7 +66,7 @@ Then open your browser and navigate to the address shown in the terminal (usuall
 ## MiSheng's Multirow Universe（Tutorial Game File）
 If you don't have your own game file yet, you can start with MiSheng's Multirow Universe, our tutorial game file:
 
-[Download MiSheng's Multirow Universe](https://github.com/rr37/MiSheng-demo-game)
+[Download MiSheng's Multirow Universe](https://github.com/cooldongdong/MiSheng-demo-game)
 
 ## Google Sheets Template
 To help you create your game CSV files, we provide a blank Google Sheets template you can copy:

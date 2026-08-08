@@ -54,7 +54,7 @@ src/gameFile/{game}/*.csv
 
 ## ⚠️ demo 遊戲是 submodule，不是這個 repo 的檔案
 
-`src/gameFile/demo` 是指向獨立 repo [MiSheng-demo-game](https://github.com/rr37/MiSheng-demo-game)
+`src/gameFile/demo` 是指向獨立 repo [MiSheng-demo-game](https://github.com/cooldongdong/MiSheng-demo-game)
 的 git submodule。`.gitignore` 仍排除 `src/gameFile/*`（自己的遊戲不進 repo），
 只對 `demo` 開例外。
 

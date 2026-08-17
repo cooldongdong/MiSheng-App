@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { GameContext } from './game-context';
 import { resolveExternalImg } from '../game/imgUrl';
@@ -12,11 +12,13 @@ const IMAGE_MAP = import.meta.glob(
 
 // previewMode：即時轉化（/create）的一次性試玩——不讀也不寫 localStorage，重整即消失
 // imgMap：本機圖片資料夾的「檔名 → blob: 網址」對照表（只有 /create 會給）
+// onPositionLost：就地換資料後，原本停留的那一列不見了、只好退回開頭時通知外面
 export const GameProvider = ({
   children,
   gameFolder,
   previewMode = false,
   imgMap = null,
+  onPositionLost = null,
 }) => {
   // 只需匯入一次的遊戲資料
   const [characterData, setCharacterData] = useState(null);
@@ -26,7 +28,10 @@ export const GameProvider = ({
   const [rundownData, setRundownData] = useState(null);
   const [storyData, setStoryData] = useState(null);
   const [configData, setConfigData] = useState(null);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  // 已解析進來的是「第幾版」資料。null＝還沒載入。
+  // 原本是 isDataLoaded 布林值，只認得「載過沒」，所以 /create 就地重新讀取時
+  // 新 CSV 永遠進不來——只能整棵樹卸載重掛（那會順手把玩家的進度也歸零）。
+  const [loadedVersion, setLoadedVersion] = useState(null);
 
   // 玩家資料
   const [gameId, setGameId] = useState(null);
@@ -102,13 +107,25 @@ export const GameProvider = ({
     );
   }, [gameId]);
 
+  // 讓 effect 拿得到最新的 callback，又不必把它放進 deps（每次 render 都是新函式，
+  // 放進去會讓下面那條 effect 每次都重跑）
+  const onPositionLostRef = useRef(onPositionLost);
+  onPositionLostRef.current = onPositionLost;
+
   // 起點＝rundown 的第一列（不再假設第一列的 id 叫 "1"）
-  // 資料是非同步載入的，所以等 rundownData 就緒、且尚無 currentId（無存檔）時才設
+  // 資料是非同步載入的，所以等 rundownData 就緒才設。兩種情況都會落到第一列：
+  //   ① 還沒有 currentId（新玩／無存檔）
+  //   ② 原本停的那一列在新資料裡不見了——/create 就地重新讀取後，如果那一列的 id
+  //      被改掉或刪掉，不退回開頭就會停在一個不存在的位置，畫面只剩「Loading...」
+  // 「還在不在」必須跟 GameController 找 currentRow 用同一種比對（嚴格相等），
+  // 否則會出現「這裡判定還在、那裡卻找不到」的空白畫面
   useEffect(() => {
-    if (currentId) return;
     if (!Array.isArray(rundownData)) return;
     const firstRow = rundownData.find((row) => row?.id);
-    if (firstRow) setCurrentId(firstRow.id);
+    if (!firstRow) return;
+    if (currentId && rundownData.some((row) => row?.id === currentId)) return;
+    if (currentId) onPositionLostRef.current?.();
+    setCurrentId(firstRow.id);
   }, [rundownData, currentId]);
 
   // 當狀態改變時存入 localStorage（使用 gameId 作為 key）
@@ -229,8 +246,8 @@ export const GameProvider = ({
 
         playerMissionData,
         setPlayerMissionData,
-        isDataLoaded,
-        setIsDataLoaded,
+        loadedVersion,
+        setLoadedVersion,
         currentId,
         setCurrentId,
         currentMissionId,
@@ -257,4 +274,5 @@ GameProvider.propTypes = {
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
   imgMap: PropTypes.instanceOf(Map),
+  onPositionLost: PropTypes.func,
 };

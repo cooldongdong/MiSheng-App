@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Chip,
   Fade,
   IconButton,
   Slide,
+  Snackbar,
   Stack,
   Tooltip,
   Typography,
@@ -39,6 +41,11 @@ const CreateApp = () => {
   const [source, setSource] = useState('');
   const [sheetUrl, setSheetUrl] = useState(''); // 記住來源，才能就地重新讀取
   const [rundownRows, setRundownRows] = useState([]);
+  // 試玩中重新讀取：不動 status，畫面留在三欄，只有左欄轉圈
+  // （status 一旦變成 'loading' 就會掉到開始畫面那個分支，整棵遊戲樹跟著卸載）
+  const [reloading, setReloading] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0); // 換過幾份資料，給 GameController 判斷要不要重解析
+  const [notice, setNotice] = useState('');
 
   const [showSource, setShowSource] = useState(true); // 左側面板
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
@@ -60,13 +67,26 @@ const CreateApp = () => {
     setRundownRows(tables.rundown?.rows || []);
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     setGameData(csvFiles);
+    setDataVersion((v) => v + 1);
     setStatus(keepPlaying ? 'playing' : 'checked');
+  };
+
+  // 試玩中換資料轉圈；還沒開始試玩才走 status='loading'（開始畫面的轉圈）
+  const beginLoad = (keepPlaying) => {
+    setError('');
+    if (keepPlaying) setReloading(true);
+    else setStatus('loading');
+  };
+
+  // 讀取失敗時：試玩中就留在原地、錯誤顯示在左欄——手上這份還能玩的遊戲不該被一起丟掉
+  const failLoad = (keepPlaying, err, fallbackMsg) => {
+    setError(err.message || fallbackMsg);
+    if (!keepPlaying) setStatus('idle');
   };
 
   const handleSheet = async (url) => {
     const keepPlaying = status === 'playing';
-    setStatus('loading');
-    setError('');
+    beginLoad(keepPlaying);
     try {
       const { csvFiles, tables } = await loadGameFromSheet(url);
       revokeImgs.current?.();
@@ -76,16 +96,16 @@ const CreateApp = () => {
       setSource('Google 試算表');
       runChecks(tables, csvFiles, null, keepPlaying);
     } catch (err) {
-      setError(err.message || '匯入失敗');
-      setStatus('idle');
+      failLoad(keepPlaying, err, '匯入失敗');
+    } finally {
+      setReloading(false);
     }
   };
 
   const handleFolder = async (files) => {
     if (!files?.length) return;
     const keepPlaying = status === 'playing';
-    setStatus('loading');
-    setError('');
+    beginLoad(keepPlaying);
     try {
       const {
         csvFiles,
@@ -111,8 +131,9 @@ const CreateApp = () => {
       }
       runChecks(tables, csvFiles, map, keepPlaying);
     } catch (err) {
-      setError(err.message || '讀取失敗');
-      setStatus('idle');
+      failLoad(keepPlaying, err, '讀取失敗');
+    } finally {
+      setReloading(false);
     }
   };
 
@@ -135,6 +156,12 @@ const CreateApp = () => {
           gameData={gameData}
           previewMode
           imgMap={imgMap}
+          dataVersion={dataVersion}
+          onPositionLost={() =>
+            setNotice(
+              '你剛才停的那一列在新資料裡找不到了（id 被改掉或刪掉），已回到開頭。'
+            )
+          }
           leftPanel={
             // 收起時整欄不渲染，否則會留一條空白佔著畫面
             showSource ? (
@@ -146,6 +173,8 @@ const CreateApp = () => {
                     onPickFolder={handleFolder}
                     onReload={() => handleSheet(sheetUrl)}
                     canReload={!!sheetUrl}
+                    reloading={reloading}
+                    error={error}
                   />
                 </Box>
               </Slide>
@@ -194,6 +223,18 @@ const CreateApp = () => {
             </IconButton>
           </Tooltip>
         </Stack>
+
+        {/* 重讀後被迫回到開頭時說一聲——不講的話會像遊戲自己跳掉了 */}
+        <Snackbar
+          open={!!notice}
+          autoHideDuration={6000}
+          onClose={() => setNotice('')}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert severity="info" variant="filled" onClose={() => setNotice('')}>
+            {notice}
+          </Alert>
+        </Snackbar>
       </>
     );
   }

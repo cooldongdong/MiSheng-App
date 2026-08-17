@@ -15,11 +15,17 @@ import GameController from '../game/GameController';
 //
 // sidePanel：給開發用的並排面板（/create 的流程圖）。有值時遊戲縮到左半邊，
 // 面板放右邊；面板要跟遊戲共用 GameContext，所以掛在 Provider 裡面。
+//
+// dataVersion：gameData 換過幾次。/create 就地重新讀取時 +1，讓 GameController
+//   知道要重解析——這樣才能不卸載整棵樹（卸載會連玩家停在哪一列都一起歸零）。
+// onPositionLost：換完資料後原本停的那一列不見了、只好退回開頭時通知外面。
 const GameShell = ({
   gameData,
   gameFolder,
   previewMode = false,
   imgMap = null,
+  dataVersion = 0,
+  onPositionLost = null,
   leftPanel = null,
   sidePanel = null,
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
@@ -99,7 +105,7 @@ const GameShell = ({
       case 1:
         return <PropPage />;
       case 2:
-        return <GameController {...gameData} />;
+        return <GameController {...gameData} dataVersion={dataVersion} />;
       case 3:
         return <HintPage />;
       case 4:
@@ -114,6 +120,7 @@ const GameShell = ({
       gameFolder={gameFolder}
       previewMode={previewMode}
       imgMap={imgMap}
+      onPositionLost={onPositionLost}
     >
       <Box
         sx={{
@@ -212,6 +219,8 @@ GameShell.propTypes = {
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
   imgMap: PropTypes.instanceOf(Map),
+  dataVersion: PropTypes.number,
+  onPositionLost: PropTypes.func,
   leftPanel: PropTypes.node,
   sidePanel: PropTypes.node,
   sideFlex: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),

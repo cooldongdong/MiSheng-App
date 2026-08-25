@@ -20,6 +20,7 @@ const GameController = ({
   rundownCsvFile,
   storyCsvFile,
   configCsvFile,
+  dataVersion = 0,
 }) => {
   const {
     setCharacterData,
@@ -32,8 +33,8 @@ const GameController = ({
     setStoryData,
     setConfigData,
 
-    isDataLoaded,
-    setIsDataLoaded,
+    loadedVersion,
+    setLoadedVersion,
     currentId,
     setCurrentId,
     setCurrentMissionId,
@@ -42,11 +43,18 @@ const GameController = ({
   const [currentRow, setCurrentRow] = useState([]);
   const { getNextId, canProceedToNext } = useNextId(rundownData, currentRow);
 
-  // 讀取該遊戲所有不變的資料
+  // 讀取該遊戲的資料表
+  //
+  // 什麼時候該重解析，由外面給的 dataVersion 決定（/create 就地重新讀取時 +1）。
+  //   - 不能用 [] ＋「載過就跳過」：那樣新資料永遠進不來，只能靠整棵樹卸載重掛，
+  //     而重掛會把玩家停在哪一列也一起歸零
+  //   - 也不用 CSV 字串當 deps：切底部分頁時 GameController 會卸載重掛，
+  //     只有版本號這種「掛在 Provider 上的記號」認得出「同一份資料不必再解一次」
   useEffect(() => {
-    if (isDataLoaded) {
+    if (loadedVersion === dataVersion) {
       return;
     }
+    let cancelled = false;
     const loadCsvFiles = async () => {
       try {
         const [
@@ -66,6 +74,8 @@ const GameController = ({
           loadCSVData(storyCsvFile),
           loadCSVData(configCsvFile),
         ]);
+        // 解析途中被換掉或卸載了：這份結果已經過期，不要蓋上去
+        if (cancelled) return;
         setCharacterData(characterData);
         setHintData(hintData);
         setMissionData(missionData);
@@ -76,12 +86,16 @@ const GameController = ({
         console.log('轉換 Csv 資料');
       } catch (error) {
         console.error('Error loading CSV files:', error);
+        if (cancelled) return;
       }
-      setIsDataLoaded(true);
+      setLoadedVersion(dataVersion);
     };
 
     loadCsvFiles();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [dataVersion, loadedVersion]);
 
   useEffect(() => {
     if (!Array.isArray(rundownData)) return;
@@ -162,6 +176,7 @@ GameController.propTypes = {
   rundownCsvFile: PropTypes.string.isRequired,
   storyCsvFile: PropTypes.string.isRequired,
   configCsvFile: PropTypes.string.isRequired,
+  dataVersion: PropTypes.number,
 };
 
 export default GameController;

@@ -1,11 +1,14 @@
 import PropTypes from 'prop-types';
+import { useEffect, useState } from 'react';
 import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Alert,
   Box,
   Button,
   Chip,
+  CircularProgress,
   Divider,
   Stack,
   Typography,
@@ -18,9 +21,24 @@ import ValidationReport from './ValidationReport';
 
 // 試玩時的左側面板：這份遊戲從哪來、驗證結果如何、要換資料就地換。
 // 就是原本 /create 那頁的資訊，收進側邊欄——載入完之後它不該再佔著主畫面。
-const SourcePanel = ({ source, issues, onPickFolder, onReload, canReload }) => {
+const SourcePanel = ({
+  source,
+  issues,
+  onPickFolder,
+  onReload,
+  canReload,
+  reloading = false,
+  error = '',
+}) => {
   const errors = issues.filter((it) => it.level === 'error').length;
   const warns = issues.filter((it) => it.level === 'warn').length;
+
+  // 報告平常收著，但重讀後冒出錯誤時要自己打開。
+  // 不能只靠 defaultExpanded——就地重讀時這個面板不會重新掛載，預設值只會生效一次。
+  const [reportOpen, setReportOpen] = useState(errors > 0);
+  useEffect(() => {
+    if (errors > 0) setReportOpen(true);
+  }, [issues, errors]);
 
   return (
     <Box
@@ -53,13 +71,14 @@ const SourcePanel = ({ source, issues, onPickFolder, onReload, canReload }) => {
           )}
         </Stack>
 
-        {/* 就地換資料：不用退回開始畫面 */}
+        {/* 就地換資料：整個過程都留在三欄畫面裡，遊戲不卸載、停在哪一列也不會被歸零 */}
         <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
           <Button
             fullWidth
             size="small"
             variant="outlined"
             component="label"
+            disabled={reloading}
             startIcon={<DriveFolderUploadRoundedIcon />}
           >
             換資料夾
@@ -68,6 +87,7 @@ const SourcePanel = ({ source, issues, onPickFolder, onReload, canReload }) => {
               type="file"
               webkitdirectory=""
               multiple
+              disabled={reloading}
               onChange={(e) => onPickFolder(e.target.files)}
             />
           </Button>
@@ -76,13 +96,27 @@ const SourcePanel = ({ source, issues, onPickFolder, onReload, canReload }) => {
               size="small"
               variant="outlined"
               onClick={onReload}
-              startIcon={<RefreshRoundedIcon />}
+              disabled={reloading}
+              startIcon={
+                reloading ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <RefreshRoundedIcon />
+                )
+              }
               sx={{ flexShrink: 0 }}
             >
-              重新讀取
+              {reloading ? '讀取中' : '重新讀取'}
             </Button>
           )}
         </Stack>
+
+        {/* 讀取失敗留在原地講，手上這份遊戲照樣能繼續玩 */}
+        {error && (
+          <Alert severity="warning" sx={{ mt: 1.5, py: 0.25 }}>
+            <Typography variant="caption">{error}</Typography>
+          </Alert>
+        )}
       </Box>
 
       <Divider />
@@ -92,7 +126,8 @@ const SourcePanel = ({ source, issues, onPickFolder, onReload, canReload }) => {
         <Accordion
           elevation={0}
           disableGutters
-          defaultExpanded={errors > 0}
+          expanded={reportOpen}
+          onChange={(_, open) => setReportOpen(open)}
           sx={{ bgcolor: 'transparent' }}
         >
           <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
@@ -122,6 +157,8 @@ SourcePanel.propTypes = {
   onPickFolder: PropTypes.func.isRequired,
   onReload: PropTypes.func,
   canReload: PropTypes.bool,
+  reloading: PropTypes.bool,
+  error: PropTypes.string,
 };
 
 export default SourcePanel;

@@ -79,10 +79,28 @@ const ExportPackButton = ({ tables, fullWidth = false, size = 'large' }) => {
           </Typography>
 
           {result.report.failed.length > 0 && (
-            <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
-              有 {result.report.failed.length} 張抓不到，那幾格維持原本的連結（詳情看包裡的
-              「圖片對照.csv」）。最常見的原因是那個檔案沒設成「知道連結的任何人」。
-            </Typography>
+            <Box sx={{ mt: 0.75 }}>
+              <Typography variant="caption" component="div">
+                有 {result.report.failed.length} 張抓不到，那幾格維持原本的連結：
+              </Typography>
+              {/* 原因直接列在畫面上。塞進 zip 裡的收據等於沒說——
+                  要先解壓縮、開 CSV 才知道為什麼，那時人已經在猜了 */}
+              <Box
+                component="ul"
+                sx={{ m: 0, mt: 0.5, pl: 2, maxHeight: 160, overflow: 'auto' }}
+              >
+                {result.report.failed.map((f) => (
+                  <Typography
+                    key={f.url}
+                    component="li"
+                    variant="caption"
+                    sx={{ display: 'list-item', wordBreak: 'break-all' }}
+                  >
+                    <b>{f.where}</b>：{f.error}
+                  </Typography>
+                ))}
+              </Box>
+            </Box>
           )}
 
           <Typography variant="caption" component="div" sx={{ mt: 0.5, color: '#78909c' }}>

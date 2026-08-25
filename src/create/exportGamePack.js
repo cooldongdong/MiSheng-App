@@ -303,7 +303,17 @@ export const buildGamePack = async (tables, { onProgress } = {}) => {
     report: {
       total,
       ok: results.filter((r) => r.fileName).length,
-      failed: results.filter((r) => r.error).map((r) => ({ url: r.ref.original, error: r.error })),
+      // 帶上「用在哪」：失敗訊息要能讓人直接走回試算表那一格，
+      // 只給一條網址的話，使用者還得自己在七張表裡找它長在哪
+      failed: results
+        .filter((r) => r.error)
+        .map((r) => ({
+          url: r.ref.original,
+          error: r.error,
+          where: r.ref.uses
+            .map((u) => `${u.table}.${u.column} 第 ${sheetRow(u.rowIndex)} 列`)
+            .join('、'),
+        })),
       rows: reportRows,
     },
   };

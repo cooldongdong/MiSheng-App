@@ -21,6 +21,7 @@ import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 import SourcePicker from './SourcePicker';
+import ExportPackButton from './ExportPackButton';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 
@@ -43,6 +44,12 @@ const CreateApp = () => {
   const [imgSource, setImgSource] = useState('');
   const [sheetUrl, setSheetUrl] = useState(''); // 記住來源，才能就地重新讀取
   const [rundownRows, setRundownRows] = useState([]);
+  // 解析後的 7 張表。試玩本身用不到（GameController 吃的是原始 CSV 字串），
+  // 但有兩個地方要它：①匯出遊戲包要靠它找出圖片欄位、改寫那幾格；
+  // ②補上圖片資料夾之後要重跑檢查（判準從「是不是網址」變成「檔名找不找得到」）。
+  // ②本來用 ref 存（理由是「它不進畫面」），①之後這句不再成立——匯出按鈕
+  // 要在 render 時讀它，所以收成一份 state，不要兩個地方各存一份同樣的東西。
+  const [tables, setTables] = useState(null);
   // 試玩中重新讀取：不動 status，畫面留在三欄，只有左欄轉圈
   // （status 一旦變成 'loading' 就會掉到開始畫面那個分支，整棵遊戲樹跟著卸載）
   const [reloading, setReloading] = useState(false);
@@ -53,9 +60,6 @@ const CreateApp = () => {
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
 
   const revokeImgs = useRef(null);
-  // 補上圖片資料夾之後要重跑一次檢查（判準會從「是不是網址」變成「檔名找不找得到」），
-  // 所以得留著最後一份 tables——它不進畫面，用 ref 就好
-  const tablesRef = useRef(null);
 
   // 表單頁要能捲；試玩時是固定一屏的版面，要鎖住捲動
   useEffect(() => {
@@ -69,8 +73,8 @@ const CreateApp = () => {
 
   // keepPlaying：在左側面板就地換資料時，不要退回檢查畫面
   const runChecks = (tables, csvFiles, map, keepPlaying) => {
-    tablesRef.current = tables;
     setRundownRows(tables.rundown?.rows || []);
+    setTables(tables);
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     setGameData(csvFiles);
     setDataVersion((v) => v + 1);
@@ -164,7 +168,7 @@ const CreateApp = () => {
     setError('');
 
     // 判準變了就要重報：本來「不是網址」會被念，現在檔名對得上就算數
-    const tables = tablesRef.current;
+    // （這個 handler 每次 render 都重建，閉包裡的 tables 就是最新那份）
     if (tables) {
       setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     }
@@ -173,18 +177,23 @@ const CreateApp = () => {
   const reset = () => {
     setStatus('idle');
     setGameData(null);
+    setTables(null);
     setIssues([]);
     setError('');
     // 換一份＝重來，圖片那層也要放掉。留著的話舊的 blob 不但漏在記憶體裡，
     // 下一份遊戲還會默默對到上一份的圖（跟「重新讀取同一份」刻意保留是兩回事）
     revokeImgs.current?.();
     revokeImgs.current = null;
-    tablesRef.current = null;
     setImgMap(null);
     setImgSource('');
     setSheetUrl('');
     setSource('');
   };
+
+  // 匯出遊戲包只對試算表來源有意義：全本機那條路的 CSV 和圖片本來就都在
+  // 使用者的資料夾裡，再打包一次只是把他已經有的東西還給他。
+  // （試算表 ＋ 本機圖片資料夾的組合算在這裡面——資料在雲端，值得帶走。）
+  const canExport = !!sheetUrl && !!tables;
 
   const hasError = issues.some((it) => it.level === 'error');
 
@@ -220,6 +229,11 @@ const CreateApp = () => {
                     canReload={!!sheetUrl}
                     reloading={reloading}
                     error={error}
+                    exportSlot={
+                      canExport ? (
+                        <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
+                      ) : null
+                    }
                   />
                 </Box>
               </Slide>
@@ -330,6 +344,12 @@ const CreateApp = () => {
                 換一份
               </Button>
             </Stack>
+
+            {canExport && (
+              <Box sx={{ mt: 1.5 }}>
+                <ExportPackButton tables={tables} imgMap={imgMap} fullWidth />
+              </Box>
+            )}
 
             <Box sx={{ mt: 3, maxHeight: '46vh', overflow: 'auto' }}>
               <ValidationReport issues={issues} />

@@ -11,7 +11,9 @@
 // 逐格報會變成沒人看的文字牆。
 
 // 各表的圖片欄位（對照 7 張表 schema）
-const IMG_FIELDS = {
+// 匯出遊戲包（exportGamePack.js）也吃這一份——兩邊各留一份會分岔，
+// 到時候新增圖片欄位只改到其中一邊，另一邊會安靜地漏掉那些圖。
+export const IMG_FIELDS = {
   config: ['backgroundImg'],
   character: ['avatar', 'straight'],
   mission: ['backgroundImg'],

@@ -21,6 +21,7 @@ import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 import SourcePicker from './SourcePicker';
+import ExportPackButton from './ExportPackButton';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 
@@ -43,6 +44,9 @@ const CreateApp = () => {
   const [imgSource, setImgSource] = useState('');
   const [sheetUrl, setSheetUrl] = useState(''); // 記住來源，才能就地重新讀取
   const [rundownRows, setRundownRows] = useState([]);
+  // 解析後的 7 張表。試玩本身用不到（GameController 吃的是原始 CSV 字串），
+  // 但匯出遊戲包要靠它找出圖片欄位、改寫那幾格。
+  const [tables, setTables] = useState(null);
   // 試玩中重新讀取：不動 status，畫面留在三欄，只有左欄轉圈
   // （status 一旦變成 'loading' 就會掉到開始畫面那個分支，整棵遊戲樹跟著卸載）
   const [reloading, setReloading] = useState(false);
@@ -71,6 +75,7 @@ const CreateApp = () => {
   const runChecks = (tables, csvFiles, map, keepPlaying) => {
     tablesRef.current = tables;
     setRundownRows(tables.rundown?.rows || []);
+    setTables(tables);
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     setGameData(csvFiles);
     setDataVersion((v) => v + 1);
@@ -173,6 +178,7 @@ const CreateApp = () => {
   const reset = () => {
     setStatus('idle');
     setGameData(null);
+    setTables(null);
     setIssues([]);
     setError('');
     // 換一份＝重來，圖片那層也要放掉。留著的話舊的 blob 不但漏在記憶體裡，
@@ -185,6 +191,10 @@ const CreateApp = () => {
     setSheetUrl('');
     setSource('');
   };
+
+  // 匯出遊戲包只對試算表來源有意義：本機資料夾那條路的圖已經在使用者手上，
+  // 表格填的也已經是檔名，沒有東西需要被換掉。
+  const canExport = !!sheetUrl && !!tables;
 
   const hasError = issues.some((it) => it.level === 'error');
 
@@ -220,6 +230,11 @@ const CreateApp = () => {
                     canReload={!!sheetUrl}
                     reloading={reloading}
                     error={error}
+                    exportSlot={
+                      canExport ? (
+                        <ExportPackButton tables={tables} fullWidth size="small" />
+                      ) : null
+                    }
                   />
                 </Box>
               </Slide>
@@ -330,6 +345,12 @@ const CreateApp = () => {
                 換一份
               </Button>
             </Stack>
+
+            {canExport && (
+              <Box sx={{ mt: 1.5 }}>
+                <ExportPackButton tables={tables} fullWidth />
+              </Box>
+            )}
 
             <Box sx={{ mt: 3, maxHeight: '46vh', overflow: 'auto' }}>
               <ValidationReport issues={issues} />

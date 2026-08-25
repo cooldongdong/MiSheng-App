@@ -35,6 +35,7 @@ const SourcePanel = ({
   canReload,
   reloading = false,
   error = '',
+  exportSlot = null,
 }) => {
   const errors = issues.filter((it) => it.level === 'error').length;
   const warns = issues.filter((it) => it.level === 'warn').length;
@@ -186,6 +187,9 @@ const SourcePanel = ({
           )}
         </Stack>
 
+        {/* 匯出遊戲包：只有試算表來源才給（本機來源的圖已經是檔名，沒得換） */}
+        {exportSlot && <Box sx={{ mt: 1.5 }}>{exportSlot}</Box>}
+
         {/* 讀取失敗留在原地講，手上這份遊戲照樣能繼續玩 */}
         {error && (
           <Alert severity="warning" sx={{ mt: 1.5, py: 0.25 }}>
@@ -237,6 +241,7 @@ SourcePanel.propTypes = {
   canReload: PropTypes.bool,
   reloading: PropTypes.bool,
   error: PropTypes.string,
+  exportSlot: PropTypes.node,
 };
 
 export default SourcePanel;

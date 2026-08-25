@@ -45,7 +45,10 @@ const CreateApp = () => {
   const [sheetUrl, setSheetUrl] = useState(''); // 記住來源，才能就地重新讀取
   const [rundownRows, setRundownRows] = useState([]);
   // 解析後的 7 張表。試玩本身用不到（GameController 吃的是原始 CSV 字串），
-  // 但匯出遊戲包要靠它找出圖片欄位、改寫那幾格。
+  // 但有兩個地方要它：①匯出遊戲包要靠它找出圖片欄位、改寫那幾格；
+  // ②補上圖片資料夾之後要重跑檢查（判準從「是不是網址」變成「檔名找不找得到」）。
+  // ②本來用 ref 存（理由是「它不進畫面」），①之後這句不再成立——匯出按鈕
+  // 要在 render 時讀它，所以收成一份 state，不要兩個地方各存一份同樣的東西。
   const [tables, setTables] = useState(null);
   // 試玩中重新讀取：不動 status，畫面留在三欄，只有左欄轉圈
   // （status 一旦變成 'loading' 就會掉到開始畫面那個分支，整棵遊戲樹跟著卸載）
@@ -57,9 +60,6 @@ const CreateApp = () => {
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
 
   const revokeImgs = useRef(null);
-  // 補上圖片資料夾之後要重跑一次檢查（判準會從「是不是網址」變成「檔名找不找得到」），
-  // 所以得留著最後一份 tables——它不進畫面，用 ref 就好
-  const tablesRef = useRef(null);
 
   // 表單頁要能捲；試玩時是固定一屏的版面，要鎖住捲動
   useEffect(() => {
@@ -73,7 +73,6 @@ const CreateApp = () => {
 
   // keepPlaying：在左側面板就地換資料時，不要退回檢查畫面
   const runChecks = (tables, csvFiles, map, keepPlaying) => {
-    tablesRef.current = tables;
     setRundownRows(tables.rundown?.rows || []);
     setTables(tables);
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
@@ -169,7 +168,7 @@ const CreateApp = () => {
     setError('');
 
     // 判準變了就要重報：本來「不是網址」會被念，現在檔名對得上就算數
-    const tables = tablesRef.current;
+    // （這個 handler 每次 render 都重建，閉包裡的 tables 就是最新那份）
     if (tables) {
       setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     }
@@ -185,7 +184,6 @@ const CreateApp = () => {
     // 下一份遊戲還會默默對到上一份的圖（跟「重新讀取同一份」刻意保留是兩回事）
     revokeImgs.current?.();
     revokeImgs.current = null;
-    tablesRef.current = null;
     setImgMap(null);
     setImgSource('');
     setSheetUrl('');

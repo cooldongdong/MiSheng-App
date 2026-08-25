@@ -26,8 +26,8 @@ export const EXPECTED_FIELDS = {
 
 // rundown.model 合法值（見 GameController modelComponents）
 export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'MissionAnswerInput', 'Img', 'CustomValueInput'];
-// prop.type 合法值（Dong 2026-07-21：目前只有 Img 跟 Wheel）
-export const VALID_PROP_TYPES = ['Img', 'Wheel'];
+// prop.type 合法值（2026-08-25 加入 Camera：相機畫面上疊半透明圖的數位透明片）
+export const VALID_PROP_TYPES = ['Img', 'Wheel', 'Camera'];
 
 // 至少要有一筆資料的表（遊戲核心；hint/prop/story 允許整張空）
 const MUST_HAVE_ROWS = ['character', 'mission', 'rundown'];
@@ -109,6 +109,11 @@ export function validateGame(tables) {
     for (const { row, i } of rowsOf('prop')) {
       if (!isEmpty(row.type) && !VALID_PROP_TYPES.includes(norm(row.type))) {
         add('prop', sheetRow(i), 'type', `type「${row.type}」不是合法值（應為 ${VALID_PROP_TYPES.join(' / ')}）`);
+      }
+      // Camera 道具沒有 img 就沒有透明片可疊，只會開出一片空相機——不是錯字，
+      // 是這一列做不成事，所以是提醒不是 error
+      if (norm(row.type) === 'Camera' && isEmpty(row.img)) {
+        warn('prop', sheetRow(i), 'img', 'Camera 道具沒有填 img，打開相機後不會有東西疊上去');
       }
     }
   }

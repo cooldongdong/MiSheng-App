@@ -13,6 +13,7 @@ const ZoomableImage = ({
   isFullScreen,
   showZoomButton,
   onToggle,
+  openIcon, // 給 Camera 道具換成相機圖示；不給就是原本的放大
 }) => {
   return (
     <>
@@ -67,7 +68,7 @@ const ZoomableImage = ({
                     ml: 'auto',
                   }}
                 >
-                  <OpenInFullRoundedIcon />
+                  {openIcon || <OpenInFullRoundedIcon />}
                 </Fab>
               )}
               {zoomInFab === 'center' && (
@@ -82,7 +83,7 @@ const ZoomableImage = ({
                     transform: 'translateY(50%)',
                   }}
                 >
-                  <OpenInFullRoundedIcon />
+                  {openIcon || <OpenInFullRoundedIcon />}
                 </Fab>
               )}
             </Box>
@@ -166,6 +167,7 @@ ZoomableImage.propTypes = {
   isFullScreen: PropTypes.bool.isRequired,
   showZoomButton: PropTypes.bool.isRequired,
   onToggle: PropTypes.func.isRequired,
+  openIcon: PropTypes.node,
 };
 
 export default ZoomableImage;

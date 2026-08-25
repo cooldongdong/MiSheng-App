@@ -33,6 +33,15 @@ const Wheel = ({
     setHasRotateImg2(true);
   }, [prop.rotateImg2]);
 
+  // 版面高度由這張看不見的「量尺」決定，跟填了哪幾個圖層無關。
+  // 以前是靠 frontImg 撐——三層圖只有它是 relative（在文件流裡），另外兩張是
+  // absolute ＋ maxHeight:100%。所以 frontImg 沒填時容器高度趨近 0，
+  // 另外兩張的 maxHeight 也跟著變成 0，整個轉盤縮成一點點。
+  // 那讓一個選填欄位實際上變成必填，而且得放一張尺寸剛好的透明圖才會正常——
+  // 尺寸填錯不會報錯，只會默默歪掉。
+  const sizerSrc =
+    prop.frontImg || prop.rotateImg1 || prop.rotateImg2 || prop.img;
+
   return (
     <>
       {/* 當圖片沒有放大時，顯示在 Paper 內 */}
@@ -151,7 +160,8 @@ const Wheel = ({
               sx={{
                 width: '100%',
                 maxWidth: '600px',
-                height: '80dvh',
+                // 用 % 而不是 dvh：嵌在 /create 的欄位裡時，dvh 量的是整個視窗
+                height: '80%',
                 maxHeight: '650px',
                 margin: 'auto',
                 display: 'flex',
@@ -169,6 +179,22 @@ const Wheel = ({
                   position: 'relative',
                 }}
               >
+                {/* 看不見的量尺：只負責把容器撐到正確高度，不參與畫面 */}
+                {sizerSrc && (
+                  <img
+                    src={getImg(sizerSrc)}
+                    alt=""
+                    aria-hidden
+                    style={{
+                      width: '100%',
+                      maxWidth: '600px',
+                      display: 'block',
+                      visibility: 'hidden',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+
                 {/* 可以旋轉的第二張圖片 */}
                 {hasRotateImg2 && (
                   <img
@@ -178,7 +204,11 @@ const Wheel = ({
                       width: '100%',
                       maxWidth: '600px',
                       maxHeight: '100%',
+                      // 三層都要明寫 top/left：absolute 沒給偏移時會落在「靜態位置」，
+                      // 而量尺排在它們前面，會把靜態位置整個往下推
                       position: 'absolute',
+                      top: 0,
+                      left: 0,
                       transform: `rotate(${angle2}deg)`,
                       transition: 'transform 0.1s linear',
                       objectFit: 'scale-down',
@@ -196,6 +226,8 @@ const Wheel = ({
                     maxWidth: '600px',
                     maxHeight: '100%',
                     position: 'absolute',
+                    top: 0,
+                    left: 0,
                     transform: `rotate(${angle}deg)`,
                     transition: 'transform 0.1s linear',
                     objectFit: 'scale-down',
@@ -203,19 +235,24 @@ const Wheel = ({
                   }}
                 />
 
-                {/* 不能旋轉的那張圖片 */}
-                <img
-                  src={getImg(prop.frontImg)}
-                  alt={prop.frontImg}
-                  style={{
-                    width: '100%',
-                    maxWidth: '600px',
-                    maxHeight: '100%',
-                    position: 'relative',
-                    objectFit: 'scale-down',
-                    filter: 'drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.5))',
-                  }}
-                />
+                {/* 不能旋轉的那張圖片。跟其他層一樣是 absolute——撐版面的是量尺，
+                    誰在文件流裡不再取決於填了哪些欄位 */}
+                {prop.frontImg && (
+                  <img
+                    src={getImg(prop.frontImg)}
+                    alt={prop.frontImg}
+                    style={{
+                      width: '100%',
+                      maxWidth: '600px',
+                      maxHeight: '100%',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      objectFit: 'scale-down',
+                      filter: 'drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.5))',
+                    }}
+                  />
+                )}
               </Box>
 
               {hasRotateImg2 ? (
@@ -236,8 +273,9 @@ const Wheel = ({
                   >
                     <div
                       style={{
-                        height: '100dvw',
-                        maxHeight: '600px',
+                        // 面板高度跟著裡面的滑桿走就好。原本是 100dvw（視窗寬），
+                        // 在窄欄位裡會變成一根比轉盤還高的白柱子
+                        height: 'auto',
                         padding: '6% 1%',
                         backgroundColor: 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(5px)',
@@ -270,8 +308,9 @@ const Wheel = ({
                     </div>
                     <div
                       style={{
-                        height: '100dvw',
-                        maxHeight: '600px',
+                        // 面板高度跟著裡面的滑桿走就好。原本是 100dvw（視窗寬），
+                        // 在窄欄位裡會變成一根比轉盤還高的白柱子
+                        height: 'auto',
                         padding: '6% 1%',
                         backgroundColor: 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(5px)',

@@ -1,5 +1,9 @@
 // useOverlayGestures.js
-// 疊圖的對位手勢：單指拖曳、兩指捏合縮放＋旋轉、滾輪縮放（桌機驗收用）。
+// 疊圖的對位手勢：單指拖曳、兩指捏合縮放＋旋轉、滾輪縮放、Shift＋拖曳旋轉。
+//
+// 為什麼桌機要另外有 Shift＋拖曳：旋轉本來只綁在兩指手勢上，但觸控板不會產生
+// 兩個 pointer，於是桌機完全轉不動。macOS 觸控板的雙指旋轉會發 gesturechange，
+// 但那是 WebKit 的非標準事件（只有 Safari 有），不能當唯一入口。
 //
 // 為什麼不複用 create/useCanvasGestures：
 //   ① 它住在 src/create/（工具那一國），遊戲引擎去依賴它是反向依賴
@@ -53,6 +57,7 @@ export const useOverlayGestures = () => {
 
   const pointers = useRef(new Map()); // pointerId → 目前座標
   const gesture = useRef(null); // 手勢起點快照
+  const shiftHeld = useRef(false); // 按下那一刻有沒有壓著 Shift（決定拖曳是平移還是旋轉）
   const transformRef = useRef(IDENTITY);
   transformRef.current = transform;
 
@@ -68,7 +73,18 @@ export const useOverlayGestures = () => {
   const snapshot = useCallback(() => {
     const pts = [...pointers.current.values()];
     const center = containerCenter();
-    if (pts.length === 1) {
+    if (pts.length === 1 && shiftHeld.current) {
+      // 繞「圖自己的中心」轉：transform-origin 就是圖心，所以旋轉不會讓圖跑掉
+      const base = transformRef.current;
+      const pivot = { x: center.x + base.x, y: center.y + base.y };
+      gesture.current = {
+        mode: 'rotate',
+        base,
+        center,
+        pivot,
+        angle: angleDeg(pivot, pts[0]),
+      };
+    } else if (pts.length === 1) {
       gesture.current = { mode: 'drag', base: transformRef.current, center, start: pts[0] };
     } else if (pts.length >= 2) {
       const [a, b] = pts;
@@ -87,6 +103,8 @@ export const useOverlayGestures = () => {
 
   const onPointerDown = useCallback(
     (event) => {
+      // 只有第一根手指／滑鼠按下時才看 Shift；兩指捏合本來就會轉，不受影響
+      if (pointers.current.size === 0) shiftHeld.current = event.shiftKey;
       pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
       snapshot();
     },
@@ -111,6 +129,14 @@ export const useOverlayGestures = () => {
         return;
       }
 
+      if (g.mode === 'rotate' && pts.length === 1) {
+        setTransform({
+          ...g.base,
+          rotation: g.base.rotation + normalizeAngle(angleDeg(g.pivot, pts[0]) - g.angle),
+        });
+        return;
+      }
+
       if (g.mode === 'pinch' && pts.length >= 2) {
         const [a, b] = pts;
         const mid = midpoint(a, b);
@@ -129,6 +155,7 @@ export const useOverlayGestures = () => {
 
     const onUp = (event) => {
       if (!pointers.current.delete(event.pointerId)) return;
+      if (pointers.current.size === 0) shiftHeld.current = false;
       snapshot();
     };
 

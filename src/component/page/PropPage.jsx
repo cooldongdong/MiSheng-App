@@ -5,6 +5,7 @@ import PageTitleText from '../common/PageTitleText';
 import ContentList from '../common/ContentList';
 import ZoomableImage from '../common/ZoomableImage';
 import Wheel from '../common/Wheel';
+import CameraOverlay from '../common/CameraOverlay';
 
 const PropPage = () => {
   const { getImg, getMissionById, propData, currentMissionId } =
@@ -39,6 +40,16 @@ const PropPage = () => {
               src={getImg(prop.img)}
               alt={`Image ${index + 1}`}
               title={prop.title}
+              isFullScreen={fullScreenIndex === index}
+              showZoomButton={fullScreenIndex === null}
+              onToggle={() =>
+                setFullScreenIndex(fullScreenIndex === index ? null : index)
+              }
+            />
+          ) : prop.type === 'Camera' ? (
+            <CameraOverlay
+              key={index}
+              prop={prop}
               isFullScreen={fullScreenIndex === index}
               showZoomButton={fullScreenIndex === null}
               onToggle={() =>

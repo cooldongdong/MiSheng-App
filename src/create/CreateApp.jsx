@@ -22,6 +22,7 @@ import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 import SourcePicker from './SourcePicker';
 import ExportPackButton from './ExportPackButton';
+import { readRecentSheets, rememberSheet, forgetSheet } from './recentSheets';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 
@@ -55,6 +56,7 @@ const CreateApp = () => {
   const [reloading, setReloading] = useState(false);
   const [dataVersion, setDataVersion] = useState(0); // 換過幾份資料，給 GameController 判斷要不要重解析
   const [notice, setNotice] = useState('');
+  const [recent, setRecent] = useState(readRecentSheets);
 
   const [showSource, setShowSource] = useState(true); // 左側面板
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
@@ -98,12 +100,15 @@ const CreateApp = () => {
     const keepPlaying = status === 'playing';
     beginLoad(keepPlaying);
     try {
-      const { csvFiles, tables } = await loadGameFromSheet(url);
+      const { csvFiles, tables, spreadsheetId } = await loadGameFromSheet(url);
       // 不動 imgMap：試算表只負責資料，圖片那一層維持現狀。
       // 以前這裡會清掉，於是「試算表 ＋ 本機圖片」永遠湊不起來，
       // 而且每重讀一次試算表就得重選一次資料夾。
       setSheetUrl(url);
       setSource('Google 試算表');
+      // 只在讀成功後才記——記下讀不到的連結只會讓清單變成一排地雷。
+      // 用遊戲名稱當標籤（gviz 拿不到試算表檔名，見 recentSheets.js）
+      setRecent(rememberSheet(spreadsheetId, tables.config?.rows?.[0]?.title));
       runChecks(tables, csvFiles, imgMap, keepPlaying);
     } catch (err) {
       failLoad(keepPlaying, err, '匯入失敗');
@@ -367,6 +372,8 @@ const CreateApp = () => {
       onFolder={handleFolder}
       onSheet={handleSheet}
       error={error}
+      recent={recent}
+      onForget={(id) => setRecent(forgetSheet(id))}
     />
   );
 };

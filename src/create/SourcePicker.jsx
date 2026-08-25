@@ -27,7 +27,17 @@ const TEMPLATE_URL =
 
 // 開始畫面：只留一個主要動作（把資料夾丟進來），其餘全部收起來。
 // 說明文字第一眼只給一行，想知道細節的人自己展開——不要一次倒完所有資訊。
-const SourcePicker = ({ loading, onFolder, onSheet, error, recent = [], onForget }) => {
+const SourcePicker = ({
+  loading,
+  onFolder,
+  onSheet,
+  error,
+  recent = [],
+  onForget,
+  pendingSheet = '',
+  onAcceptPending,
+  onDismissPending,
+}) => {
   const [url, setUrl] = useState('');
   const [dragging, setDragging] = useState(false);
 
@@ -75,6 +85,50 @@ const SourcePicker = ({ loading, onFolder, onSheet, error, recent = [], onForget
         <Typography variant="body1" sx={{ color: '#607d8b', mt: 1, mb: 4 }}>
           把遊戲資料夾丟進來，當場檢查、當場試玩。
         </Typography>
+
+        {/* 別人分享過來的連結：不自動載入，先講清楚要載入什麼、由使用者按一下。
+            自己書籤過的（在最近使用清單裡）不會走到這裡，會直接載入 */}
+        {pendingSheet && (
+          <Box
+            sx={{
+              mb: 3,
+              p: 2,
+              borderRadius: '12px',
+              border: '1px solid #cfd8dc',
+              bgcolor: '#f5f7f8',
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#37474f' }}>
+              這個連結要載入一份 Google 試算表
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                mt: 0.5,
+                color: '#78909c',
+                wordBreak: 'break-all',
+                fontFamily: 'monospace',
+              }}
+            >
+              {pendingSheet}
+            </Typography>
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+              <Button
+                size="small"
+                variant="contained"
+                disableElevation
+                onClick={onAcceptPending}
+                disabled={loading}
+              >
+                載入並檢查
+              </Button>
+              <Button size="small" onClick={onDismissPending} disabled={loading}>
+                不用，我自己選
+              </Button>
+            </Stack>
+          </Box>
+        )}
 
         {/* 主要動作：拖放區 */}
         <Box
@@ -299,6 +353,9 @@ SourcePicker.propTypes = {
   onSheet: PropTypes.func.isRequired,
   recent: PropTypes.array,
   onForget: PropTypes.func,
+  pendingSheet: PropTypes.string,
+  onAcceptPending: PropTypes.func,
+  onDismissPending: PropTypes.func,
   error: PropTypes.string,
 };
 

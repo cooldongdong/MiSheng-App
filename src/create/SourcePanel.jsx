@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded';
+import ImageRoundedIcon from '@mui/icons-material/ImageRounded';
 import DriveFolderUploadRoundedIcon from '@mui/icons-material/DriveFolderUploadRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import ValidationReport from './ValidationReport';
@@ -23,8 +24,10 @@ import ValidationReport from './ValidationReport';
 // 就是原本 /create 那頁的資訊，收進側邊欄——載入完之後它不該再佔著主畫面。
 const SourcePanel = ({
   source,
+  imgSource = '',
   issues,
   onPickFolder,
+  onPickImageFolder,
   onReload,
   canReload,
   reloading = false,
@@ -60,6 +63,14 @@ const SourcePanel = ({
           <FolderRoundedIcon fontSize="small" sx={{ color: '#90a4ae', mt: 0.25 }} />
           <Typography variant="body2" sx={{ color: '#37474f', lineHeight: 1.5 }}>
             {source || '未命名'}
+          </Typography>
+        </Stack>
+
+        {/* 圖片是獨立的一層：試算表出資料時，圖可以另外從本機資料夾來 */}
+        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 0.75 }}>
+          <ImageRoundedIcon fontSize="small" sx={{ color: '#90a4ae', mt: 0.25 }} />
+          <Typography variant="body2" sx={{ color: imgSource ? '#37474f' : '#90a4ae', lineHeight: 1.5 }}>
+            {imgSource || '圖片：用表格裡填的網址'}
           </Typography>
         </Stack>
 
@@ -111,6 +122,27 @@ const SourcePanel = ({
           )}
         </Stack>
 
+        {/* 只換圖不換資料：貼試算表連結的人也能用本機圖片，表格照舊填檔名 */}
+        <Button
+          fullWidth
+          size="small"
+          variant="text"
+          component="label"
+          disabled={reloading}
+          startIcon={<ImageRoundedIcon />}
+          sx={{ mt: 0.5, justifyContent: 'flex-start', color: '#546e7a' }}
+        >
+          {imgSource ? '換圖片資料夾' : '改用本機圖片資料夾'}
+          <input
+            hidden
+            type="file"
+            webkitdirectory=""
+            multiple
+            disabled={reloading}
+            onChange={(e) => onPickImageFolder(e.target.files)}
+          />
+        </Button>
+
         {/* 讀取失敗留在原地講，手上這份遊戲照樣能繼續玩 */}
         {error && (
           <Alert severity="warning" sx={{ mt: 1.5, py: 0.25 }}>
@@ -153,8 +185,10 @@ const SourcePanel = ({
 
 SourcePanel.propTypes = {
   source: PropTypes.string,
+  imgSource: PropTypes.string,
   issues: PropTypes.array.isRequired,
   onPickFolder: PropTypes.func.isRequired,
+  onPickImageFolder: PropTypes.func.isRequired,
   onReload: PropTypes.func,
   canReload: PropTypes.bool,
   reloading: PropTypes.bool,

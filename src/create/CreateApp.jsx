@@ -18,7 +18,7 @@ import GameShell from '../component/GameShell';
 import { loadGameFromSheet } from '../game/sheetLoader';
 import { validateGame } from '../validator/validateGame';
 import { checkSheetImages } from './checkSheetImages';
-import { readLocalGameFolder } from './localFiles';
+import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 import SourcePicker from './SourcePicker';
 import SourcePanel from './SourcePanel';
@@ -39,6 +39,8 @@ const CreateApp = () => {
   const [gameData, setGameData] = useState(null);
   const [imgMap, setImgMap] = useState(null);
   const [source, setSource] = useState('');
+  // 圖片來源與資料來源是兩層：試算表出資料、本機資料夾出圖，可以只換其中一邊
+  const [imgSource, setImgSource] = useState('');
   const [sheetUrl, setSheetUrl] = useState(''); // 記住來源，才能就地重新讀取
   const [rundownRows, setRundownRows] = useState([]);
   // 試玩中重新讀取：不動 status，畫面留在三欄，只有左欄轉圈
@@ -51,6 +53,9 @@ const CreateApp = () => {
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
 
   const revokeImgs = useRef(null);
+  // 補上圖片資料夾之後要重跑一次檢查（判準會從「是不是網址」變成「檔名找不找得到」），
+  // 所以得留著最後一份 tables——它不進畫面，用 ref 就好
+  const tablesRef = useRef(null);
 
   // 表單頁要能捲；試玩時是固定一屏的版面，要鎖住捲動
   useEffect(() => {
@@ -64,6 +69,7 @@ const CreateApp = () => {
 
   // keepPlaying：在左側面板就地換資料時，不要退回檢查畫面
   const runChecks = (tables, csvFiles, map, keepPlaying) => {
+    tablesRef.current = tables;
     setRundownRows(tables.rundown?.rows || []);
     setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     setGameData(csvFiles);
@@ -89,12 +95,12 @@ const CreateApp = () => {
     beginLoad(keepPlaying);
     try {
       const { csvFiles, tables } = await loadGameFromSheet(url);
-      revokeImgs.current?.();
-      revokeImgs.current = null;
-      setImgMap(null);
+      // 不動 imgMap：試算表只負責資料，圖片那一層維持現狀。
+      // 以前這裡會清掉，於是「試算表 ＋ 本機圖片」永遠湊不起來，
+      // 而且每重讀一次試算表就得重選一次資料夾。
       setSheetUrl(url);
       setSource('Google 試算表');
-      runChecks(tables, csvFiles, null, keepPlaying);
+      runChecks(tables, csvFiles, imgMap, keepPlaying);
     } catch (err) {
       failLoad(keepPlaying, err, '匯入失敗');
     } finally {
@@ -124,6 +130,7 @@ const CreateApp = () => {
       setSource(
         `${folderName}：${Object.keys(csvFiles).length} 張表 ＋ ${imgCount} 張圖`
       );
+      setImgSource(imgCount ? `${folderName}：${imgCount} 張圖` : '');
       if (ignored.length) {
         setError(
           `這些 CSV 的檔名認不出是哪一張表，已略過：${ignored.join('、')}`
@@ -134,6 +141,32 @@ const CreateApp = () => {
       failLoad(keepPlaying, err, '讀取失敗');
     } finally {
       setReloading(false);
+    }
+  };
+
+  // 只補圖片，完全不看資料夾裡的 CSV——同時吃兩個資料來源的話，
+  // 之後出事會查不出是哪一份在生效
+  const handleImageFolder = (files) => {
+    if (!files?.length) return;
+    const { map, revoke, count } = buildLocalImageMap(files);
+    if (!count) {
+      revoke();
+      setError('這個資料夾裡沒有圖片檔，圖片來源沒有換。');
+      return;
+    }
+    revokeImgs.current?.();
+    revokeImgs.current = revoke;
+    setImgMap(map);
+
+    const folderName =
+      Array.from(files)[0]?.webkitRelativePath?.split('/')[0] || '資料夾';
+    setImgSource(`${folderName}：${count} 張圖`);
+    setError('');
+
+    // 判準變了就要重報：本來「不是網址」會被念，現在檔名對得上就算數
+    const tables = tablesRef.current;
+    if (tables) {
+      setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
     }
   };
 
@@ -169,8 +202,10 @@ const CreateApp = () => {
                 <Box sx={{ height: '100%' }}>
                   <SourcePanel
                     source={source}
+                    imgSource={imgSource}
                     issues={issues}
                     onPickFolder={handleFolder}
+                    onPickImageFolder={handleImageFolder}
                     onReload={() => handleSheet(sheetUrl)}
                     canReload={!!sheetUrl}
                     reloading={reloading}

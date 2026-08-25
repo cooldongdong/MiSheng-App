@@ -175,6 +175,15 @@ const CreateApp = () => {
     setGameData(null);
     setIssues([]);
     setError('');
+    // 換一份＝重來，圖片那層也要放掉。留著的話舊的 blob 不但漏在記憶體裡，
+    // 下一份遊戲還會默默對到上一份的圖（跟「重新讀取同一份」刻意保留是兩回事）
+    revokeImgs.current?.();
+    revokeImgs.current = null;
+    tablesRef.current = null;
+    setImgMap(null);
+    setImgSource('');
+    setSheetUrl('');
+    setSource('');
   };
 
   const hasError = issues.some((it) => it.level === 'error');
@@ -206,6 +215,7 @@ const CreateApp = () => {
                     issues={issues}
                     onPickFolder={handleFolder}
                     onPickImageFolder={handleImageFolder}
+                    onReset={reset}
                     onReload={() => handleSheet(sheetUrl)}
                     canReload={!!sheetUrl}
                     reloading={reloading}

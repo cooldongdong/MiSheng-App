@@ -16,12 +16,14 @@ import {
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded';
 import ImageRoundedIcon from '@mui/icons-material/ImageRounded';
-import DriveFolderUploadRoundedIcon from '@mui/icons-material/DriveFolderUploadRounded';
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import ValidationReport from './ValidationReport';
 
 // 試玩時的左側面板：這份遊戲從哪來、驗證結果如何、要換資料就地換。
 // 就是原本 /create 那頁的資訊，收進側邊欄——載入完之後它不該再佔著主畫面。
+//
+// 版面分成「遊戲資料」與「圖片」兩組，每組都是「現在的來源 ＋ 它自己的動作」。
+// 這兩層本來就可以各換各的（試算表出資料、本機資料夾出圖），版面要把這件事畫出來，
+// 否則動作跟它對應的來源會離很遠，看不出誰配誰。
 const SourcePanel = ({
   source,
   imgSource = '',
@@ -29,6 +31,7 @@ const SourcePanel = ({
   onPickFolder,
   onPickImageFolder,
   onReload,
+  onReset,
   canReload,
   reloading = false,
   error = '',
@@ -43,6 +46,25 @@ const SourcePanel = ({
     if (errors > 0) setReportOpen(true);
   }, [issues, errors]);
 
+  // 動作做成文字連結而不是按鈕：狀態行已經有 icon 了，動作再放一次同一顆
+  // 會變成同一個圖示代表兩件事（一個是現況、一個是操作）
+  const actionSx = {
+    minWidth: 0,
+    p: 0,
+    fontSize: 13,
+    fontWeight: 400,
+    lineHeight: 1.6,
+    color: '#1976d2',
+    textTransform: 'none',
+    '&:hover': { background: 'none', textDecoration: 'underline' },
+  };
+  const rowSx = { pl: '28px', mt: 0.25, alignItems: 'center' }; // 對齊狀態行的文字
+  const dot = (
+    <Typography component="span" sx={{ color: '#cfd8dc', fontSize: 13 }}>
+      ·
+    </Typography>
+  );
+
   return (
     <Box
       sx={{
@@ -56,6 +78,7 @@ const SourcePanel = ({
       }}
     >
       <Box sx={{ px: 2, pb: 1.5 }}>
+        {/* ---- 遊戲資料 ---- */}
         <Typography variant="overline" sx={{ color: '#90a4ae', letterSpacing: 1 }}>
           遊戲資料
         </Typography>
@@ -66,82 +89,102 @@ const SourcePanel = ({
           </Typography>
         </Stack>
 
-        {/* 圖片是獨立的一層：試算表出資料時，圖可以另外從本機資料夾來 */}
-        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 0.75 }}>
+        <Stack direction="row" spacing={0.75} sx={rowSx}>
+          {/* 「重新讀取」這個角色在兩種來源下由不同機制扮演：試算表可以重抓，
+              本機資料夾不行——瀏覽器沒辦法自己重讀一個資料夾，只能再選一次。
+              所以它們共用同一個位置，只是名字不同 */}
+          {canReload ? (
+            <Button
+              size="small"
+              variant="text"
+              onClick={onReload}
+              disabled={reloading}
+              sx={actionSx}
+              startIcon={
+                reloading ? <CircularProgress size={12} color="inherit" /> : null
+              }
+            >
+              {reloading ? '讀取中' : '重新讀取'}
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              variant="text"
+              component="label"
+              disabled={reloading}
+              sx={actionSx}
+            >
+              {reloading ? '讀取中' : '重新選資料夾'}
+              <input
+                hidden
+                type="file"
+                webkitdirectory=""
+                multiple
+                disabled={reloading}
+                onChange={(e) => onPickFolder(e.target.files)}
+              />
+            </Button>
+          )}
+          {dot}
+          {/* 換一份＝重來，回開始畫面。跟上面那顆不同：上面那顆是就地換資料，
+              遊戲不卸載、停在哪一列不會被歸零 */}
+          <Button
+            size="small"
+            variant="text"
+            onClick={onReset}
+            disabled={reloading}
+            sx={actionSx}
+          >
+            換一份
+          </Button>
+        </Stack>
+
+        {/* ---- 圖片 ---- */}
+        <Typography
+          variant="overline"
+          sx={{ color: '#90a4ae', letterSpacing: 1, display: 'block', mt: 1.5 }}
+        >
+          圖片
+        </Typography>
+        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 0.5 }}>
           <ImageRoundedIcon fontSize="small" sx={{ color: '#90a4ae', mt: 0.25 }} />
-          <Typography variant="body2" sx={{ color: imgSource ? '#37474f' : '#90a4ae', lineHeight: 1.5 }}>
-            {imgSource || '圖片：用表格裡填的網址'}
+          <Typography
+            variant="body2"
+            sx={{ color: imgSource ? '#37474f' : '#90a4ae', lineHeight: 1.5 }}
+          >
+            {imgSource || '用表格裡填的網址'}
           </Typography>
         </Stack>
 
-        <Stack direction="row" spacing={0.75} sx={{ mt: 1.5 }} flexWrap="wrap" useFlexGap>
-          {errors > 0 && <Chip size="small" color="error" label={`${errors} 個錯誤`} />}
-          {warns > 0 && <Chip size="small" variant="outlined" label={`${warns} 個提醒`} />}
-          {errors === 0 && warns === 0 && (
-            <Chip size="small" color="success" variant="outlined" label="檢查通過" />
-          )}
-        </Stack>
-
-        {/* 就地換資料：整個過程都留在三欄畫面裡，遊戲不卸載、停在哪一列也不會被歸零 */}
-        <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+        <Stack direction="row" spacing={0.75} sx={rowSx}>
           <Button
-            fullWidth
             size="small"
-            variant="outlined"
+            variant="text"
             component="label"
             disabled={reloading}
-            startIcon={<DriveFolderUploadRoundedIcon />}
+            sx={actionSx}
           >
-            換資料夾
+            {imgSource ? '換資料夾' : '改用本機資料夾'}
             <input
               hidden
               type="file"
               webkitdirectory=""
               multiple
               disabled={reloading}
-              onChange={(e) => onPickFolder(e.target.files)}
+              onChange={(e) => onPickImageFolder(e.target.files)}
             />
           </Button>
-          {canReload && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={onReload}
-              disabled={reloading}
-              startIcon={
-                reloading ? (
-                  <CircularProgress size={16} color="inherit" />
-                ) : (
-                  <RefreshRoundedIcon />
-                )
-              }
-              sx={{ flexShrink: 0 }}
-            >
-              {reloading ? '讀取中' : '重新讀取'}
-            </Button>
-          )}
         </Stack>
 
-        {/* 只換圖不換資料：貼試算表連結的人也能用本機圖片，表格照舊填檔名 */}
-        <Button
-          fullWidth
-          size="small"
-          variant="text"
-          component="label"
-          disabled={reloading}
-          startIcon={<ImageRoundedIcon />}
-          sx={{ mt: 0.5, justifyContent: 'flex-start', color: '#546e7a' }}
-        >
-          {imgSource ? '換圖片資料夾' : '改用本機圖片資料夾'}
-          <input
-            hidden
-            type="file"
-            webkitdirectory=""
-            multiple
-            disabled={reloading}
-            onChange={(e) => onPickImageFolder(e.target.files)}
-          />
-        </Button>
+        {/* 檢查結果放在兩組來源之後：它講的是「這份資料好不好」，不屬於任何一組，
+            夾在中間會把來源跟它的動作切斷 */}
+        <Stack direction="row" spacing={0.75} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
+          {errors > 0 && <Chip size="small" color="error" label={`${errors} 個錯誤`} />}
+          {warns > 0 && <Chip size="small" variant="outlined" label={`${warns} 個提醒`} />}
+          {errors === 0 && warns === 0 && (
+            <Chip size="small" color="success" variant="outlined" label="檢查通過" />
+          )}
+        </Stack>
 
         {/* 讀取失敗留在原地講，手上這份遊戲照樣能繼續玩 */}
         {error && (
@@ -190,6 +233,7 @@ SourcePanel.propTypes = {
   onPickFolder: PropTypes.func.isRequired,
   onPickImageFolder: PropTypes.func.isRequired,
   onReload: PropTypes.func,
+  onReset: PropTypes.func.isRequired,
   canReload: PropTypes.bool,
   reloading: PropTypes.bool,
   error: PropTypes.string,

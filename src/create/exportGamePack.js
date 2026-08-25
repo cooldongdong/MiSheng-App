@@ -80,13 +80,26 @@ export const toFetchableUrl = (value) => {
   return raw;
 };
 
+// 表格填檔名時，那一格本來就是對的，不必改寫——要做的是把那個檔案放進包裡。
+// 路徑沿用 build-time 的慣例：值是相對於 {遊戲}/img/ 的路徑。
+const normalizeLocalPath = (v) => String(v).trim().replace(/^\/+/, '');
+
 /**
- * 掃過 7 張表的所有圖片欄位，收集要下載的圖。
- * 同一張圖被用在很多格是常態（同一個 Drive 檔案的不同連結寫法也算同一張），
- * 所以用 fetchUrl 當 key 去重——只抓一次、共用一個檔名。
+ * 掃過 7 張表的所有圖片欄位，分成兩種：
+ *   remote —— 值是網址，要下載、生檔名、改寫那一格
+ *   local  —— 值是檔名，原樣保留，只要把本機資料夾裡那個檔案打包進去
+ *
+ * 兩種都會去重（同一張圖被用在很多格是常態），也都會記下「用在哪幾格」。
+ * local 找不到對應檔案時仍然收進來，帶著 blobUrl=null——因為「包裡少一張圖」
+ * 正是這份報告最該講的事，靜靜跳過等於讓人拿到一包會缺圖的東西。
  */
-export const collectImageRefs = (tables) => {
-  const refs = new Map(); // fetchUrl -> { fetchUrl, original, uses: [...] }
+export const collectImageRefs = (tables, imgMap = null) => {
+  const refs = new Map();
+
+  const add = (key, make, use) => {
+    if (!refs.has(key)) refs.set(key, { ...make(), uses: [] });
+    refs.get(key).uses.push(use);
+  };
 
   for (const [table, columns] of Object.entries(IMG_FIELDS)) {
     const rows = tables[table]?.rows || [];
@@ -94,22 +107,28 @@ export const collectImageRefs = (tables) => {
       rows.forEach((row, rowIndex) => {
         if (!row) return;
         const original = row[column];
-        const fetchUrl = toFetchableUrl(original);
-        if (!fetchUrl) return;
+        if (!original || !String(original).trim()) return;
+        const use = { table, column, rowIndex, id: row.id };
 
-        if (!refs.has(fetchUrl)) {
-          refs.set(fetchUrl, {
+        const fetchUrl = toFetchableUrl(original);
+        if (fetchUrl) {
+          add(`remote:${fetchUrl}`, () => ({
+            kind: 'remote',
             fetchUrl,
             original: String(original).trim(),
-            uses: [],
-          });
+          }), use);
+          return;
         }
-        refs.get(fetchUrl).uses.push({
-          table,
-          column,
-          rowIndex,
-          id: row.id,
-        });
+
+        const path = normalizeLocalPath(original);
+        // imgMap 同時收 basename 與相對路徑，兩種填法都對得到（見 localFiles.js）
+        const blobUrl = imgMap?.get(path) ?? imgMap?.get(path.split('/').pop()) ?? null;
+        add(`local:${path}`, () => ({
+          kind: 'local',
+          path,
+          blobUrl,
+          original: path,
+        }), use);
       });
     }
   }
@@ -206,18 +225,23 @@ const utf8 = (s) => new TextEncoder().encode(s);
  * 主流程。
  *
  * @param tables      { [type]: { fields, rows } }
+ * @param imgMap      本機圖片資料夾對照表（沒選資料夾時為 null）
  * @param onProgress  ({ done, total, label }) => void
- * @returns { blob, folder, report: { total, ok, failed, rows } }
+ * @returns { blob, folder, report }
  */
-export const buildGamePack = async (tables, { onProgress } = {}) => {
-  const refs = collectImageRefs(tables);
+export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) => {
+  const refs = collectImageRefs(tables, imgMap);
   const total = refs.length;
   let done = 0;
 
-  // 生檔名。理論上 {表}-{id}-{欄位} 就唯一了，但 id 經過 safeName 之後可能撞
+  // 只有外連圖片要生檔名（本機那條路值本來就是檔名，原樣沿用）。
+  // 理論上 {表}-{id}-{欄位} 就唯一了，但 id 經過 safeName 之後可能撞
   // （例如 id 是「關卡 1」和「關卡-1」），所以還是擋一下。
   const used = new Set();
   const results = refs.map((ref) => {
+    if (ref.kind !== 'remote') {
+      return { ref, base: null, fileName: null, packPath: `img/${ref.path}`, bytes: null, error: null };
+    }
     let base = baseNameFor(ref);
     if (used.has(base)) {
       let n = 2;
@@ -225,27 +249,40 @@ export const buildGamePack = async (tables, { onProgress } = {}) => {
       base = `${base}-${n}`;
     }
     used.add(base);
-    return { ref, base, fileName: null, bytes: null, error: null };
+    return { ref, base, fileName: null, packPath: null, bytes: null, error: null };
   });
 
   await runPool(results, CONCURRENCY, async (item) => {
     try {
-      const { bytes, ext } = await fetchImage(item.ref.fetchUrl);
-      item.bytes = bytes;
-      item.fileName = `${item.base}.${ext}`;
+      if (item.ref.kind === 'remote') {
+        const { bytes, ext } = await fetchImage(item.ref.fetchUrl);
+        item.bytes = bytes;
+        item.fileName = `${item.base}.${ext}`;
+        item.packPath = `img/${item.fileName}`;
+      } else if (item.ref.blobUrl) {
+        // 本機圖：blob: 網址讀回 bytes，檔名與那一格的值都不動
+        const res = await fetch(item.ref.blobUrl);
+        item.bytes = new Uint8Array(await res.arrayBuffer());
+      } else {
+        throw new Error(
+          imgMap
+            ? '這張圖在你選的資料夾裡找不到（檔名要一模一樣，含大小寫與副檔名）'
+            : '這格填的是檔名不是網址，而你沒有選本機圖片資料夾，所以這張圖沒有進到包裡'
+        );
+      }
     } catch (err) {
-      // 抓不到不擋整包：那一格照舊留原連結，收據上標記
+      // 單張失敗不擋整包：外連的那一格照舊留原連結，本機的那一格本來就沒動
       item.error = err.name === 'AbortError' ? '逾時（超過 30 秒）' : err.message || String(err);
     } finally {
       done += 1;
-      onProgress?.({ done, total, label: item.base });
+      onProgress?.({ done, total, label: item.base || item.ref.path });
     }
   });
 
-  // 哪一格要被改寫成哪個檔名
+  // 只有外連圖片要改寫那一格；本機那條路的值本來就對
   const rewrite = new Map(); // `${table}|${rowIndex}|${column}` -> fileName
   results.forEach((item) => {
-    if (!item.fileName) return;
+    if (item.ref.kind !== 'remote' || !item.fileName) return;
     item.ref.uses.forEach((u) => {
       rewrite.set(`${u.table}|${u.rowIndex}|${u.column}`, item.fileName);
     });
@@ -277,18 +314,25 @@ export const buildGamePack = async (tables, { onProgress } = {}) => {
   results.forEach((item) => {
     if (!item.bytes) return;
     // 圖片本來就是壓縮格式了，再壓一次只是白花時間
-    files[`${folder}/img/${item.fileName}`] = [item.bytes, { level: 0 }];
+    files[`${folder}/${item.packPath}`] = [item.bytes, { level: 0 }];
   });
 
-  // 收據
+  const whereOf = (ref) =>
+    ref.uses.map((u) => `${u.table}.${u.column} 第 ${sheetRow(u.rowIndex)} 列`).join('、');
+
+  // 收據。本機那條路其實不需要對照（檔名沒變），但一起列出來才回答得了
+  // 「這包東西齊不齊」——那才是使用者真正要問的問題。
   const reportRows = results.map((item) => ({
-    檔名: item.fileName || '（沒抓到）',
-    原始連結: item.ref.original,
-    用在哪: item.ref.uses
-      .map((u) => `${u.table}.${u.column} 第 ${sheetRow(u.rowIndex)} 列`)
-      .join('、'),
+    包裡的檔案: item.bytes ? item.packPath : '（沒有）',
+    來源: item.ref.kind === 'remote' ? '外連網址' : '本機資料夾',
+    表格裡填的值: item.ref.original,
+    用在哪: whereOf(item.ref),
     用了幾格: item.ref.uses.length,
-    狀態: item.error ? `抓不到：${item.error}（表格裡維持原連結）` : '已下載',
+    狀態: item.error
+      ? `${item.error}${item.ref.kind === 'remote' ? '（表格裡維持原連結）' : ''}`
+      : item.ref.kind === 'remote'
+        ? '已下載，表格裡的網址已換成這個檔名'
+        : '已從本機資料夾打包，表格裡的值沒有動',
   }));
 
   const receipt = Papa.unparse(reportRows);
@@ -297,12 +341,16 @@ export const buildGamePack = async (tables, { onProgress } = {}) => {
 
   const zipped = await zipAsync(files);
 
+  const counted = (kind) => results.filter((r) => r.ref.kind === kind);
+
   return {
     blob: new Blob([zipped], { type: 'application/zip' }),
     folder,
     report: {
       total,
-      ok: results.filter((r) => r.fileName).length,
+      ok: results.filter((r) => r.bytes).length,
+      downloaded: counted('remote').filter((r) => r.bytes).length,
+      fromFolder: counted('local').filter((r) => r.bytes).length,
       // 帶上「用在哪」：失敗訊息要能讓人直接走回試算表那一格，
       // 只給一條網址的話，使用者還得自己在七張表裡找它長在哪
       failed: results
@@ -310,9 +358,7 @@ export const buildGamePack = async (tables, { onProgress } = {}) => {
         .map((r) => ({
           url: r.ref.original,
           error: r.error,
-          where: r.ref.uses
-            .map((u) => `${u.table}.${u.column} 第 ${sheetRow(u.rowIndex)} 列`)
-            .join('、'),
+          where: whereOf(r.ref),
         })),
       rows: reportRows,
     },

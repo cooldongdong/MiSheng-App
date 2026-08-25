@@ -190,8 +190,9 @@ const CreateApp = () => {
     setSource('');
   };
 
-  // 匯出遊戲包只對試算表來源有意義：本機資料夾那條路的圖已經在使用者手上，
-  // 表格填的也已經是檔名，沒有東西需要被換掉。
+  // 匯出遊戲包只對試算表來源有意義：全本機那條路的 CSV 和圖片本來就都在
+  // 使用者的資料夾裡，再打包一次只是把他已經有的東西還給他。
+  // （試算表 ＋ 本機圖片資料夾的組合算在這裡面——資料在雲端，值得帶走。）
   const canExport = !!sheetUrl && !!tables;
 
   const hasError = issues.some((it) => it.level === 'error');
@@ -230,7 +231,7 @@ const CreateApp = () => {
                     error={error}
                     exportSlot={
                       canExport ? (
-                        <ExportPackButton tables={tables} fullWidth size="small" />
+                        <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
                       ) : null
                     }
                   />
@@ -346,7 +347,7 @@ const CreateApp = () => {
 
             {canExport && (
               <Box sx={{ mt: 1.5 }}>
-                <ExportPackButton tables={tables} fullWidth />
+                <ExportPackButton tables={tables} imgMap={imgMap} fullWidth />
               </Box>
             )}
 

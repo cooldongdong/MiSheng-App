@@ -189,6 +189,23 @@ const CameraStage = ({ src, title, onClose }) => {
           backdropFilter: 'blur(6px)',
         }}
       >
+        {/* 手機上兩指就會轉，不必說；桌機沒有第二根手指，不講就沒人找得到 Shift。
+            用 pointer: fine 判斷輸入裝置，比抓 UA 可靠 */}
+        {!blocked && (
+          <Typography
+            sx={{
+              display: 'none',
+              '@media (pointer: fine)': { display: 'block' },
+              color: 'rgba(255, 255, 255, 0.75)',
+              fontSize: 12,
+              textAlign: 'center',
+              letterSpacing: 0.5,
+            }}
+          >
+            拖曳移動 · 滾輪縮放 · Shift ＋ 拖曳旋轉
+          </Typography>
+        )}
+
         {!blocked && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1 }}>
             <OpacityRoundedIcon sx={{ color: '#fff' }} />

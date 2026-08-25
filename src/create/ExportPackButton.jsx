@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Alert, Box, Button, LinearProgress, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, LinearProgress, Typography } from '@mui/material';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { buildGamePack, downloadBlob } from './exportGamePack';
 
@@ -47,6 +47,27 @@ const ExportPackButton = ({ tables, fullWidth = false, size = 'large' }) => {
         onClick={handleExport}
       >
         {busy ? '正在抓圖片…' : '匯出遊戲包'}
+        {/* 標 beta：這條路吃的是 Google 的限速與權限設定，不是我們能保證的東西。
+            使用者知道它可能中途失敗，跟事後才發現包裡缺圖，是兩種心情。 */}
+        {!busy && (
+          <Chip
+            component="span"
+            label="beta"
+            size="small"
+            sx={{
+              ml: 0.75,
+              height: 16,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              // Button 的 text-transform: uppercase 會滲進來，把 beta 變成 BETA
+              textTransform: 'none',
+              bgcolor: '#eceff1',
+              color: '#78909c',
+              '& .MuiChip-label': { px: 0.6 },
+            }}
+          />
+        )}
       </Button>
 
       {busy && (

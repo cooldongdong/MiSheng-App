@@ -122,8 +122,10 @@ const Wheel = ({
           {/* 半透明背景 */}
           <Box
             sx={{
-              width: '100vw',
-              height: '100vh',
+              // 100vw/100vh 會量到「視窗」，嵌在 /create 的欄位裡時會溢出去；
+              // 100% 才是填滿定位基準（見 GameShell #main-container 的 transform）
+              width: '100%',
+              height: '100%',
               m: '0 !important',
               position: 'fixed',
               top: 0,

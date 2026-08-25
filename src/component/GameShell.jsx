@@ -165,6 +165,12 @@ const GameShell = ({
               zIndex: 550,
               top: 0,
               left: 0,
+              // 全螢幕道具（放大的圖、Wheel、Camera）都是 position: fixed——在 /demo
+              // 整個視窗就是遊戲，所以剛好正確；但嵌在 /create 的三欄裡時，fixed 是
+              // 相對「視窗」而不是「遊戲那一欄」，它們會蓋掉整個畫面。
+              // transform 會讓這個 Box 成為底下所有 fixed 後代的定位基準，一次把
+              // 現有與未來的全螢幕道具都關回遊戲欄內，不必每個元件各自去判斷。
+              transform: sidePanel || leftPanel ? 'translateZ(0)' : undefined,
             }}
           >
             <Box

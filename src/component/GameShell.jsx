@@ -79,10 +79,10 @@ const GameShell = ({
   const splitterSx = {
     flex: '0 0 8px',
     cursor: 'col-resize',
-    bgcolor: '#e2e8f0',
+    bgcolor: 'divider',
     position: 'relative',
     zIndex: 600,
-    '&:hover': { bgcolor: '#cbd5e1' },
+    '&:hover': { bgcolor: 'text.disabled' },
     '&::after': {
       content: '""',
       position: 'absolute',
@@ -92,7 +92,7 @@ const GameShell = ({
       width: '2px',
       height: '28px',
       borderRadius: '1px',
-      bgcolor: '#94a3b8',
+      bgcolor: 'text.secondary',
     },
   };
 
@@ -127,6 +127,9 @@ const GameShell = ({
           height: '100dvh',
           display: sidePanel || leftPanel ? 'flex' : 'block',
           alignItems: 'stretch',
+          // 遊戲欄兩側的襯底。原本是 App.css 的 #root 在上色，但 #root 是掛載點、
+          // 碰不到 theme，深色模式下會留一片亮灰。改由這裡畫，值就跟著 palette 走。
+          bgcolor: 'game.frame',
         }}
       >
         {leftPanel && (
@@ -143,7 +146,7 @@ const GameShell = ({
           disableGutters={!!sidePanel}
           sx={{
             height: 'calc(100dvh - 56px)',
-            backgroundColor: '#eee',
+            backgroundColor: 'game.bg',
             width: sidePanel && resizable ? paneW : '100%',
             flex:
               sidePanel && resizable

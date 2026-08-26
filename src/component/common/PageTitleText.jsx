@@ -9,7 +9,7 @@ const PageTitleText = ({ title }) => (
       fontFamily: "'Noto Serif TC', serif",
       fontWeight: 900,
       fontSize: '48px',
-      color: '#37474F',
+      color: 'text.primary',
     }}
   >
     {title}

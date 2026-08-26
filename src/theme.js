@@ -1,5 +1,10 @@
 // theme.js
-// /create 的配色單一真相。
+// 全站配色的單一真相——/create 與 /demo（遊戲）共用同一組 palette。
+//
+// 為什麼共用：遊戲在 /create 裡是渲染在這個 ThemeProvider 底下的。兩邊各有一份 theme
+// 的話，遊戲的 MUI 元件會拿到 /create 的值、遊戲自己寫死的底色卻不會跟著換——那正是
+// 「深色模式下底部 icon 顏色很奇怪」的成因：背景寫死 #f8f9fa（淺），icon 卻吃到了深色
+// 模式的 text.secondary（淺灰），淺灰畫在近白上。
 //
 // 為什麼顏色不寫在元件裡：深色模式要的不是「另一組顏色」，是**同一個語意在兩種底色下各有一個值**。
 // 只要元件端留下的是語意（text.secondary、divider、background.paper），值就能整組換掉而不用碰元件。
@@ -21,7 +26,7 @@ import {
   EDGE_COLOR_DARK,
   FLOW_PALETTE,
   FLOW_PALETTE_DARK,
-} from './flowLayout';
+} from './create/flowLayout';
 
 // MUI Blue Grey，標階數是為了讓「哪兩階被合併了」看得見
 const BG = {
@@ -66,6 +71,7 @@ const light = {
       overlay: 'rgba(255,255,255,0.94)',
     },
     ...flow(FLOW_PALETTE, MODEL_COLOR, MODEL_TINT, EDGE_COLOR),
+    game: { frame: '#d9d9d9', bg: '#eee', nav: '#f8f9fa' },
   },
 };
 
@@ -76,6 +82,10 @@ const dark = {
     divider: BG[800],
     background: { default: ABYSS, paper: BG[900], overlay: 'rgba(38,50,56,0.94)' },
     ...flow(FLOW_PALETTE_DARK, MODEL_COLOR_DARK, MODEL_TINT_DARK, EDGE_COLOR_DARK),
+    // 遊戲外殼。frame 是 #root（桌機上遊戲兩側的襯底）、bg 是遊戲頁面底、nav 是底部導覽。
+    // 關卡卡片（MissionItem 的 #37474F）刻意兩種模式都不動：它在淺色是「深卡片浮在淺頁」，
+    // 在深色剛好變成「亮一階的卡片浮在更深的頁」，同一個值兩邊都成立。
+    game: { frame: '#141a1e', bg: '#1c2429', nav: '#263238' },
   },
 };
 

@@ -9,6 +9,5 @@ body {
   margin: 0;
 }
 
-html {
-  background: #363636;
-}
+/* html 的底色不寫在這裡——它必須在第一次繪製之前就決定，而這個檔案是被 main.jsx
+   import 的（dev 模式由 JS 注入，太晚）。見 demo.html <head> 裡的行內樣式。 */

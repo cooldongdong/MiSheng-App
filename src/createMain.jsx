@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import './create/create.css';
-import theme from './create/theme.js';
+import theme from './theme.js';
 import CreateApp from './create/CreateApp.jsx';
 
 createRoot(document.getElementById('root')).render(

@@ -36,8 +36,22 @@ import FlowPanel from './FlowPanel';
 //   playing      —— 左：資料來源與驗證報告／中：遊戲／右：流程圖
 //
 // 定位是「免費的一次性私人預覽」：重整就消失、不留存檔、不產生可分享網址
+// 網址帶不帶 #sheet=、那一份是不是自己書籤過的——這件事必須在**第一次 render 之前**
+// 就知道。原本放在 useEffect 裡判斷，而 effect 是畫完之後才跑，所以重整時一定會先
+// 閃一格開始畫面才跳載入畫面。
+const readHashIntent = () => {
+  const id = parseSpreadsheetId(readSheetFromHash());
+  if (!id) return { autoload: '', pending: '' };
+  // 在最近使用清單裡＝自己的書籤，直接載入；不認得＝別人傳來的，先問一聲
+  return readRecentSheets().some((it) => it.id === id)
+    ? { autoload: id, pending: '' }
+    : { autoload: '', pending: id };
+};
+
 const CreateApp = () => {
-  const [status, setStatus] = useState('idle'); // idle | loading | checked | playing
+  // useState 的 lazy initializer：只在掛載時算一次
+  const [hashIntent] = useState(readHashIntent);
+  const [status, setStatus] = useState(hashIntent.autoload ? 'loading' : 'idle'); // idle | loading | checked | playing
   const [error, setError] = useState('');
   const [issues, setIssues] = useState([]);
   const [gameData, setGameData] = useState(null);
@@ -59,11 +73,13 @@ const CreateApp = () => {
   const [dataVersion, setDataVersion] = useState(0); // 換過幾份資料，給 GameController 判斷要不要重解析
   const [notice, setNotice] = useState('');
   const [recent, setRecent] = useState(readRecentSheets);
-  // 網址帶了 #sheet= 但來源不是自己書籤過的，先問一聲再載入（見底下的 useEffect）
-  const [pendingSheet, setPendingSheet] = useState('');
-  const [loadingLabel, setLoadingLabel] = useState('');
+  // 網址帶了 #sheet= 但來源不是自己書籤過的，先問一聲再載入
+  const [pendingSheet, setPendingSheet] = useState(hashIntent.pending);
+  const [loadingLabel, setLoadingLabel] = useState(
+    hashIntent.autoload ? ' Google 試算表' : ''
+  );
   // 載入遮罩：off｜on（不透明）｜fading（淡出中）
-  const [veil, setVeil] = useState('off');
+  const [veil, setVeil] = useState(hashIntent.autoload ? 'on' : 'off');
   const veilRef = useRef('off');
   veilRef.current = veil;
 
@@ -99,18 +115,13 @@ const CreateApp = () => {
     };
   }, [status]);
 
-  // 帶著 #sheet= 進來時要不要自動載入，取決於這份是不是「你自己的書籤」：
-  // 在最近使用清單裡＝你自己存的，直接載入；不認得＝多半是別人傳來的連結，先問一聲。
+  // 判斷已經在 readHashIntent 做完（初始 state），這裡只負責發動抓取。
   //
-  // 這個分界線是有意義的：自動載入等於「連結即動作」——任何人給你一個網址，
-  // 你的瀏覽器就替他去抓一份試算表。對自己的書籤那是便利，對陌生連結那是被代勞。
+  // 那個「自己的書籤才自動載入」的分界線是有意義的：自動載入等於「連結即動作」
+  // ——任何人給你一個網址，你的瀏覽器就替他去抓一份試算表。
+  // 對自己的書籤那是便利，對陌生連結那是被代勞。
   useEffect(() => {
-    const fromHash = readSheetFromHash();
-    if (!fromHash) return;
-    const id = parseSpreadsheetId(fromHash);
-    if (!id) return;
-    if (readRecentSheets().some((it) => it.id === id)) handleSheet(id);
-    else setPendingSheet(id);
+    if (hashIntent.autoload) handleSheet(hashIntent.autoload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

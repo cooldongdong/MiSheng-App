@@ -7,6 +7,8 @@ import {
   Fade,
   IconButton,
   Snackbar,
+  Drawer,
+  useMediaQuery,
   Stack,
   Tooltip,
   Typography,
@@ -38,6 +40,16 @@ import FlowPanel from './FlowPanel';
 // 網址帶不帶 #sheet=、那一份是不是自己書籤過的——這件事必須在**第一次 render 之前**
 // 就知道。原本放在 useEffect 裡判斷，而 effect 是畫完之後才跑，所以重整時一定會先
 // 閃一格開始畫面才跳載入畫面。
+// 三欄擺不下的寬度。1024 是常見的平板／桌機分界，也高於實際需要的 984。
+const NARROW = 1024;
+const isNarrowViewport = () => {
+  try {
+    return window.innerWidth < NARROW;
+  } catch {
+    return false;
+  }
+};
+
 const readHashIntent = () => {
   const id = parseSpreadsheetId(readSheetFromHash());
   if (!id) return { autoload: '', pending: '' };
@@ -82,8 +94,17 @@ const CreateApp = () => {
   const veilRef = useRef('off');
   veilRef.current = veil;
 
-  const [showSource, setShowSource] = useState(true); // 左側面板
-  const [showFlow, setShowFlow] = useState(true); // 右側流程圖
+  // 三欄要塞得下：左 268 ＋ 分隔線 8 ＋ 遊戲 420 ＋ 分隔線 8 ＋ 流程圖至少 280 ≈ 984。
+  // 低於這個寬度預設兩欄都收起來，讓遊戲吃滿，使用者仍可自己打開。
+  //
+  // 只在掛載時判斷一次，**刻意不監聽 resize**：加了之後，使用者手動打開側欄
+  // 再轉個螢幕方向就會被自動關掉，那比爆版更煩。
+  const [showSource, setShowSource] = useState(() => !isNarrowViewport()); // 左側面板
+  const [showFlow, setShowFlow] = useState(() => !isNarrowViewport()); // 右側流程圖
+
+  // 這個要跟著視窗變（轉螢幕方向就該換版面），與 showSource/showFlow 的
+  // 「只在掛載時判斷一次」不同——那兩個是使用者的意圖，這個是版面能力。
+  const narrow = useMediaQuery(`(max-width:${NARROW - 1}px)`);
 
   const revokeImgs = useRef(null);
 
@@ -278,7 +299,33 @@ const CreateApp = () => {
     );
 
   if (status === 'playing' && gameData) {
-    const beside = showFlow && rundownRows.length > 0;
+    // 窄螢幕上三欄擺不下（375px 的手機扣掉 268 的左欄只剩 100px 給遊戲），
+    // 所以同樣的兩個開關改成叫出抽屜，而不是擠出兩個欄位。
+    // 用的是同一組 showSource / showFlow state——換的是呈現方式，不是行為。
+    const beside = !narrow && showFlow && rundownRows.length > 0;
+    const sourceDrawer = narrow && showSource;
+    const flowDrawer = narrow && showFlow && rundownRows.length > 0;
+
+    // 欄位與抽屜共用同一份面板——兩種版面只是容器不同，內容不該有兩套
+    const sourcePanelEl = (
+      <SourcePanel
+        source={source}
+        imgSource={imgSource}
+        issues={issues}
+        onPickFolder={handleFolder}
+        onPickImageFolder={handleImageFolder}
+        onReset={reset}
+        onReload={() => handleSheet(sheetUrl)}
+        canReload={!!sheetUrl}
+        reloading={reloading}
+        error={error}
+        exportSlot={
+          canExport ? (
+            <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
+          ) : null
+        }
+      />
+    );
 
     return (
       <>
@@ -302,31 +349,33 @@ const CreateApp = () => {
             //
             // 另一條路是讓欄寬也跟著動畫走，但那會跟拖曳分隔線的即時性打架
             // ——拖的時候你不會想要任何過渡。所以是拿掉動畫，不是補動畫。
-            showSource ? (
-              <Box sx={{ height: '100%' }}>
-                <SourcePanel
-                  source={source}
-                  imgSource={imgSource}
-                  issues={issues}
-                  onPickFolder={handleFolder}
-                  onPickImageFolder={handleImageFolder}
-                  onReset={reset}
-                  onReload={() => handleSheet(sheetUrl)}
-                  canReload={!!sheetUrl}
-                  reloading={reloading}
-                  error={error}
-                  exportSlot={
-                    canExport ? (
-                      <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
-                    ) : null
-                  }
-                />
-              </Box>
+            showSource && !narrow ? (
+              <Box sx={{ height: '100%' }}>{sourcePanelEl}</Box>
             ) : null
           }
-          sideFlex={beside ? 1 : undefined}
-          resizable={beside}
-          sidePanel={beside ? <FlowPanel rundownRows={rundownRows} /> : null}
+          sideFlex={narrow ? '0 0 auto' : beside ? 1 : undefined}
+          resizable={!narrow && beside}
+          sidePanel={
+            // 窄螢幕時流程圖從底部拉起來（它是要平移縮放的畫布，左右滑出太窄；
+            // 底部也是手機上最順手的手勢方向）。
+            //
+            // 但這個 Drawer 必須放在 sidePanel 這個插槽裡，不能掛在外面：
+            // FlowPanel 要從 GameContext 拿 currentId／setCurrentId 才能點方塊跳關，
+            // 而那個 provider 在 GameShell 內。Drawer 自己會 portal 到 body，
+            // 所以它 render 在 provider 裡、畫面上卻逃得出這個欄位。
+            narrow ? (
+              <Drawer
+                anchor="bottom"
+                open={flowDrawer}
+                onClose={() => setShowFlow(false)}
+                PaperProps={{ sx: { height: '88dvh' } }}
+              >
+                <FlowPanel rundownRows={rundownRows} />
+              </Drawer>
+            ) : beside ? (
+              <FlowPanel rundownRows={rundownRows} />
+            ) : null
+          }
         />
 
         {/* 固定右上角：兩側面板的開關，位置不隨面板收合而變 */}
@@ -379,6 +428,17 @@ const CreateApp = () => {
             {notice}
           </Alert>
         </Snackbar>
+        {/* 窄螢幕：資料來源從左邊滑出。寬度留一點讓人看得到底下還有遊戲，
+            知道自己只是「疊了一層」而不是換頁 */}
+        <Drawer
+          anchor="left"
+          open={sourceDrawer}
+          onClose={() => setShowSource(false)}
+          PaperProps={{ sx: { width: 'min(340px, 88vw)' } }}
+        >
+          {sourcePanelEl}
+        </Drawer>
+
         {veilEl}
       </>
     );

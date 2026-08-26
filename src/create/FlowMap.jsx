@@ -494,12 +494,15 @@ const FlowMap = ({
       {showOutline && (
         <Box
           sx={{
+            // 大綱固定 232px，在 375px 的手機抽屜裡會把畫布壓到剩 143px，
+            // 兩邊都不能用。窄螢幕先讓畫布吃滿——它本來就能平移縮放、
+            // 點方塊也能跳關，是這個面板的核心功能。
+            display: { xs: 'none', md: 'flex' },
             width: 232,
             pt: '44px', // 讓出右上角固定按鈕的位置
             flexShrink: 0,
             borderLeft: '1px solid #e0e0e0',
             bgcolor: '#fff',
-            display: 'flex',
             flexDirection: 'column',
             height: '100%',
           }}

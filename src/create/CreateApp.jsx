@@ -108,6 +108,16 @@ const CreateApp = () => {
 
   // 窄螢幕上兩個抽屜都會蓋住畫面，同時開就什麼都看不到了——開一個就關另一個。
   // 寬螢幕是並排的欄位，互不遮擋，維持可以同時開。
+  // 從寬變窄的那一刻，把兩個側欄都關掉。
+  // 這跟「初始值只判斷一次、不監聽 resize」不衝突——那條擋的是「使用者主動打開之後
+  // 又被自動關掉」；這裡處理的是**版面能力真的變了**：窄螢幕上側欄會變成蓋住畫面的
+  // 抽屜，而原本兩個都開著的話會一次蓋兩層，等於什麼都看不到。
+  useEffect(() => {
+    if (!narrow) return;
+    setShowSource(false);
+    setShowFlow(false);
+  }, [narrow]);
+
   const toggleSource = () => {
     const next = !showSource;
     setShowSource(next);
@@ -315,9 +325,13 @@ const CreateApp = () => {
     // 窄螢幕上三欄擺不下（375px 的手機扣掉 268 的左欄只剩 100px 給遊戲），
     // 所以同樣的兩個開關改成叫出抽屜，而不是擠出兩個欄位。
     // 用的是同一組 showSource / showFlow state——換的是呈現方式，不是行為。
-    const beside = !narrow && showFlow && rundownRows.length > 0;
+    // flowOn＝「流程圖現在有沒有在顯示」，不管它是並排的欄位還是抽屜。
+    // icon 的顏色要看這個——綁 beside 的話，視窗一變窄 beside 就成 false，
+    // 但抽屜其實還開著，按鈕會無故退回未啟用的灰色。
+    const flowOn = showFlow && rundownRows.length > 0;
+    const beside = !narrow && flowOn;
     const sourceDrawer = narrow && showSource;
-    const flowDrawer = narrow && showFlow && rundownRows.length > 0;
+    const flowDrawer = narrow && flowOn;
 
     // 欄位與抽屜共用同一份面板——兩種版面只是容器不同，內容不該有兩套
     const sourcePanelEl = (
@@ -384,10 +398,14 @@ const CreateApp = () => {
                 onClose={() => setShowFlow(false)}
                 PaperProps={{ sx: { width: 'min(420px, 92vw)' } }}
               >
-                <FlowPanel rundownRows={rundownRows} />
+                <FlowPanel key="narrow" rundownRows={rundownRows} />
               </Drawer>
             ) : beside ? (
-              <FlowPanel rundownRows={rundownRows} />
+              // key 隨版面模式改變：畫布的平移／縮放是為舊容器尺寸算的，
+              // 容器一變（大綱那 232px 收掉、寬度大改）那個位移就不再對得上，
+              // 內容會跑到視野外。換 key 讓它重掛、重新取景。
+              // 代價是重畫 1272 個節點，但跨越斷點是很少發生的事。
+              <FlowPanel key="wide" rundownRows={rundownRows} />
             ) : null
           }
         />
@@ -421,11 +439,11 @@ const CreateApp = () => {
               />
             </IconButton>
           </Tooltip>
-          <Tooltip title={beside ? '收起流程圖' : '並排流程圖'}>
+          <Tooltip title={flowOn ? '收起流程圖' : '顯示流程圖'}>
             <IconButton size="small" onClick={toggleFlow}>
               <ViewSidebarRoundedIcon
                 fontSize="small"
-                color={beside ? 'primary' : 'inherit'}
+                color={flowOn ? 'primary' : 'inherit'}
               />
             </IconButton>
           </Tooltip>

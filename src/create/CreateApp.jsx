@@ -21,6 +21,7 @@ import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 import SourcePicker from './SourcePicker';
+import LoadingScreen from './LoadingScreen';
 import ExportPackButton from './ExportPackButton';
 import { readRecentSheets, rememberSheet, forgetSheet } from './recentSheets';
 import { readSheetFromHash, writeSheetToHash, clearSheetHash } from './sheetHash';
@@ -60,6 +61,7 @@ const CreateApp = () => {
   const [recent, setRecent] = useState(readRecentSheets);
   // 網址帶了 #sheet= 但來源不是自己書籤過的，先問一聲再載入（見底下的 useEffect）
   const [pendingSheet, setPendingSheet] = useState('');
+  const [loadingLabel, setLoadingLabel] = useState('');
 
   const [showSource, setShowSource] = useState(true); // 左側面板
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
@@ -93,19 +95,29 @@ const CreateApp = () => {
 
   // keepPlaying：在左側面板就地換資料時，不要退回檢查畫面
   const runChecks = (tables, csvFiles, map, keepPlaying) => {
+    const found = [...validateGame(tables), ...checkSheetImages(tables, map)];
     setRundownRows(tables.rundown?.rows || []);
     setTables(tables);
-    setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
+    setIssues(found);
     setGameData(csvFiles);
     setDataVersion((v) => v + 1);
-    setStatus(keepPlaying ? 'playing' : 'checked');
+
+    // 資料沒問題就直接進三欄，檢查頁只在真的過不了的時候擋人。
+    // **只有 error 擋，warn 放行**——demo 就有 11 個提醒、樹林那份也有，
+    // 如果 warn 也擋，幾乎每次都會被擋住，等於沒改。
+    // 提醒不會因此消失：左欄有 chip 與報告，而且報告在有 error 時會自己展開。
+    const blocked = found.some((it) => it.level === 'error');
+    setStatus(keepPlaying || !blocked ? 'playing' : 'checked');
   };
 
-  // 試玩中換資料轉圈；還沒開始試玩才走 status='loading'（開始畫面的轉圈）
-  const beginLoad = (keepPlaying) => {
+  // 試玩中換資料只在左欄轉圈；還沒開始試玩才走 status='loading' 的整頁載入畫面
+  const beginLoad = (keepPlaying, label = '') => {
     setError('');
     if (keepPlaying) setReloading(true);
-    else setStatus('loading');
+    else {
+      setLoadingLabel(label);
+      setStatus('loading');
+    }
   };
 
   // 讀取失敗時：試玩中就留在原地、錯誤顯示在左欄——手上這份還能玩的遊戲不該被一起丟掉
@@ -116,7 +128,7 @@ const CreateApp = () => {
 
   const handleSheet = async (url) => {
     const keepPlaying = status === 'playing';
-    beginLoad(keepPlaying);
+    beginLoad(keepPlaying, ' Google 試算表');
     try {
       const { csvFiles, tables, spreadsheetId } = await loadGameFromSheet(url);
       // 不動 imgMap：試算表只負責資料，圖片那一層維持現狀。
@@ -140,7 +152,7 @@ const CreateApp = () => {
   const handleFolder = async (files) => {
     if (!files?.length) return;
     const keepPlaying = status === 'playing';
-    beginLoad(keepPlaying);
+    beginLoad(keepPlaying, '本機資料夾');
     try {
       const {
         csvFiles,
@@ -329,6 +341,10 @@ const CreateApp = () => {
   }
 
   // ---- 檢查結果 ----
+  if (status === 'loading') {
+    return <LoadingScreen label={loadingLabel} />;
+  }
+
   if (status === 'checked') {
     return (
       <Fade in>

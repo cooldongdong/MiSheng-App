@@ -6,8 +6,9 @@ import {
   Chip,
   Fade,
   IconButton,
-  Slide,
   Snackbar,
+  Drawer,
+  useMediaQuery,
   Stack,
   Tooltip,
   Typography,
@@ -21,6 +22,7 @@ import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 import SourcePicker from './SourcePicker';
+import LoadingScreen from './LoadingScreen';
 import ExportPackButton from './ExportPackButton';
 import { readRecentSheets, rememberSheet, forgetSheet } from './recentSheets';
 import { readSheetFromHash, writeSheetToHash, clearSheetHash } from './sheetHash';
@@ -35,8 +37,32 @@ import FlowPanel from './FlowPanel';
 //   playing      —— 左：資料來源與驗證報告／中：遊戲／右：流程圖
 //
 // 定位是「免費的一次性私人預覽」：重整就消失、不留存檔、不產生可分享網址
+// 網址帶不帶 #sheet=、那一份是不是自己書籤過的——這件事必須在**第一次 render 之前**
+// 就知道。原本放在 useEffect 裡判斷，而 effect 是畫完之後才跑，所以重整時一定會先
+// 閃一格開始畫面才跳載入畫面。
+// 三欄擺不下的寬度。1024 是常見的平板／桌機分界，也高於實際需要的 984。
+const NARROW = 1024;
+const isNarrowViewport = () => {
+  try {
+    return window.innerWidth < NARROW;
+  } catch {
+    return false;
+  }
+};
+
+const readHashIntent = () => {
+  const id = parseSpreadsheetId(readSheetFromHash());
+  if (!id) return { autoload: '', pending: '' };
+  // 在最近使用清單裡＝自己的書籤，直接載入；不認得＝別人傳來的，先問一聲
+  return readRecentSheets().some((it) => it.id === id)
+    ? { autoload: id, pending: '' }
+    : { autoload: '', pending: id };
+};
+
 const CreateApp = () => {
-  const [status, setStatus] = useState('idle'); // idle | loading | checked | playing
+  // useState 的 lazy initializer：只在掛載時算一次
+  const [hashIntent] = useState(readHashIntent);
+  const [status, setStatus] = useState(hashIntent.autoload ? 'loading' : 'idle'); // idle | loading | checked | playing
   const [error, setError] = useState('');
   const [issues, setIssues] = useState([]);
   const [gameData, setGameData] = useState(null);
@@ -58,11 +84,50 @@ const CreateApp = () => {
   const [dataVersion, setDataVersion] = useState(0); // 換過幾份資料，給 GameController 判斷要不要重解析
   const [notice, setNotice] = useState('');
   const [recent, setRecent] = useState(readRecentSheets);
-  // 網址帶了 #sheet= 但來源不是自己書籤過的，先問一聲再載入（見底下的 useEffect）
-  const [pendingSheet, setPendingSheet] = useState('');
+  // 網址帶了 #sheet= 但來源不是自己書籤過的，先問一聲再載入
+  const [pendingSheet, setPendingSheet] = useState(hashIntent.pending);
+  const [loadingLabel, setLoadingLabel] = useState(
+    hashIntent.autoload ? ' Google 試算表' : ''
+  );
+  // 載入遮罩：off｜on（不透明）｜fading（淡出中）
+  const [veil, setVeil] = useState(hashIntent.autoload ? 'on' : 'off');
+  const veilRef = useRef('off');
+  veilRef.current = veil;
 
-  const [showSource, setShowSource] = useState(true); // 左側面板
-  const [showFlow, setShowFlow] = useState(true); // 右側流程圖
+  // 三欄要塞得下：左 268 ＋ 分隔線 8 ＋ 遊戲 420 ＋ 分隔線 8 ＋ 流程圖至少 280 ≈ 984。
+  // 低於這個寬度預設兩欄都收起來，讓遊戲吃滿，使用者仍可自己打開。
+  //
+  // 只在掛載時判斷一次，**刻意不監聽 resize**：加了之後，使用者手動打開側欄
+  // 再轉個螢幕方向就會被自動關掉，那比爆版更煩。
+  const [showSource, setShowSource] = useState(() => !isNarrowViewport()); // 左側面板
+  const [showFlow, setShowFlow] = useState(() => !isNarrowViewport()); // 右側流程圖
+
+  // 這個要跟著視窗變（轉螢幕方向就該換版面），與 showSource/showFlow 的
+  // 「只在掛載時判斷一次」不同——那兩個是使用者的意圖，這個是版面能力。
+  const narrow = useMediaQuery(`(max-width:${NARROW - 1}px)`);
+
+  // 窄螢幕上兩個抽屜都會蓋住畫面，同時開就什麼都看不到了——開一個就關另一個。
+  // 寬螢幕是並排的欄位，互不遮擋，維持可以同時開。
+  // 從寬變窄的那一刻，把兩個側欄都關掉。
+  // 這跟「初始值只判斷一次、不監聽 resize」不衝突——那條擋的是「使用者主動打開之後
+  // 又被自動關掉」；這裡處理的是**版面能力真的變了**：窄螢幕上側欄會變成蓋住畫面的
+  // 抽屜，而原本兩個都開著的話會一次蓋兩層，等於什麼都看不到。
+  useEffect(() => {
+    if (!narrow) return;
+    setShowSource(false);
+    setShowFlow(false);
+  }, [narrow]);
+
+  const toggleSource = () => {
+    const next = !showSource;
+    setShowSource(next);
+    if (next && narrow) setShowFlow(false);
+  };
+  const toggleFlow = () => {
+    const next = !showFlow;
+    setShowFlow(next);
+    if (next && narrow) setShowSource(false);
+  };
 
   const revokeImgs = useRef(null);
 
@@ -76,36 +141,58 @@ const CreateApp = () => {
 
   useEffect(() => () => revokeImgs.current?.(), []);
 
-  // 帶著 #sheet= 進來時要不要自動載入，取決於這份是不是「你自己的書籤」：
-  // 在最近使用清單裡＝你自己存的，直接載入；不認得＝多半是別人傳來的連結，先問一聲。
-  //
-  // 這個分界線是有意義的：自動載入等於「連結即動作」——任何人給你一個網址，
-  // 你的瀏覽器就替他去抓一份試算表。對自己的書籤那是便利，對陌生連結那是被代勞。
+  // 遮罩的生命週期跟 status 綁在一起，但**不是**同步消失：
+  // status 一變成 playing，三欄／遊戲／流程圖會在同一格裡全部掛上來，
+  // 那一格是半畫好的。所以先讓遮罩多撐一段，等底下安定了再淡出。
   useEffect(() => {
-    const fromHash = readSheetFromHash();
-    if (!fromHash) return;
-    const id = parseSpreadsheetId(fromHash);
-    if (!id) return;
-    if (readRecentSheets().some((it) => it.id === id)) handleSheet(id);
-    else setPendingSheet(id);
+    if (status === 'loading') {
+      setVeil('on');
+      return undefined;
+    }
+    if (veilRef.current !== 'on') return undefined;
+    const hold = setTimeout(() => setVeil('fading'), 140);
+    const done = setTimeout(() => setVeil('off'), 140 + 280);
+    return () => {
+      clearTimeout(hold);
+      clearTimeout(done);
+    };
+  }, [status]);
+
+  // 判斷已經在 readHashIntent 做完（初始 state），這裡只負責發動抓取。
+  //
+  // 那個「自己的書籤才自動載入」的分界線是有意義的：自動載入等於「連結即動作」
+  // ——任何人給你一個網址，你的瀏覽器就替他去抓一份試算表。
+  // 對自己的書籤那是便利，對陌生連結那是被代勞。
+  useEffect(() => {
+    if (hashIntent.autoload) handleSheet(hashIntent.autoload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // keepPlaying：在左側面板就地換資料時，不要退回檢查畫面
   const runChecks = (tables, csvFiles, map, keepPlaying) => {
+    const found = [...validateGame(tables), ...checkSheetImages(tables, map)];
     setRundownRows(tables.rundown?.rows || []);
     setTables(tables);
-    setIssues([...validateGame(tables), ...checkSheetImages(tables, map)]);
+    setIssues(found);
     setGameData(csvFiles);
     setDataVersion((v) => v + 1);
-    setStatus(keepPlaying ? 'playing' : 'checked');
+
+    // 資料沒問題就直接進三欄，檢查頁只在真的過不了的時候擋人。
+    // **只有 error 擋，warn 放行**——demo 就有 11 個提醒、樹林那份也有，
+    // 如果 warn 也擋，幾乎每次都會被擋住，等於沒改。
+    // 提醒不會因此消失：左欄有 chip 與報告，而且報告在有 error 時會自己展開。
+    const blocked = found.some((it) => it.level === 'error');
+    setStatus(keepPlaying || !blocked ? 'playing' : 'checked');
   };
 
-  // 試玩中換資料轉圈；還沒開始試玩才走 status='loading'（開始畫面的轉圈）
-  const beginLoad = (keepPlaying) => {
+  // 試玩中換資料只在左欄轉圈；還沒開始試玩才走 status='loading' 的整頁載入畫面
+  const beginLoad = (keepPlaying, label = '') => {
     setError('');
     if (keepPlaying) setReloading(true);
-    else setStatus('loading');
+    else {
+      setLoadingLabel(label);
+      setStatus('loading');
+    }
   };
 
   // 讀取失敗時：試玩中就留在原地、錯誤顯示在左欄——手上這份還能玩的遊戲不該被一起丟掉
@@ -116,7 +203,7 @@ const CreateApp = () => {
 
   const handleSheet = async (url) => {
     const keepPlaying = status === 'playing';
-    beginLoad(keepPlaying);
+    beginLoad(keepPlaying, ' Google 試算表');
     try {
       const { csvFiles, tables, spreadsheetId } = await loadGameFromSheet(url);
       // 不動 imgMap：試算表只負責資料，圖片那一層維持現狀。
@@ -140,7 +227,7 @@ const CreateApp = () => {
   const handleFolder = async (files) => {
     if (!files?.length) return;
     const keepPlaying = status === 'playing';
-    beginLoad(keepPlaying);
+    beginLoad(keepPlaying, '本機資料夾');
     try {
       const {
         csvFiles,
@@ -228,8 +315,44 @@ const CreateApp = () => {
   const hasError = issues.some((it) => it.level === 'error');
 
   // ---- 試玩中：三欄 ----
+  // 三個畫面分支都要蓋同一塊遮罩——它跨越的正是分支切換的那一刻
+  const veilEl =
+    veil === 'off' ? null : (
+      <LoadingScreen label={loadingLabel} fadingOut={veil === 'fading'} />
+    );
+
   if (status === 'playing' && gameData) {
-    const beside = showFlow && rundownRows.length > 0;
+    // 窄螢幕上三欄擺不下（375px 的手機扣掉 268 的左欄只剩 100px 給遊戲），
+    // 所以同樣的兩個開關改成叫出抽屜，而不是擠出兩個欄位。
+    // 用的是同一組 showSource / showFlow state——換的是呈現方式，不是行為。
+    // flowOn＝「流程圖現在有沒有在顯示」，不管它是並排的欄位還是抽屜。
+    // icon 的顏色要看這個——綁 beside 的話，視窗一變窄 beside 就成 false，
+    // 但抽屜其實還開著，按鈕會無故退回未啟用的灰色。
+    const flowOn = showFlow && rundownRows.length > 0;
+    const beside = !narrow && flowOn;
+    const sourceDrawer = narrow && showSource;
+    const flowDrawer = narrow && flowOn;
+
+    // 欄位與抽屜共用同一份面板——兩種版面只是容器不同，內容不該有兩套
+    const sourcePanelEl = (
+      <SourcePanel
+        source={source}
+        imgSource={imgSource}
+        issues={issues}
+        onPickFolder={handleFolder}
+        onPickImageFolder={handleImageFolder}
+        onReset={reset}
+        onReload={() => handleSheet(sheetUrl)}
+        canReload={!!sheetUrl}
+        reloading={reloading}
+        error={error}
+        exportSlot={
+          canExport ? (
+            <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
+          ) : null
+        }
+      />
+    );
 
     return (
       <>
@@ -244,34 +367,47 @@ const CreateApp = () => {
             )
           }
           leftPanel={
-            // 收起時整欄不渲染，否則會留一條空白佔著畫面
-            showSource ? (
-              <Slide direction="right" in mountOnEnter appear timeout={260}>
-                <Box sx={{ height: '100%' }}>
-                  <SourcePanel
-                    source={source}
-                    imgSource={imgSource}
-                    issues={issues}
-                    onPickFolder={handleFolder}
-                    onPickImageFolder={handleImageFolder}
-                    onReset={reset}
-                    onReload={() => handleSheet(sheetUrl)}
-                    canReload={!!sheetUrl}
-                    reloading={reloading}
-                    error={error}
-                    exportSlot={
-                      canExport ? (
-                        <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
-                      ) : null
-                    }
-                  />
-                </Box>
-              </Slide>
+            // 收起時整欄不渲染，否則會留一條空白佔著畫面。
+            //
+            // 這裡刻意**不加進場動畫**。原本包了 <Slide timeout={260}>，但欄寬與
+            // 分隔線是 flex 的同步 reflow——一個是動畫、一個是瞬間，兩者永遠對不齊：
+            // 實測切開後 60ms，兩條分隔線都已就位，面板還停在 translateX(-268px)。
+            // 看起來就是「資料比拖曳線晚進畫面」。
+            //
+            // 另一條路是讓欄寬也跟著動畫走，但那會跟拖曳分隔線的即時性打架
+            // ——拖的時候你不會想要任何過渡。所以是拿掉動畫，不是補動畫。
+            showSource && !narrow ? (
+              <Box sx={{ height: '100%' }}>{sourcePanelEl}</Box>
             ) : null
           }
-          sideFlex={beside ? 1 : undefined}
-          resizable={beside}
-          sidePanel={beside ? <FlowPanel rundownRows={rundownRows} /> : null}
+          sideFlex={narrow ? '0 0 auto' : beside ? 1 : undefined}
+          resizable={!narrow && beside}
+          sidePanel={
+            // 窄螢幕時流程圖從右邊滑出，跟它那顆 icon 指的方向一致——
+            // icon 畫的是右面板，東西卻從底下冒出來，指示和結果就對不上。
+            // 而且流程圖是縱向的，高而窄的容器本來就比矮而寬的適合它。
+            //
+            // 但這個 Drawer 必須放在 sidePanel 這個插槽裡，不能掛在外面：
+            // FlowPanel 要從 GameContext 拿 currentId／setCurrentId 才能點方塊跳關，
+            // 而那個 provider 在 GameShell 內。Drawer 自己會 portal 到 body，
+            // 所以它 render 在 provider 裡、畫面上卻逃得出這個欄位。
+            narrow ? (
+              <Drawer
+                anchor="right"
+                open={flowDrawer}
+                onClose={() => setShowFlow(false)}
+                PaperProps={{ sx: { width: 'min(420px, 92vw)' } }}
+              >
+                <FlowPanel key="narrow" rundownRows={rundownRows} />
+              </Drawer>
+            ) : beside ? (
+              // key 隨版面模式改變：畫布的平移／縮放是為舊容器尺寸算的，
+              // 容器一變（大綱那 232px 收掉、寬度大改）那個位移就不再對得上，
+              // 內容會跑到視野外。換 key 讓它重掛、重新取景。
+              // 代價是重畫 1272 個節點，但跨越斷點是很少發生的事。
+              <FlowPanel key="wide" rundownRows={rundownRows} />
+            ) : null
+          }
         />
 
         {/* 固定右上角：兩側面板的開關，位置不隨面板收合而變 */}
@@ -289,25 +425,25 @@ const CreateApp = () => {
             px: 0.5,
           }}
         >
+          {/* 左右兩顆用同一顆 icon 鏡射，成對讀起來才是「左面板／右面板」。
+              MUI 這一版沒有 Material Symbols 的 left_panel_*（那是另一套圖庫），
+              而 ViewSidebar 的細格本來就在右邊，所以左邊那顆 scaleX(-1) 翻過來。
+              原本左邊放的是 MiSheng logo 加 invert 濾鏡——那不是 icon，
+              沒有人會從一個品牌標誌看出「這會開關左邊的面板」 */}
           <Tooltip title={showSource ? '收起資料來源' : '顯示資料來源'}>
-            <IconButton size="small" onClick={() => setShowSource((v) => !v)}>
-              <Box
-                component="img"
-                src="/MiSheng-logo-w.svg"
-                alt="資料來源"
-                sx={{
-                  width: 20,
-                  height: 20,
-                  filter: showSource ? 'invert(0.2)' : 'invert(0.6)',
-                }}
+            <IconButton size="small" onClick={toggleSource}>
+              <ViewSidebarRoundedIcon
+                fontSize="small"
+                color={showSource ? 'primary' : 'inherit'}
+                sx={{ transform: 'scaleX(-1)' }}
               />
             </IconButton>
           </Tooltip>
-          <Tooltip title={beside ? '收起流程圖' : '並排流程圖'}>
-            <IconButton size="small" onClick={() => setShowFlow((v) => !v)}>
+          <Tooltip title={flowOn ? '收起流程圖' : '顯示流程圖'}>
+            <IconButton size="small" onClick={toggleFlow}>
               <ViewSidebarRoundedIcon
                 fontSize="small"
-                color={beside ? 'primary' : 'inherit'}
+                color={flowOn ? 'primary' : 'inherit'}
               />
             </IconButton>
           </Tooltip>
@@ -324,6 +460,18 @@ const CreateApp = () => {
             {notice}
           </Alert>
         </Snackbar>
+        {/* 窄螢幕：資料來源從左邊滑出。寬度留一點讓人看得到底下還有遊戲，
+            知道自己只是「疊了一層」而不是換頁 */}
+        <Drawer
+          anchor="left"
+          open={sourceDrawer}
+          onClose={() => setShowSource(false)}
+          PaperProps={{ sx: { width: 'min(340px, 88vw)' } }}
+        >
+          {sourcePanelEl}
+        </Drawer>
+
+        {veilEl}
       </>
     );
   }
@@ -331,7 +479,9 @@ const CreateApp = () => {
   // ---- 檢查結果 ----
   if (status === 'checked') {
     return (
-      <Fade in>
+      <>
+        {veilEl}
+        <Fade in>
         <Box
           sx={{
             minHeight: '100dvh',
@@ -386,13 +536,16 @@ const CreateApp = () => {
             </Box>
           </Box>
         </Box>
-      </Fade>
+        </Fade>
+      </>
     );
   }
 
   // ---- 開始畫面 ----
   return (
-    <SourcePicker
+    <>
+      {veilEl}
+      <SourcePicker
       loading={status === 'loading'}
       onFolder={handleFolder}
       onSheet={handleSheet}
@@ -405,11 +558,12 @@ const CreateApp = () => {
         setPendingSheet('');
         handleSheet(id);
       }}
-      onDismissPending={() => {
-        setPendingSheet('');
-        clearSheetHash();
-      }}
-    />
+        onDismissPending={() => {
+          setPendingSheet('');
+          clearSheetHash();
+        }}
+      />
+    </>
   );
 };
 

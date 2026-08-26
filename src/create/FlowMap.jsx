@@ -31,6 +31,9 @@ const EDGE_COLOR = { option: '#b2591f', jump: '#78909c', seq: '#b0bec5' };
 // rundown 的流程圖。白板式操作：滾輪／捏合縮放、拖曳平移。
 //   activeId    ——玩家現在在哪一列（高亮並自動移到畫面中央）
 //   onNodeClick ——點節點要做什麼（並排模式＝把遊戲跳到那一頁）
+// 大綱 232 ＋ 畫布至少 280：低於這個寬度，兩邊並排就都不能用了
+const TIGHT_W = 520;
+
 const FlowMap = ({
   rundownRows,
   activeId = null,
@@ -42,7 +45,30 @@ const FlowMap = ({
   // 預設展開全部列：Dong 的使用習慣是先看到全貌，再自己決定要不要摺疊
   const [collapse, setCollapse] = useState(false);
   const [showOutline, setShowOutline] = useState(dense);
-  const [showLegend, setShowLegend] = useState(true);
+  // 預設隱藏：圖例是「第一次看這張圖」才需要的東西，之後每次都浮在角落擋畫布。
+  // 工具列有開關，需要的人隨時叫得出來。
+  const [showLegend, setShowLegend] = useState(false);
+
+  // 大綱要不要改成疊在畫布下面，取決於**這個面板自己有多寬**，不是視窗有多寬。
+  // 用視窗判斷會錯兩次：①視窗夠寬但欄位被分隔線拖窄時，畫布還是被擠爆；
+  // ②視窗窄但面板其實佔滿整個抽屜時，反而不需要疊。
+  // 門檻＝大綱 232 ＋ 畫布至少 280。
+  const rootRef = useRef(null);
+  const [tight, setTight] = useState(false);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return undefined;
+    // 初始值直接量一次，不要等 ResizeObserver 的第一次回呼——它不保證會來
+    // （實測某些環境完全不觸發），而初始就錯的話使用者一進來看到的就是壞版面。
+    // RO 只負責之後的變化：拖分隔線、收合側欄、轉螢幕方向。
+    setTight(el.getBoundingClientRect().width < TIGHT_W);
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([entry]) => {
+      setTight(entry.contentRect.width < TIGHT_W);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const {
     boxRef,
     transform,
@@ -121,8 +147,12 @@ const FlowMap = ({
 
   return (
     <Box
+      ref={rootRef}
       sx={{
         display: 'flex',
+        // 面板窄的時候上下疊：畫布在上、大綱在下。
+        // 左右並排時大綱會把畫布壓到剩不到 200px，兩邊都不能用。
+        flexDirection: tight ? 'column' : 'row',
         height: dense ? '100dvh' : '70vh',
         mt: dense ? 0 : 2,
       }}
@@ -494,12 +524,17 @@ const FlowMap = ({
       {showOutline && (
         <Box
           sx={{
-            width: 232,
-            pt: '44px', // 讓出右上角固定按鈕的位置
-            flexShrink: 0,
-            borderLeft: '1px solid #e0e0e0',
-            bgcolor: '#fff',
+            // 疊在下面時：整寬、限高可捲——「跳到某一關」比在小畫布上用手指
+            // 找節點快得多，不能因為擠就把它藏掉。並排時維持右側 232px 直欄。
             display: 'flex',
+            width: tight ? '100%' : 232,
+            maxHeight: tight ? '42%' : 'none',
+            // 右上角固定按鈕只擋得到並排時的那一欄
+            pt: tight ? 0 : '44px',
+            flexShrink: 0,
+            borderTop: tight ? '1px solid #e0e0e0' : 'none',
+            borderLeft: tight ? 'none' : '1px solid #e0e0e0',
+            bgcolor: '#fff',
             flexDirection: 'column',
             height: '100%',
           }}

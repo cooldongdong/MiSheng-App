@@ -42,7 +42,9 @@ const FlowMap = ({
   // 預設展開全部列：Dong 的使用習慣是先看到全貌，再自己決定要不要摺疊
   const [collapse, setCollapse] = useState(false);
   const [showOutline, setShowOutline] = useState(dense);
-  const [showLegend, setShowLegend] = useState(true);
+  // 預設隱藏：圖例是「第一次看這張圖」才需要的東西，之後每次都浮在角落擋畫布。
+  // 工具列有開關，需要的人隨時叫得出來。
+  const [showLegend, setShowLegend] = useState(false);
   const {
     boxRef,
     transform,
@@ -123,6 +125,9 @@ const FlowMap = ({
     <Box
       sx={{
         display: 'flex',
+        // 窄螢幕改成上下疊：畫布在上、大綱在下。
+        // 左右並排時大綱只剩不到 150px，字被擠成一團、根本點不到。
+        flexDirection: { xs: 'column', md: 'row' },
         height: dense ? '100dvh' : '70vh',
         mt: dense ? 0 : 2,
       }}
@@ -494,14 +499,17 @@ const FlowMap = ({
       {showOutline && (
         <Box
           sx={{
-            // 大綱固定 232px，在 375px 的手機抽屜裡會把畫布壓到剩 143px，
-            // 兩邊都不能用。窄螢幕先讓畫布吃滿——它本來就能平移縮放、
-            // 點方塊也能跳關，是這個面板的核心功能。
-            display: { xs: 'none', md: 'flex' },
-            width: 232,
-            pt: '44px', // 讓出右上角固定按鈕的位置
+            // 窄螢幕：整寬、掛在畫布下面、限高可捲——「跳到某一關」在手機上
+            // 比畫布還常用（手指在小畫布上找節點很難），不能因為擠就把它藏掉。
+            // 寬螢幕維持右側 232px 的直欄。
+            display: 'flex',
+            width: { xs: '100%', md: 232 },
+            maxHeight: { xs: '42%', md: 'none' },
+            // 右上角固定按鈕只擋得到並排時的那一欄
+            pt: { xs: 0, md: '44px' },
             flexShrink: 0,
-            borderLeft: '1px solid #e0e0e0',
+            borderTop: { xs: '1px solid #e0e0e0', md: 'none' },
+            borderLeft: { xs: 'none', md: '1px solid #e0e0e0' },
             bgcolor: '#fff',
             flexDirection: 'column',
             height: '100%',

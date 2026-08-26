@@ -106,6 +106,19 @@ const CreateApp = () => {
   // 「只在掛載時判斷一次」不同——那兩個是使用者的意圖，這個是版面能力。
   const narrow = useMediaQuery(`(max-width:${NARROW - 1}px)`);
 
+  // 窄螢幕上兩個抽屜都會蓋住畫面，同時開就什麼都看不到了——開一個就關另一個。
+  // 寬螢幕是並排的欄位，互不遮擋，維持可以同時開。
+  const toggleSource = () => {
+    const next = !showSource;
+    setShowSource(next);
+    if (next && narrow) setShowFlow(false);
+  };
+  const toggleFlow = () => {
+    const next = !showFlow;
+    setShowFlow(next);
+    if (next && narrow) setShowSource(false);
+  };
+
   const revokeImgs = useRef(null);
 
   // 表單頁要能捲；試玩時是固定一屏的版面，要鎖住捲動
@@ -400,7 +413,7 @@ const CreateApp = () => {
               原本左邊放的是 MiSheng logo 加 invert 濾鏡——那不是 icon，
               沒有人會從一個品牌標誌看出「這會開關左邊的面板」 */}
           <Tooltip title={showSource ? '收起資料來源' : '顯示資料來源'}>
-            <IconButton size="small" onClick={() => setShowSource((v) => !v)}>
+            <IconButton size="small" onClick={toggleSource}>
               <ViewSidebarRoundedIcon
                 fontSize="small"
                 color={showSource ? 'primary' : 'inherit'}
@@ -409,7 +422,7 @@ const CreateApp = () => {
             </IconButton>
           </Tooltip>
           <Tooltip title={beside ? '收起流程圖' : '並排流程圖'}>
-            <IconButton size="small" onClick={() => setShowFlow((v) => !v)}>
+            <IconButton size="small" onClick={toggleFlow}>
               <ViewSidebarRoundedIcon
                 fontSize="small"
                 color={beside ? 'primary' : 'inherit'}

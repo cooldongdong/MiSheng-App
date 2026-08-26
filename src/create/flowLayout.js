@@ -8,7 +8,6 @@
 //   3. 選項文字放在線真正經過的地方，底下墊一塊底色，不會飄到別的線上
 
 // 低明度彩虹：色相拉開才分得出來，明度壓低才不會有「AI 感」的亮藍紫
-// 低明度彩虹：色相拉開才分得出來，明度壓低才不會有「AI 感」的亮藍紫
 export const MODEL_COLOR = {
   MissionStart: '#2f3e46', // 章節錨點：深墨，實心底、白字
   Talk: '#3d5a80', // 對白：藏青
@@ -25,6 +24,87 @@ export const MODEL_TINT = {
   MissionAnswerInput: '#f9edf0',
   CustomValueInput: '#f2f4e9',
   Img: '#e9f4f3',
+};
+
+// 深色模式的對應組。不是把上面那組套濾鏡——「壓低明度」的前提是白底，
+// 換成深底之後同一組色會整片糊掉，所以每個色相都要重新定一次明度。
+//
+// 定色時守住兩件事：① 色相不動（藏青還是藏青，換了色相等於換了圖例）；
+// ② 提亮但不提彩度，否則就會長回上面那行註解在防的「AI 感亮藍紫」。
+// 各色對 canvas 底（#1c2429）實測皆 ≥ 3:1，符合 WCAG 非文字對比。
+export const MODEL_COLOR_DARK = {
+  MissionStart: '#93a7b2', // 章節錨點：翻到 ramp 另一端——深色模式下「最重的那顆」是最亮的
+  Talk: '#5b82b8', // 對白：藏青
+  Quiz: '#e08a4a', // 選擇：鏽橘
+  MissionAnswerInput: '#c4657f', // 作答：酒紅
+  CustomValueInput: '#9db862', // 輸入：橄欖綠
+  Img: '#45aba8', // 圖片：深青綠
+};
+
+// 節點底色。淺色模式用的是近白粉彩，直接搬到深底上會發光刺眼，
+// 所以改成同色相的低明度版——與畫布只差一點點，靠外框（MODEL_COLOR_DARK）辨識，
+// 這與淺色模式的做法一致（那邊也是近白底 ＋ 有色外框）。
+export const MODEL_TINT_DARK = {
+  MissionStart: '#93a7b2', // 實心，與外框同色
+  Talk: '#1e2a3a',
+  Quiz: '#31261c',
+  MissionAnswerInput: '#2e1f25',
+  CustomValueInput: '#252a1c',
+  Img: '#17282a',
+};
+
+// 連線色。原本有三份複本（FlowMap、FlowLegend、scripts/flowmap.js），
+// 而 CLI 那份還停在被否決過的亮紫／亮藍——圖例與圖畫出來的顏色對不上，
+// 因為它們從來不是同一個常數。收斂到這裡，三邊只剩一個來源。
+export const EDGE_COLOR = {
+  option: '#b2591f', // Quiz 選項：與節點的鏽橘同色，一眼看出是分岔
+  jump: '#78909c', // nextId 跳轉：虛線，中性灰
+  seq: '#b0bec5', // 依順序：最淡，因為它是預設情況，不需要被看見
+};
+
+export const EDGE_COLOR_DARK = {
+  option: '#e08a4a',
+  jump: '#90a4ae',
+  seq: '#546e7a',
+};
+
+// 流程圖自己的中性色。放這裡而不是 theme.js，是因為 scripts/flowmap.js 是 Node CLI，
+// 匯入不了 MUI；而它輸出的 SVG 與畫面上的流程圖必須是同一張圖。
+//
+// 這組原本在 CLI 裡有一份完全不同的複本（Tailwind slate ＋ 亮紫 #7c3aed），
+// 也就是說「用 CLI 匯出的流程圖」跟「畫面上看到的流程圖」從來不是同一個配色。
+//
+// canvas 為什麼不直接用 background：淺色模式的畫布要比面板**凹**一階（#fafafa < #fff），
+// 深色模式的畫布卻要比面板**深**一階（#1c2429 < #263238）——同一個角色在兩種模式落在
+// 不同的 background 階，所以它必須是自己的一個 token。
+export const FLOW_PALETTE = {
+  canvas: '#fafafa', // 畫布底
+  dot: '#dfe3e6', // 點陣底紋，同時也是節點的預設外框
+  fallback: '#b0bec5', // 認不得的 model
+  fallbackTint: '#f8fafc',
+  surface: '#fff', // 選項標籤的底、被選中的節點
+  ink: '#263238', // 節點主文
+  sub: '#90a4ae', // 節點角落的列號
+  anchorInk: '#fff', // 錨點是實心底，字色與其他節點相反
+  anchorSub: 'rgba(255,255,255,0.6)',
+  anchorBadge: 'rgba(255,255,255,0.72)',
+  dangerSurface: '#fbeceb', // 走不到的節點
+  dangerMain: '#b23c2f',
+};
+
+export const FLOW_PALETTE_DARK = {
+  canvas: '#1c2429',
+  dot: '#2f3e46',
+  fallback: '#546e7a',
+  fallbackTint: '#222c33',
+  surface: '#263238',
+  ink: '#eceff1',
+  sub: '#90a4ae',
+  anchorInk: '#1c2429', // 深色模式的錨點是淺色實心，所以字翻成深的
+  anchorSub: 'rgba(28,36,41,0.62)',
+  anchorBadge: 'rgba(28,36,41,0.72)',
+  dangerSurface: '#3a2320',
+  dangerMain: '#e07a6a',
 };
 
 export const NODE_W = 216;

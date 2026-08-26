@@ -44,6 +44,21 @@ const BG = {
 
 // flowLayout 那組（CLI 也在用的同一份）攤進 palette。
 // 兩種模式的結構一模一樣，差別只在餵進來的是哪一組常數。
+// 對話層：遊戲的故事畫面。它在兩種模式下都是同一個樣子——底是 ThemeColorLayer 的深墨
+// （或蓋在上面的插圖），輸入框是白的。這是刻意的：那塊區域疊著創作者的美術，跟著模式
+// 翻會把畫面弄髒。
+//
+// 所以畫在它上面的東西**必須用固定色**，不能吃 text.primary / primary 這類會隨模式變的
+// token。實證過兩次都是同一個錯：送出鈕先吃 primary（藍灰墨）跟深底同階而消失，改成
+// common.white 之後又跟白色輸入框同色而消失——因為那顆鈕坐的是輸入框的白底，不是深底。
+const DIALOGUE = {
+  surface: '#37474F', // 故事畫面的底
+  onSurface: '#fff', // 畫在底上的字
+  field: '#fff', // 輸入框永遠是白的
+  onField: '#b2591f', // 畫在輸入框上的動作色（鏽橘，對白底 4.9:1）
+  onFieldHover: '#8f4718',
+};
+
 const flow = (p, modelColor, modelTint, edge) => ({
   canvas: { bg: p.canvas, dot: p.dot, fallback: p.fallback, fallbackTint: p.fallbackTint, surface: p.surface },
   model: { color: modelColor, tint: modelTint },
@@ -74,6 +89,7 @@ const light = {
     },
     ...flow(FLOW_PALETTE, MODEL_COLOR, MODEL_TINT, EDGE_COLOR),
     game: { frame: '#d9d9d9', bg: '#eee', nav: '#f8f9fa' },
+    dialogue: DIALOGUE,
   },
 };
 
@@ -110,6 +126,7 @@ const dark = {
     // 關卡卡片（MissionItem 的 #37474F）刻意兩種模式都不動：它在淺色是「深卡片浮在淺頁」，
     // 在深色剛好變成「亮一階的卡片浮在更深的頁」，同一個值兩邊都成立。
     game: { frame: '#08090a', bg: NEUTRAL.abyss, nav: NEUTRAL.raised },
+    dialogue: DIALOGUE, // 與淺色同一份，見上方註解
   },
 };
 

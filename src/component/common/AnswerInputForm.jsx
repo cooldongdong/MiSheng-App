@@ -23,6 +23,9 @@ const AnswerInputForm = ({
       <FilledInput
         id="mission-answer"
         type="text"
+        // filled 變體自帶一條底線。這裡已經把它改成白底圓角的樣子，那條線就變成
+        // 圓角框下面多出來的一槓——關掉才是完整的那個造型。
+        disableUnderline
         value={value}
         onChange={onChange}
         endAdornment={
@@ -43,12 +46,13 @@ const AnswerInputForm = ({
               edge="end"
               aria-label="submit-answer"
               sx={{
-                // 這顆畫在 ThemeColorLayer（固定 #37474F 的深底）上，兩種模式都一樣。
-                // 所以它不能吃 primary——primary 是藍灰墨，跟那塊底同一階，會直接消失。
-                color: 'common.white',
+                // 這顆坐的是**輸入框的白底**，不是底下那層深墨。所以它要用對白底成立的
+                // 固定色（見 palette.dialogue 的註解）——沒有顏色的話，使用者根本不知道
+                // 那裡有一顆可以按的東西。
+                color: 'dialogue.onField',
                 '&:hover': {
-                  color: 'secondary.light',
-                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                  color: 'dialogue.onFieldHover',
+                  backgroundColor: 'rgba(0, 0, 0, 0.06)',
                 },
               }}
             >
@@ -58,21 +62,15 @@ const AnswerInputForm = ({
         }
         disabled={disabled}
         sx={{
-          backgroundColor: '#fff',
+          backgroundColor: 'dialogue.field',
           borderRadius: '10px',
-          '&:hover': {
-            backgroundColor: '#fff',
-          },
-          '&.Mui-focused': {
-            backgroundColor: '#fff',
-          },
-          '&:focus-within': {
-            backgroundColor: '#fff',
-          },
+          '&:hover': { backgroundColor: 'dialogue.field' },
+          '&.Mui-focused': { backgroundColor: 'dialogue.field' },
+          '&:focus-within': { backgroundColor: 'dialogue.field' },
         }}
       />
       {giveupCountdown === 0 && (
-        <FormHelperText sx={{ color: '#fff' }}>
+        <FormHelperText sx={{ color: 'dialogue.onSurface' }}>
           如果要放棄作答，請輸入『我放棄了』!
         </FormHelperText>
       )}

@@ -62,6 +62,10 @@ const CreateApp = () => {
   // 網址帶了 #sheet= 但來源不是自己書籤過的，先問一聲再載入（見底下的 useEffect）
   const [pendingSheet, setPendingSheet] = useState('');
   const [loadingLabel, setLoadingLabel] = useState('');
+  // 載入遮罩：off｜on（不透明）｜fading（淡出中）
+  const [veil, setVeil] = useState('off');
+  const veilRef = useRef('off');
+  veilRef.current = veil;
 
   const [showSource, setShowSource] = useState(true); // 左側面板
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
@@ -77,6 +81,23 @@ const CreateApp = () => {
   }, [status]);
 
   useEffect(() => () => revokeImgs.current?.(), []);
+
+  // 遮罩的生命週期跟 status 綁在一起，但**不是**同步消失：
+  // status 一變成 playing，三欄／遊戲／流程圖會在同一格裡全部掛上來，
+  // 那一格是半畫好的。所以先讓遮罩多撐一段，等底下安定了再淡出。
+  useEffect(() => {
+    if (status === 'loading') {
+      setVeil('on');
+      return undefined;
+    }
+    if (veilRef.current !== 'on') return undefined;
+    const hold = setTimeout(() => setVeil('fading'), 140);
+    const done = setTimeout(() => setVeil('off'), 140 + 280);
+    return () => {
+      clearTimeout(hold);
+      clearTimeout(done);
+    };
+  }, [status]);
 
   // 帶著 #sheet= 進來時要不要自動載入，取決於這份是不是「你自己的書籤」：
   // 在最近使用清單裡＝你自己存的，直接載入；不認得＝多半是別人傳來的連結，先問一聲。
@@ -240,6 +261,12 @@ const CreateApp = () => {
   const hasError = issues.some((it) => it.level === 'error');
 
   // ---- 試玩中：三欄 ----
+  // 三個畫面分支都要蓋同一塊遮罩——它跨越的正是分支切換的那一刻
+  const veilEl =
+    veil === 'off' ? null : (
+      <LoadingScreen label={loadingLabel} fadingOut={veil === 'fading'} />
+    );
+
   if (status === 'playing' && gameData) {
     const beside = showFlow && rundownRows.length > 0;
 
@@ -301,17 +328,17 @@ const CreateApp = () => {
             px: 0.5,
           }}
         >
+          {/* 左右兩顆用同一顆 icon 鏡射，成對讀起來才是「左面板／右面板」。
+              MUI 這一版沒有 Material Symbols 的 left_panel_*（那是另一套圖庫），
+              而 ViewSidebar 的細格本來就在右邊，所以左邊那顆 scaleX(-1) 翻過來。
+              原本左邊放的是 MiSheng logo 加 invert 濾鏡——那不是 icon，
+              沒有人會從一個品牌標誌看出「這會開關左邊的面板」 */}
           <Tooltip title={showSource ? '收起資料來源' : '顯示資料來源'}>
             <IconButton size="small" onClick={() => setShowSource((v) => !v)}>
-              <Box
-                component="img"
-                src="/MiSheng-logo-w.svg"
-                alt="資料來源"
-                sx={{
-                  width: 20,
-                  height: 20,
-                  filter: showSource ? 'invert(0.2)' : 'invert(0.6)',
-                }}
+              <ViewSidebarRoundedIcon
+                fontSize="small"
+                color={showSource ? 'primary' : 'inherit'}
+                sx={{ transform: 'scaleX(-1)' }}
               />
             </IconButton>
           </Tooltip>
@@ -336,18 +363,17 @@ const CreateApp = () => {
             {notice}
           </Alert>
         </Snackbar>
+        {veilEl}
       </>
     );
   }
 
   // ---- 檢查結果 ----
-  if (status === 'loading') {
-    return <LoadingScreen label={loadingLabel} />;
-  }
-
   if (status === 'checked') {
     return (
-      <Fade in>
+      <>
+        {veilEl}
+        <Fade in>
         <Box
           sx={{
             minHeight: '100dvh',
@@ -402,13 +428,16 @@ const CreateApp = () => {
             </Box>
           </Box>
         </Box>
-      </Fade>
+        </Fade>
+      </>
     );
   }
 
   // ---- 開始畫面 ----
   return (
-    <SourcePicker
+    <>
+      {veilEl}
+      <SourcePicker
       loading={status === 'loading'}
       onFolder={handleFolder}
       onSheet={handleSheet}
@@ -421,11 +450,12 @@ const CreateApp = () => {
         setPendingSheet('');
         handleSheet(id);
       }}
-      onDismissPending={() => {
-        setPendingSheet('');
-        clearSheetHash();
-      }}
-    />
+        onDismissPending={() => {
+          setPendingSheet('');
+          clearSheetHash();
+        }}
+      />
+    </>
   );
 };
 

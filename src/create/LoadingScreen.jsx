@@ -4,16 +4,28 @@ import { Box, Typography } from '@mui/material';
 
 // 檢查通過之後不再停在檢查頁，而是直接進三欄——中間就少了一個「有東西在動」的畫面。
 // 讀 7 張 CSV 要幾秒，沒有這一頁的話會是一段白畫面，看起來像當掉了。
+//
+// 它是**蓋在畫面上的遮罩**，不是一個獨立的畫面。原因：載入畫面與三欄是兩棵完全
+// 不同的樹，硬切的那一格要一次掛上三欄＋遊戲＋流程圖（demo 是 1272 個 SVG 文字
+// 節點），使用者會看到半畫好的狀態閃一下。改成遮罩之後，那一格發生在遮罩底下，
+// 等底下安定了才淡出。
 
 const breathe = keyframes`
   0%, 100% { opacity: 0.35; transform: scale(0.94); }
   50%      { opacity: 1;    transform: scale(1); }
 `;
 
-const LoadingScreen = ({ label = '' }) => (
+const LoadingScreen = ({ label = '', fadingOut = false }) => (
   <Box
     sx={{
-      minHeight: '100dvh',
+      position: 'fixed',
+      inset: 0,
+      zIndex: 3000,
+      bgcolor: '#fff',
+      opacity: fadingOut ? 0 : 1,
+      transition: 'opacity 260ms ease',
+      // 淡出中不要擋住底下已經可以用的介面
+      pointerEvents: fadingOut ? 'none' : 'auto',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -56,6 +68,7 @@ const LoadingScreen = ({ label = '' }) => (
 
 LoadingScreen.propTypes = {
   label: PropTypes.string,
+  fadingOut: PropTypes.bool,
 };
 
 export default LoadingScreen;

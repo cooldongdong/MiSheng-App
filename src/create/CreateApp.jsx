@@ -356,8 +356,9 @@ const CreateApp = () => {
           sideFlex={narrow ? '0 0 auto' : beside ? 1 : undefined}
           resizable={!narrow && beside}
           sidePanel={
-            // 窄螢幕時流程圖從底部拉起來（它是要平移縮放的畫布，左右滑出太窄；
-            // 底部也是手機上最順手的手勢方向）。
+            // 窄螢幕時流程圖從右邊滑出，跟它那顆 icon 指的方向一致——
+            // icon 畫的是右面板，東西卻從底下冒出來，指示和結果就對不上。
+            // 而且流程圖是縱向的，高而窄的容器本來就比矮而寬的適合它。
             //
             // 但這個 Drawer 必須放在 sidePanel 這個插槽裡，不能掛在外面：
             // FlowPanel 要從 GameContext 拿 currentId／setCurrentId 才能點方塊跳關，
@@ -365,10 +366,10 @@ const CreateApp = () => {
             // 所以它 render 在 provider 裡、畫面上卻逃得出這個欄位。
             narrow ? (
               <Drawer
-                anchor="bottom"
+                anchor="right"
                 open={flowDrawer}
                 onClose={() => setShowFlow(false)}
-                PaperProps={{ sx: { height: '88dvh' } }}
+                PaperProps={{ sx: { width: 'min(420px, 92vw)' } }}
               >
                 <FlowPanel rundownRows={rundownRows} />
               </Drawer>

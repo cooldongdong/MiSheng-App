@@ -11,7 +11,6 @@ const LockedHintButton = ({ index, onUnlock }) => {
         fullWidth
         onClick={() => onUnlock(index)}
         startIcon={<LockRoundedIcon />}
-        sx={{ backgroundColor: '#37474F' }}
       >
         解鎖提示 {index + 1}
       </Button>

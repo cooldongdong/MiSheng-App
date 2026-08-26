@@ -444,7 +444,7 @@ const CreateApp = () => {
             <IconButton size="small" onClick={toggleSource}>
               <ViewSidebarRoundedIcon
                 fontSize="small"
-                color={showSource ? 'primary' : 'inherit'}
+                color={showSource ? 'secondary' : 'inherit'}
                 sx={{ transform: 'scaleX(-1)' }}
               />
             </IconButton>
@@ -453,7 +453,7 @@ const CreateApp = () => {
             <IconButton size="small" onClick={toggleFlow}>
               <ViewSidebarRoundedIcon
                 fontSize="small"
-                color={flowOn ? 'primary' : 'inherit'}
+                color={flowOn ? 'secondary' : 'inherit'}
               />
             </IconButton>
           </Tooltip>

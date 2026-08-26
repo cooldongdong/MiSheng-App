@@ -75,14 +75,20 @@ const GameShell = ({
     };
   }, []);
 
-  // 兩條分隔線長一樣
+  // 兩條分隔線長一樣。
+  //
+  // 這條 bar 有 8px 寬（要抓得到），所以它不是一條線、是一塊面——用 divider 的值上色
+  // 會變成兩側面板之間插進一塊比誰都亮的板子，深色模式下特別跳。改成跟面板同色，
+  // 讓「這裡可以拖」這件事由中間那根握把去講，而不是由整條 bar 去喊。
   const splitterSx = {
     flex: '0 0 8px',
     cursor: 'col-resize',
-    bgcolor: 'divider',
+    bgcolor: 'background.paper',
     position: 'relative',
     zIndex: 600,
-    '&:hover': { bgcolor: 'text.disabled' },
+    transition: 'background-color 120ms ease',
+    '&:hover': { bgcolor: 'action.hover' },
+    '&:hover::after': { bgcolor: 'text.secondary' },
     '&::after': {
       content: '""',
       position: 'absolute',
@@ -92,7 +98,9 @@ const GameShell = ({
       width: '2px',
       height: '28px',
       borderRadius: '1px',
-      bgcolor: 'text.secondary',
+      // 握把才是要被看見的東西，但也只要「看得見」就好——滑過去才提亮
+      bgcolor: 'text.disabled',
+      transition: 'background-color 120ms ease',
     },
   };
 

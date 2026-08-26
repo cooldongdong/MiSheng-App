@@ -63,6 +63,12 @@ const light = {
   palette: {
     mode: 'light',
     text: { primary: BG[900], secondary: BG[600], disabled: BG[400] },
+    // primary ＝ 主要動作（按鈕、連結）；secondary ＝ 你現在在哪（選中、啟用中）。
+    // 分成兩個角色是因為 A 案實測有個功能性缺陷：primary 用藍灰墨的話，深色模式下
+    // 「選中」(#90a4ae) 與「未選中」(#78909c) 只差一階明度，使用者分不出在哪一頁。
+    // 把狀態交給鏽橘，按鈕才留得住藍灰墨那個近黑的質感。
+    primary: { main: BG[800], contrastText: '#fff' },
+    secondary: { main: '#b2591f', contrastText: '#fff' },
     divider: BG[100],
     background: {
       default: '#fff',
@@ -79,6 +85,8 @@ const dark = {
   palette: {
     mode: 'dark',
     text: { primary: BG[50], secondary: BG[200], disabled: BG[400] },
+    primary: { main: BG[300], contrastText: ABYSS },
+    secondary: { main: '#e08a4a', contrastText: ABYSS },
     divider: BG[800],
     background: { default: ABYSS, paper: BG[900], overlay: 'rgba(38,50,56,0.94)' },
     ...flow(FLOW_PALETTE_DARK, MODEL_COLOR_DARK, MODEL_TINT_DARK, EDGE_COLOR_DARK),
@@ -95,6 +103,30 @@ const theme = createTheme({
   // 這是流程圖那 7 處 SVG 顏色不用在 JS 裡判斷 mode 的關鍵。
   cssVariables: { colorSchemeSelector: 'data' },
   colorSchemes: { light, dark },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        // 遊戲的主要動作鈕（NextButton / EndIconButton）用的是 color="inherit"，
+        // MUI 對它給的是 grey[300] / grey[800]。淺色模式下那是一塊近白的膠囊，疊在
+        // 遊戲插圖上剛好；深色模式下卻變成 #424242 —— 一塊跟品牌毫無關係的中性暗灰，
+        // 而且在深底上幾乎看不見。這裡只改深色那一半，淺色維持原樣。
+        containedInherit: ({ theme }) =>
+          theme.applyStyles('dark', {
+            backgroundColor: theme.vars.palette.primary.main,
+            color: theme.vars.palette.primary.contrastText,
+            '&:hover': { backgroundColor: theme.vars.palette.primary.light },
+          }),
+      },
+    },
+    MuiBottomNavigationAction: {
+      styleOverrides: {
+        // 「現在在哪一頁」屬於狀態，走 secondary（見 palette 的註解）
+        root: ({ theme }) => ({
+          '&.Mui-selected': { color: theme.vars.palette.secondary.main },
+        }),
+      },
+    },
+  },
 });
 
 export default theme;

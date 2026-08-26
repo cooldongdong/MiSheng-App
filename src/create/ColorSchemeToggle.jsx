@@ -35,7 +35,7 @@ const ColorSchemeToggle = ({ size = 'small' }) => {
         onClick={() => setMode(NEXT[mode])}
         aria-label={`切換外觀，目前是${LABEL[mode]}`}
       >
-        <Icon fontSize={size} color={mode === 'system' ? 'inherit' : 'primary'} />
+        <Icon fontSize={size} color={mode === 'system' ? 'inherit' : 'secondary'} />
       </IconButton>
     </Tooltip>
   );

@@ -43,9 +43,11 @@ const AnswerInputForm = ({
               edge="end"
               aria-label="submit-answer"
               sx={{
-                color: 'primary.main',
+                // 這顆畫在 ThemeColorLayer（固定 #37474F 的深底）上，兩種模式都一樣。
+                // 所以它不能吃 primary——primary 是藍灰墨，跟那塊底同一階，會直接消失。
+                color: 'common.white',
                 '&:hover': {
-                  color: 'secondary.main',
+                  color: 'secondary.light',
                   backgroundColor: 'rgba(0, 0, 0, 0.1)',
                 },
               }}

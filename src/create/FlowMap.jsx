@@ -505,7 +505,7 @@ const FlowMap = ({
             <IconButton size="small" onClick={() => setShowLegend((v) => !v)}>
               <InfoOutlinedIcon
                 fontSize="small"
-                color={showLegend ? 'primary' : 'inherit'}
+                color={showLegend ? 'secondary' : 'inherit'}
               />
             </IconButton>
           </Tooltip>
@@ -513,7 +513,7 @@ const FlowMap = ({
             <IconButton size="small" onClick={() => setShowOutline((v) => !v)}>
               <FormatListBulletedRoundedIcon
                 fontSize="small"
-                color={showOutline ? 'primary' : 'inherit'}
+                color={showOutline ? 'secondary' : 'inherit'}
               />
             </IconButton>
           </Tooltip>

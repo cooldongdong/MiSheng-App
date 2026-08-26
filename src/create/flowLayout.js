@@ -41,16 +41,20 @@ export const MODEL_COLOR_DARK = {
   Img: '#45aba8', // 圖片：深青綠
 };
 
-// 節點底色。淺色模式用的是近白粉彩，直接搬到深底上會發光刺眼，
-// 所以改成同色相的低明度版——與畫布只差一點點，靠外框（MODEL_COLOR_DARK）辨識，
-// 這與淺色模式的做法一致（那邊也是近白底 ＋ 有色外框）。
+// 節點底色。第一版做成「與畫布同明度」去對稱淺色模式，結果整片糊在一起——
+// 那個對稱是錯的：淺色模式的節點底只比畫布亮 1.08 倍就分得出來，深色模式不行。
+// 低亮度下人眼的對比敏感度本來就比較差，而且深色介面的慣例是**浮起來 ＝ 更亮**，
+// 不是「同一階、靠外框辨識」。
+//
+// 所以這組是往上拉的：對畫布（#1c2429）落在 1.30–1.40，看得出是一塊獨立的面，
+// 又還沒亮到搶走外框與文字。主文（#eceff1）在每一格上都有 9.8:1 以上。
 export const MODEL_TINT_DARK = {
   MissionStart: '#93a7b2', // 實心，與外框同色
-  Talk: '#1e2a3a',
-  Quiz: '#31261c',
-  MissionAnswerInput: '#2e1f25',
-  CustomValueInput: '#252a1c',
-  Img: '#17282a',
+  Talk: '#2b3a4f',
+  Quiz: '#453224',
+  MissionAnswerInput: '#4a2d3a',
+  CustomValueInput: '#363d27',
+  Img: '#1f3f40',
 };
 
 // 連線色。原本有三份複本（FlowMap、FlowLegend、scripts/flowmap.js），
@@ -94,9 +98,9 @@ export const FLOW_PALETTE = {
 
 export const FLOW_PALETTE_DARK = {
   canvas: '#1c2429',
-  dot: '#2f3e46',
+  dot: '#45535d', // 兼作節點外框——#2f3e46 對畫布只有 1.42，節點邊界看不出來
   fallback: '#546e7a',
-  fallbackTint: '#222c33',
+  fallbackTint: '#2e3841',
   surface: '#263238',
   ink: '#eceff1',
   sub: '#90a4ae',

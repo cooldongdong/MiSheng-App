@@ -1,10 +1,12 @@
 /* 轉化頁專用的全域樣式。
    不沿用 index.css：那份給的是「固定一屏的遊戲畫面」（html/body overflow:hidden），
-   套在這種會愈長愈高的表單頁上，驗證報告一多就會被裁掉、按鈕捲不到。 */
+   套在這種會愈長愈高的表單頁上，驗證報告一多就會被裁掉、按鈕捲不到。
+
+   底色不寫在這裡——交給 CssBaseline，它會跟著 colorSchemes 換。
+   這裡若留一行 background:#fff，深色模式下會從 html 透出來變成白邊。 */
 html,
 body {
   margin: 0;
-  background: #fff;
 }
 
 body {

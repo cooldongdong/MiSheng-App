@@ -28,7 +28,7 @@ import { readRecentSheets, rememberSheet, forgetSheet } from './recentSheets';
 import { readSheetFromHash, writeSheetToHash, clearSheetHash } from './sheetHash';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
-import ColorSchemeToggle from './ColorSchemeToggle';
+import ColorSchemeToggle from '../component/ColorSchemeToggle';
 
 // 開始畫面與檢查結果沒有右上角那組面板按鈕，外觀開關得自己帶定位。
 // 放在同一個座標（top 6 / right 10），三個畫面之間切換時開關才不會跳位置。

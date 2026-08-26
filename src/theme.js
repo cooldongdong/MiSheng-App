@@ -42,10 +42,6 @@ const BG = {
   900: '#263238',
 };
 
-// 比 900 再深一階，只用在深色模式最底層：paper(900) 要浮得起來就需要一個比它更暗的底。
-// 直接拿 900 當 default 會讓面板與背景黏成一片。
-const ABYSS = '#1c2429';
-
 // flowLayout 那組（CLI 也在用的同一份）攤進 palette。
 // 兩種模式的結構一模一樣，差別只在餵進來的是哪一組常數。
 const flow = (p, modelColor, modelTint, edge) => ({
@@ -81,19 +77,39 @@ const light = {
   },
 };
 
+// 深色模式走中性灰，不是把淺色的藍灰 ramp 直接翻過來。
+//
+// 第一版是翻 ramp（底 #1c2429、面板 #263238），邏輯上很整齊，實際上不行：藍灰在淺色
+// 是「白底上的一抹冷色」，很淡；一旦拿它當**底色**，那個藍就鋪滿整個畫面，變成一層洗
+// 不掉的藍。同一個色相在「當點綴」與「當底」是兩種完全不同的東西。
+//
+// 所以底改成近中性（彩度極低、只留一點點冷讓它不死灰），彩度全部留給 accent——
+// 這正是多數 SaaS 深色介面的做法：底安靜到你不會注意它，顏色只出現在有意義的地方。
+// 淺色模式維持藍灰不動：白底上那抹冷色本來就成立，那不是需要修的東西。
+const NEUTRAL = {
+  abyss: '#0e0f11', // 最底層
+  raised: '#17191c', // 面板、卡片
+  line: '#2a2d31', // 分隔線
+  ink: '#e8eaed',
+  inkBody: '#a1a6ad',
+  inkMuted: '#6e737a',
+};
+
 const dark = {
   palette: {
     mode: 'dark',
-    text: { primary: BG[50], secondary: BG[200], disabled: BG[400] },
-    primary: { main: BG[300], contrastText: ABYSS },
-    secondary: { main: '#e08a4a', contrastText: ABYSS },
-    divider: BG[800],
-    background: { default: ABYSS, paper: BG[900], overlay: 'rgba(38,50,56,0.94)' },
+    text: { primary: NEUTRAL.ink, secondary: NEUTRAL.inkBody, disabled: NEUTRAL.inkMuted },
+    // 深色的 primary 不再是藍灰墨，而是「墨的另一端」——淺色模式的主要按鈕是近黑，
+    // 深色模式就是近白。primary 從頭到尾代表的都是「最重的那個動作」，不是某個色相。
+    primary: { main: NEUTRAL.ink, contrastText: NEUTRAL.abyss },
+    secondary: { main: '#e08a4a', contrastText: NEUTRAL.abyss },
+    divider: NEUTRAL.line,
+    background: { default: NEUTRAL.abyss, paper: NEUTRAL.raised, overlay: 'rgba(23,25,28,0.94)' },
     ...flow(FLOW_PALETTE_DARK, MODEL_COLOR_DARK, MODEL_TINT_DARK, EDGE_COLOR_DARK),
-    // 遊戲外殼。frame 是 #root（桌機上遊戲兩側的襯底）、bg 是遊戲頁面底、nav 是底部導覽。
+    // 遊戲外殼。frame 是桌機上遊戲兩側的襯底、bg 是遊戲頁面底、nav 是底部導覽。
     // 關卡卡片（MissionItem 的 #37474F）刻意兩種模式都不動：它在淺色是「深卡片浮在淺頁」，
     // 在深色剛好變成「亮一階的卡片浮在更深的頁」，同一個值兩邊都成立。
-    game: { frame: '#141a1e', bg: '#1c2429', nav: '#263238' },
+    game: { frame: '#08090a', bg: NEUTRAL.abyss, nav: NEUTRAL.raised },
   },
 };
 

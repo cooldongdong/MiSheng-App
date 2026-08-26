@@ -46,15 +46,16 @@ export const MODEL_COLOR_DARK = {
 // 低亮度下人眼的對比敏感度本來就比較差，而且深色介面的慣例是**浮起來 ＝ 更亮**，
 // 不是「同一階、靠外框辨識」。
 //
-// 所以這組是往上拉的：對畫布（#1c2429）落在 1.30–1.40，看得出是一塊獨立的面，
-// 又還沒亮到搶走外框與文字。主文（#eceff1）在每一格上都有 9.8:1 以上。
+// 所以這組是往上拉的：對畫布落在 1.29–1.35，看得出是一塊獨立的面，又還沒亮到搶走
+// 外框與文字。主文在每一格上都有 11.8:1 以上。
+// 註：畫布從藍灰改成中性灰之後這組重算過一次——比例是對「畫布」算的，畫布換了就得跟著換。
 export const MODEL_TINT_DARK = {
   MissionStart: '#93a7b2', // 實心，與外框同色
-  Talk: '#2b3a4f',
-  Quiz: '#453224',
-  MissionAnswerInput: '#4a2d3a',
-  CustomValueInput: '#363d27',
-  Img: '#1f3f40',
+  Talk: '#212b3b',
+  Quiz: '#33261a',
+  MissionAnswerInput: '#36212c',
+  CustomValueInput: '#272d1a',
+  Img: '#142e30',
 };
 
 // 連線色。原本有三份複本（FlowMap、FlowLegend、scripts/flowmap.js），
@@ -97,17 +98,17 @@ export const FLOW_PALETTE = {
 };
 
 export const FLOW_PALETTE_DARK = {
-  canvas: '#1c2429',
-  dot: '#45535d', // 兼作節點外框——#2f3e46 對畫布只有 1.42，節點邊界看不出來
-  fallback: '#546e7a',
-  fallbackTint: '#2e3841',
-  surface: '#263238',
-  ink: '#eceff1',
-  sub: '#90a4ae',
-  anchorInk: '#1c2429', // 深色模式的錨點是淺色實心，所以字翻成深的
-  anchorSub: 'rgba(28,36,41,0.62)',
-  anchorBadge: 'rgba(28,36,41,0.72)',
-  dangerSurface: '#3a2320',
+  canvas: '#0e0f11',
+  dot: '#2f3338', // 兼作節點外框——太暗的話節點邊界等於不存在
+  fallback: '#4a4f56',
+  fallbackTint: '#1c1f22',
+  surface: '#17191c',
+  ink: '#e8eaed',
+  sub: '#8b9098',
+  anchorInk: '#0e0f11', // 深色模式的錨點是淺色實心，所以字翻成深的
+  anchorSub: 'rgba(14,15,17,0.62)',
+  anchorBadge: 'rgba(14,15,17,0.72)',
+  dangerSurface: '#2e1d1a',
   dangerMain: '#e07a6a',
 };
 

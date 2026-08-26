@@ -28,6 +28,15 @@ import { readRecentSheets, rememberSheet, forgetSheet } from './recentSheets';
 import { readSheetFromHash, writeSheetToHash, clearSheetHash } from './sheetHash';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
+import ColorSchemeToggle from './ColorSchemeToggle';
+
+// 開始畫面與檢查結果沒有右上角那組面板按鈕，外觀開關得自己帶定位。
+// 放在同一個座標（top 6 / right 10），三個畫面之間切換時開關才不會跳位置。
+const FloatingSchemeToggle = () => (
+  <Box sx={{ position: 'fixed', top: 6, right: 10, zIndex: 2000 }}>
+    <ColorSchemeToggle />
+  </Box>
+);
 
 // 即時轉化（/create）：資料進來 → 驗證 → 當場試玩
 //
@@ -419,8 +428,9 @@ const CreateApp = () => {
             top: 6,
             right: 10,
             zIndex: 2000,
-            bgcolor: 'rgba(255,255,255,0.94)',
-            border: '1px solid #e0e0e0',
+            bgcolor: 'background.overlay',
+            border: '1px solid',
+            borderColor: 'divider',
             borderRadius: 2,
             px: 0.5,
           }}
@@ -447,6 +457,7 @@ const CreateApp = () => {
               />
             </IconButton>
           </Tooltip>
+          <ColorSchemeToggle />
         </Stack>
 
         {/* 重讀後被迫回到開頭時說一聲——不講的話會像遊戲自己跳掉了 */}
@@ -481,6 +492,7 @@ const CreateApp = () => {
     return (
       <>
         {veilEl}
+        <FloatingSchemeToggle />
         <Fade in>
         <Box
           sx={{
@@ -492,10 +504,10 @@ const CreateApp = () => {
           }}
         >
           <Box sx={{ width: '100%', maxWidth: 560 }}>
-            <Typography variant="overline" sx={{ color: '#90a4ae', letterSpacing: 1 }}>
+            <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: 1 }}>
               檢查結果
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: '#263238', mb: 0.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
               {source}
             </Typography>
 
@@ -545,6 +557,7 @@ const CreateApp = () => {
   return (
     <>
       {veilEl}
+      <FloatingSchemeToggle />
       <SourcePicker
       loading={status === 'loading'}
       onFolder={handleFolder}

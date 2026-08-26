@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { keyframes } from '@emotion/react';
 import { Box, Typography } from '@mui/material';
+import BrandMark from './BrandMark.jsx';
 
 // 檢查通過之後不再停在檢查頁，而是直接進三欄——中間就少了一個「有東西在動」的畫面。
 // 讀 7 張 CSV 要幾秒，沒有這一頁的話會是一段白畫面，看起來像當掉了。
@@ -21,7 +22,7 @@ const LoadingScreen = ({ label = '', fadingOut = false }) => (
       position: 'fixed',
       inset: 0,
       zIndex: 3000,
-      bgcolor: '#fff',
+      bgcolor: 'background.default',
       opacity: fadingOut ? 0 : 1,
       transition: 'opacity 260ms ease',
       // 淡出中不要擋住底下已經可以用的介面
@@ -34,17 +35,12 @@ const LoadingScreen = ({ label = '', fadingOut = false }) => (
       px: 2,
     }}
   >
-    <Box
-      component="img"
-      src="/MiSheng-logo-w.svg"
-      alt=""
-      aria-hidden
+    {/* 不要改回 <img src="/MiSheng-logo-w.svg"> 再套 filter。那顆檔案帶一塊白色底方塊，
+        淺色模式下看不見、深色模式下會變成畫面最亮的東西；而 invert() 只會把它變成灰方塊。
+        BrandMark 是同一個圖形去掉底方塊、改吃 currentColor 的版本。 */}
+    <BrandMark
+      size={72}
       sx={{
-        width: 72,
-        height: 72,
-        // 不要加 filter。這顆 logo 是「#37474F 的圖形 ＋ 白色底方塊」，
-        // 檔名的 -w 指的是白底不是白圖——它的圖形色本來就是這個專案的主色。
-        // 加了 invert() 會把那塊白底變成灰的，畫面上就多出一個方塊。
         animation: `${breathe} 1.8s ease-in-out infinite`,
         // 會動的東西對某些人是負擔，系統設定說不要動就不要動
         '@media (prefers-reduced-motion: reduce)': {
@@ -55,11 +51,11 @@ const LoadingScreen = ({ label = '', fadingOut = false }) => (
       }}
     />
     <Box sx={{ textAlign: 'center' }}>
-      <Typography role="status" aria-live="polite" sx={{ color: '#37474f' }}>
+      <Typography role="status" aria-live="polite">
         {label ? `正在讀取${label}` : '讀取中'}
       </Typography>
       {/* 講清楚「慢是正常的」，比只放一個轉圈更能讓人願意等 */}
-      <Typography variant="caption" sx={{ color: '#90a4ae', mt: 0.5, display: 'block' }}>
+      <Typography variant="caption" sx={{ color: 'text.disabled', mt: 0.5, display: 'block' }}>
         表格比較大時要幾秒
       </Typography>
     </Box>

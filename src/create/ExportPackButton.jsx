@@ -73,8 +73,8 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
               letterSpacing: 0.5,
               // Button 的 text-transform: uppercase 會滲進來，把 beta 變成 BETA
               textTransform: 'none',
-              bgcolor: '#eceff1',
-              color: '#78909c',
+              bgcolor: 'action.hover',
+              color: 'text.disabled',
               '& .MuiChip-label': { px: 0.6 },
             }}
           />
@@ -88,7 +88,7 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
             value={pct}
           />
           {progress?.total > 0 && (
-            <Typography variant="caption" sx={{ color: '#78909c' }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
               {progress.done} / {progress.total} 張
             </Typography>
           )}
@@ -139,7 +139,7 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
             </Box>
           )}
 
-          <Typography variant="caption" component="div" sx={{ mt: 0.5, color: '#78909c' }}>
+          <Typography variant="caption" component="div" sx={{ mt: 0.5, color: 'text.disabled' }}>
             解開後整個資料夾丟進 src/gameFile/ 就能自己 build。包裡的「圖片對照.csv」列出
             每張圖從哪來、用在哪幾格，想核對這包齊不齊、或把下載的圖換回原圖，都看那張表。
           </Typography>

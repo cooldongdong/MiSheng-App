@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Chip, IconButton, Stack, Tooltip } from '@mui/material';
+import { Box, Chip, IconButton, Stack, Tooltip, useTheme } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import MouseRoundedIcon from '@mui/icons-material/MouseRounded';
 import GestureRoundedIcon from '@mui/icons-material/GestureRounded';
@@ -17,16 +17,12 @@ import {
   nodeSubtitle,
   edgeLabel,
   labelBoxWidth,
-  MODEL_COLOR,
-  MODEL_TINT,
   NODE_W,
   NODE_H,
 } from './flowLayout';
 import { useCanvasGestures } from './useCanvasGestures';
 import FlowLegend from './FlowLegend';
 import FlowOutline from './FlowOutline';
-
-const EDGE_COLOR = { option: '#b2591f', jump: '#78909c', seq: '#b0bec5' };
 
 // rundown 的流程圖。白板式操作：滾輪／捏合縮放、拖曳平移。
 //   activeId    ——玩家現在在哪一列（高亮並自動移到畫面中央）
@@ -43,6 +39,9 @@ const FlowMap = ({
   toolbarActions = null,
 }) => {
   // 預設展開全部列：Dong 的使用習慣是先看到全貌，再自己決定要不要摺疊
+  // 節點色、連線色、畫布底都從 theme 拿——深色模式換的是 theme，不是這支元件。
+  // useTheme() 回傳的是「當前色彩模式」的 palette，所以切換時這裡會跟著重算。
+  const { palette } = useTheme();
   const [collapse, setCollapse] = useState(false);
   const [showOutline, setShowOutline] = useState(dense);
   // 預設隱藏：圖例是「第一次看這張圖」才需要的東西，之後每次都浮在角落擋畫布。
@@ -163,11 +162,12 @@ const FlowMap = ({
           flex: 1,
           minWidth: 0,
           height: '100%',
-          border: dense ? 'none' : '1px solid #e0e0e0',
-          borderLeft: dense ? '1px solid #e0e0e0' : undefined,
+          border: dense ? 'none' : '1px solid',
+          borderLeft: dense ? '1px solid' : undefined,
+          borderColor: 'divider',
           borderRadius: dense ? 0 : 2,
           overflow: 'hidden',
-          bgcolor: '#fafafa',
+          bgcolor: 'canvas.bg',
         }}
       >
         <Box
@@ -198,7 +198,7 @@ const FlowMap = ({
                 }
               `}</style>
               {/* 每種線各有自己的箭頭：只換線色不換箭頭會很突兀 */}
-              {Object.entries(EDGE_COLOR).map(([type, color]) => (
+              {Object.entries(palette.edge).map(([type, color]) => (
                 <marker
                   key={type}
                   id={`fm-arrow-${type}`}
@@ -218,7 +218,7 @@ const FlowMap = ({
                 height="24"
                 patternUnits="userSpaceOnUse"
               >
-                <circle cx="1" cy="1" r="1" fill="#dfe3e6" />
+                <circle cx="1" cy="1" r="1" fill={palette.canvas.dot} />
               </pattern>
             </defs>
 
@@ -238,7 +238,7 @@ const FlowMap = ({
                   <path
                     d={e.d}
                     fill="none"
-                    stroke={EDGE_COLOR[e.type] || '#cbd5e1'}
+                    stroke={palette.edge[e.type] || palette.canvas.fallback}
                     strokeWidth={e.type === 'seq' ? 1.5 : 1.8}
                     strokeDasharray={e.type === 'jump' ? '6 4' : undefined}
                     markerEnd={`url(#fm-arrow-${e.type})`}
@@ -251,15 +251,15 @@ const FlowMap = ({
                         width={labelBoxWidth(e.label)}
                         height="18"
                         rx="9"
-                        fill="#fff"
-                        stroke={EDGE_COLOR[e.type] || '#cfd8dc'}
+                        fill={palette.canvas.surface}
+                        stroke={palette.edge[e.type] || palette.divider}
                         strokeOpacity="0.45"
                       />
                       <text
                         x={e.labelX}
                         y={e.labelY + 4}
                         fontSize="11"
-                        fill={EDGE_COLOR[e.type] || '#546e7a'}
+                        fill={palette.edge[e.type] || palette.text.secondary}
                         textAnchor="middle"
                       >
                         {edgeLabel(e.label)}
@@ -270,8 +270,8 @@ const FlowMap = ({
               ))}
 
               {view.nodes.map((n) => {
-                const color = MODEL_COLOR[n.model] || '#64748b';
-                const tint = MODEL_TINT[n.model] || '#f8fafc';
+                const color = palette.model.color[n.model] || palette.canvas.fallback;
+                const tint = palette.model.tint[n.model] || palette.canvas.fallbackTint;
                 const bad = !n.reachable;
                 const active = n.id === activeNodeId;
                 // 章節錨點：實心深底＋白字，掃過去一眼就知道「新的一關從這裡開始」
@@ -340,21 +340,21 @@ const FlowMap = ({
                       rx="10"
                       fill={
                         bad
-                          ? '#fbeceb'
+                          ? palette.error.surface
                           : anchor
                             ? color
                             : active
-                              ? '#fff'
+                              ? palette.canvas.surface
                               : tint
                       }
                       stroke={
                         active
                           ? color
                           : bad
-                            ? '#b23c2f'
+                            ? palette.error.main
                             : anchor
                               ? color
-                              : '#dfe3e6'
+                              : palette.canvas.dot
                       }
                       strokeWidth={active ? 2 : bad ? 1.6 : 1}
                       strokeDasharray={bad ? '6 4' : undefined}
@@ -373,7 +373,7 @@ const FlowMap = ({
                       x={n.x + 16}
                       y={n.y + 24}
                       fontSize="11"
-                      fill={anchor ? 'rgba(255,255,255,0.72)' : color}
+                      fill={anchor ? palette.node.anchorBadge : color}
                     >
                       {nodeTitle(n)}
                     </text>
@@ -381,7 +381,7 @@ const FlowMap = ({
                       x={n.x + 16}
                       y={n.y + 44}
                       fontSize="12.5"
-                      fill={anchor ? '#fff' : '#263238'}
+                      fill={anchor ? palette.node.anchorInk : palette.node.ink}
                       fontWeight={anchor ? 600 : 400}
                     >
                       {nodeSubtitle(n, missionTitles)}
@@ -390,7 +390,7 @@ const FlowMap = ({
                       x={n.x + NODE_W - 12}
                       y={n.y + 24}
                       fontSize="10"
-                      fill={anchor ? 'rgba(255,255,255,0.6)' : '#90a4ae'}
+                      fill={anchor ? palette.node.anchorSub : palette.node.sub}
                       textAnchor="end"
                     >
                       {n.merged > 1 ? `${n.id}–${n.lastId}` : n.id}
@@ -416,7 +416,7 @@ const FlowMap = ({
           <Chip
             size="small"
             label={`${graph.nodes.length} 節點／${graph.totalRows} 列`}
-            sx={{ bgcolor: 'rgba(255,255,255,0.94)' }}
+            sx={{ bgcolor: 'background.overlay' }}
           />
           {graph.unreachable.length > 0 && (
             <Chip
@@ -436,7 +436,7 @@ const FlowMap = ({
             <Chip
               size="small"
               label={`${graph.cycles.length} 回頭跳`}
-              sx={{ bgcolor: 'rgba(255,255,255,0.94)' }}
+              sx={{ bgcolor: 'background.overlay' }}
             />
           )}
         </Stack>
@@ -449,8 +449,9 @@ const FlowMap = ({
             position: 'absolute',
             bottom: 12,
             left: 12,
-            bgcolor: 'rgba(255,255,255,0.94)',
-            border: '1px solid #e0e0e0',
+            bgcolor: 'background.overlay',
+            border: '1px solid',
+            borderColor: 'divider',
             borderRadius: 2,
             px: 0.5,
           }}
@@ -532,9 +533,10 @@ const FlowMap = ({
             // 右上角固定按鈕只擋得到並排時的那一欄
             pt: tight ? 0 : '44px',
             flexShrink: 0,
-            borderTop: tight ? '1px solid #e0e0e0' : 'none',
-            borderLeft: tight ? 'none' : '1px solid #e0e0e0',
-            bgcolor: '#fff',
+            borderTop: tight ? '1px solid' : 'none',
+            borderLeft: tight ? 'none' : '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.default',
             flexDirection: 'column',
             height: '100%',
           }}
@@ -547,7 +549,8 @@ const FlowMap = ({
                 gap: 0.5,
                 px: 1,
                 py: 0.75,
-                borderBottom: '1px solid #eceff1',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
               }}
             >
               {toolbarActions}

@@ -79,10 +79,10 @@ const SourcePicker = ({
       }}
     >
       <Box sx={{ width: '100%', maxWidth: 520 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, color: '#263238' }}>
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
           即時轉化
         </Typography>
-        <Typography variant="body1" sx={{ color: '#607d8b', mt: 1, mb: 4 }}>
+        <Typography variant="body1" sx={{ color: 'text.secondary', mt: 1, mb: 4 }}>
           把遊戲資料夾丟進來，當場檢查、當場試玩。
         </Typography>
 
@@ -94,11 +94,12 @@ const SourcePicker = ({
               mb: 3,
               p: 2,
               borderRadius: '12px',
-              border: '1px solid #cfd8dc',
-              bgcolor: '#f5f7f8',
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
             }}
           >
-            <Typography variant="body2" sx={{ color: '#37474f' }}>
+            <Typography variant="body2">
               這個連結要載入一份 Google 試算表
             </Typography>
             <Typography
@@ -106,7 +107,7 @@ const SourcePicker = ({
               sx={{
                 display: 'block',
                 mt: 0.5,
-                color: '#78909c',
+                color: 'text.disabled',
                 wordBreak: 'break-all',
                 fontFamily: 'monospace',
               }}
@@ -148,23 +149,23 @@ const SourcePicker = ({
             py: 6,
             px: 3,
             border: '2px dashed',
-            borderColor: dragging ? '#37474f' : '#cfd8dc',
+            borderColor: dragging ? 'text.primary' : 'divider',
             borderRadius: 3,
-            bgcolor: dragging ? '#eceff1' : '#fafafa',
+            bgcolor: dragging ? 'action.selected' : 'background.paper',
             cursor: 'pointer',
             transition: 'all 160ms ease',
-            '&:hover': { borderColor: '#90a4ae', bgcolor: '#f5f7f8' },
+            '&:hover': { borderColor: 'text.disabled', bgcolor: 'action.hover' },
           }}
         >
           {loading ? (
             <CircularProgress size={28} />
           ) : (
-            <DriveFolderUploadRoundedIcon sx={{ fontSize: 40, color: '#90a4ae' }} />
+            <DriveFolderUploadRoundedIcon sx={{ fontSize: 40, color: 'text.disabled' }} />
           )}
-          <Typography variant="subtitle1" sx={{ color: '#37474f', fontWeight: 600 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             {loading ? '讀取中…' : '把遊戲資料夾拖進來'}
           </Typography>
-          <Typography variant="caption" sx={{ color: '#90a4ae' }}>
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             或點這裡選擇資料夾
           </Typography>
           <input
@@ -183,8 +184,8 @@ const SourcePicker = ({
           justifyContent="center"
           sx={{ mt: 1.5 }}
         >
-          <LockRoundedIcon sx={{ fontSize: 14, color: '#90a4ae' }} />
-          <Typography variant="caption" sx={{ color: '#90a4ae' }}>
+          <LockRoundedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             檔案只在你的瀏覽器裡讀取，不會上傳
           </Typography>
         </Stack>
@@ -200,8 +201,8 @@ const SourcePicker = ({
         {recent.length > 0 && (
           <Box sx={{ mt: 3 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-              <HistoryRoundedIcon fontSize="small" sx={{ color: '#90a4ae' }} />
-              <Typography variant="body2" sx={{ color: '#546e7a' }}>
+              <HistoryRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 最近用過
               </Typography>
             </Stack>
@@ -216,8 +217,9 @@ const SourcePicker = ({
                     borderRadius: '8px',
                     px: 1.5,
                     py: 0.75,
-                    border: '1px solid #eceff1',
-                    '&:hover': { bgcolor: '#f5f7f8' },
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': { bgcolor: 'action.hover' },
                   }}
                 >
                   <Box
@@ -239,12 +241,12 @@ const SourcePicker = ({
                     <Typography
                       variant="body2"
                       noWrap
-                      sx={{ color: '#37474f', fontWeight: 500 }}
+                      sx={{ fontWeight: 500 }}
                     >
                       {item.title}
                     </Typography>
                   </Box>
-                  <Typography variant="caption" sx={{ color: '#90a4ae', flexShrink: 0 }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', flexShrink: 0 }}>
                     {timeAgo(item.at)}
                   </Typography>
                   {/* 逐筆刪得掉：共用電腦上，別人開過哪幾份試算表不該留在畫面上 */}
@@ -252,7 +254,7 @@ const SourcePicker = ({
                     size="small"
                     aria-label={`從清單移除 ${item.title}`}
                     onClick={() => onForget(item.id)}
-                    sx={{ color: '#b0bec5', flexShrink: 0 }}
+                    sx={{ color: 'text.disabled', flexShrink: 0 }}
                   >
                     <CloseRoundedIcon sx={{ fontSize: 16 }} />
                   </IconButton>
@@ -267,8 +269,8 @@ const SourcePicker = ({
           <Accordion elevation={0} disableGutters sx={{ bgcolor: 'transparent' }}>
             <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />} sx={{ px: 0 }}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <LinkRoundedIcon fontSize="small" sx={{ color: '#90a4ae' }} />
-                <Typography variant="body2" sx={{ color: '#546e7a' }}>
+                <LinkRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   改用 Google 試算表連結
                 </Typography>
               </Stack>
@@ -295,7 +297,7 @@ const SourcePicker = ({
               </Stack>
               <Typography
                 variant="caption"
-                sx={{ color: '#90a4ae', display: 'block', mt: 1 }}
+                sx={{ color: 'text.disabled', display: 'block', mt: 1 }}
               >
                 試算表要「共用給知道連結的任何人」；這條路的圖片欄位要填圖片網址。
               </Typography>
@@ -304,7 +306,7 @@ const SourcePicker = ({
 
           <Accordion elevation={0} disableGutters sx={{ bgcolor: 'transparent' }}>
             <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />} sx={{ px: 0 }}>
-              <Typography variant="body2" sx={{ color: '#546e7a' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 資料要怎麼準備？
               </Typography>
             </AccordionSummary>
@@ -312,7 +314,7 @@ const SourcePicker = ({
               <Typography
                 variant="body2"
                 component="ol"
-                sx={{ pl: 2, m: 0, color: '#546e7a', lineHeight: 1.9 }}
+                sx={{ pl: 2, m: 0, color: 'text.secondary', lineHeight: 1.9 }}
               >
                 <li>
                   從{' '}
@@ -329,12 +331,12 @@ const SourcePicker = ({
 
           <Accordion elevation={0} disableGutters sx={{ bgcolor: 'transparent' }}>
             <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />} sx={{ px: 0 }}>
-              <Typography variant="body2" sx={{ color: '#546e7a' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 為什麼瀏覽器會問「要上傳嗎」？
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ px: 0, pt: 0 }}>
-              <Typography variant="body2" sx={{ color: '#546e7a', lineHeight: 1.8 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.8 }}>
                 那是瀏覽器對「讀取資料夾」的固定說法，我們改不了它的用字。謎生沒有
                 伺服器可以收檔案，全部都在你的瀏覽器裡讀完就結束——
                 你可以<strong>關掉網路</strong>再操作一次，功能一樣正常。

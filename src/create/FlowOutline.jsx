@@ -7,15 +7,16 @@ import {
   ListItemButton,
   TextField,
   Typography,
+  useTheme,
 } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
-import { MODEL_COLOR } from './flowLayout';
 
 // 大綱／搜尋：流程很長時用來快速定位，不必一路拖過去
 //   - 沒輸入關鍵字：列出 MissionStart（＝關卡起點），當章節目錄用
 //   - 有輸入關鍵字：全表搜尋（對白、講者、id、model 都比對）
 const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
   const [q, setQ] = useState('');
+  const { palette } = useTheme();
 
   const items = useMemo(() => {
     const key = q.trim().toLowerCase();
@@ -38,7 +39,7 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
         flexDirection: 'column',
       }}
     >
-      <Box sx={{ p: 1.25, borderBottom: '1px solid #eceff1' }}>
+      <Box sx={{ p: 1.25, borderBottom: '1px solid', borderColor: 'divider' }}>
         <TextField
           fullWidth
           size="small"
@@ -48,7 +49,7 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchRoundedIcon fontSize="small" sx={{ color: '#90a4ae' }} />
+                <SearchRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
               </InputAdornment>
             ),
           }}
@@ -57,7 +58,7 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
 
       <Typography
         variant="caption"
-        sx={{ px: 1.5, pt: 1, pb: 0.5, color: '#78909c' }}
+        sx={{ px: 1.5, pt: 1, pb: 0.5, color: 'text.disabled' }}
       >
         {q.trim() ? `找到 ${items.length} 個` : `關卡 ${items.length} 個`}
       </Typography>
@@ -71,14 +72,14 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
             sx={{
               alignItems: 'flex-start',
               borderLeft: '3px solid',
-              borderColor: MODEL_COLOR[n.model] || '#b0bec5',
+              borderColor: palette.model.color[n.model] || palette.canvas.fallback,
               py: 0.75,
             }}
           >
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 variant="caption"
-                sx={{ color: '#90a4ae', display: 'block', lineHeight: 1.4 }}
+                sx={{ color: 'text.disabled', display: 'block', lineHeight: 1.4 }}
               >
                 {n.missionId && n.missionId !== '0'
                   ? `關卡 ${n.missionId}`
@@ -88,7 +89,7 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#37474f',
+                  color: 'text.primary',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -101,7 +102,7 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
           </ListItemButton>
         ))}
         {items.length === 0 && (
-          <Typography variant="body2" sx={{ px: 1.5, py: 2, color: '#90a4ae' }}>
+          <Typography variant="body2" sx={{ px: 1.5, py: 2, color: 'text.disabled' }}>
             沒有符合的內容
           </Typography>
         )}

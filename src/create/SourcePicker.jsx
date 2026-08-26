@@ -14,16 +14,30 @@ import {
   Typography,
 } from '@mui/material';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import DriveFolderUploadRoundedIcon from '@mui/icons-material/DriveFolderUploadRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
+import IconButton from '@mui/material/IconButton';
+import { timeAgo } from './recentSheets';
 
 const TEMPLATE_URL =
   'https://docs.google.com/spreadsheets/d/16U8l6eeu7BaWwH3TOf09T40FkHmVKJepNWtA9pjBQfU/edit';
 
 // 開始畫面：只留一個主要動作（把資料夾丟進來），其餘全部收起來。
 // 說明文字第一眼只給一行，想知道細節的人自己展開——不要一次倒完所有資訊。
-const SourcePicker = ({ loading, onFolder, onSheet, error }) => {
+const SourcePicker = ({
+  loading,
+  onFolder,
+  onSheet,
+  error,
+  recent = [],
+  onForget,
+  pendingSheet = '',
+  onAcceptPending,
+  onDismissPending,
+}) => {
   const [url, setUrl] = useState('');
   const [dragging, setDragging] = useState(false);
 
@@ -71,6 +85,50 @@ const SourcePicker = ({ loading, onFolder, onSheet, error }) => {
         <Typography variant="body1" sx={{ color: '#607d8b', mt: 1, mb: 4 }}>
           把遊戲資料夾丟進來，當場檢查、當場試玩。
         </Typography>
+
+        {/* 別人分享過來的連結：不自動載入，先講清楚要載入什麼、由使用者按一下。
+            自己書籤過的（在最近使用清單裡）不會走到這裡，會直接載入 */}
+        {pendingSheet && (
+          <Box
+            sx={{
+              mb: 3,
+              p: 2,
+              borderRadius: '12px',
+              border: '1px solid #cfd8dc',
+              bgcolor: '#f5f7f8',
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#37474f' }}>
+              這個連結要載入一份 Google 試算表
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                mt: 0.5,
+                color: '#78909c',
+                wordBreak: 'break-all',
+                fontFamily: 'monospace',
+              }}
+            >
+              {pendingSheet}
+            </Typography>
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+              <Button
+                size="small"
+                variant="contained"
+                disableElevation
+                onClick={onAcceptPending}
+                disabled={loading}
+              >
+                載入並檢查
+              </Button>
+              <Button size="small" onClick={onDismissPending} disabled={loading}>
+                不用，我自己選
+              </Button>
+            </Stack>
+          </Box>
+        )}
 
         {/* 主要動作：拖放區 */}
         <Box
@@ -135,6 +193,73 @@ const SourcePicker = ({ loading, onFolder, onSheet, error }) => {
           <Alert severity="warning" sx={{ mt: 2 }}>
             {error}
           </Alert>
+        )}
+
+        {/* 最近用過的試算表：放在主要動作之後、其他來源之前。
+            它不是「另一種來源」，是同一種來源的捷徑——每次都去翻連結很煩 */}
+        {recent.length > 0 && (
+          <Box sx={{ mt: 3 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+              <HistoryRoundedIcon fontSize="small" sx={{ color: '#90a4ae' }} />
+              <Typography variant="body2" sx={{ color: '#546e7a' }}>
+                最近用過
+              </Typography>
+            </Stack>
+            <Stack spacing={0.5}>
+              {recent.map((item) => (
+                <Stack
+                  key={item.id}
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{
+                    borderRadius: '8px',
+                    px: 1.5,
+                    py: 0.75,
+                    border: '1px solid #eceff1',
+                    '&:hover': { bgcolor: '#f5f7f8' },
+                  }}
+                >
+                  <Box
+                    component="button"
+                    type="button"
+                    disabled={loading}
+                    onClick={() => onSheet(item.id)}
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      textAlign: 'left',
+                      background: 'none',
+                      border: 'none',
+                      p: 0,
+                      cursor: loading ? 'default' : 'pointer',
+                      font: 'inherit',
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      noWrap
+                      sx={{ color: '#37474f', fontWeight: 500 }}
+                    >
+                      {item.title}
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: '#90a4ae', flexShrink: 0 }}>
+                    {timeAgo(item.at)}
+                  </Typography>
+                  {/* 逐筆刪得掉：共用電腦上，別人開過哪幾份試算表不該留在畫面上 */}
+                  <IconButton
+                    size="small"
+                    aria-label={`從清單移除 ${item.title}`}
+                    onClick={() => onForget(item.id)}
+                    sx={{ color: '#b0bec5', flexShrink: 0 }}
+                  >
+                    <CloseRoundedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Stack>
+              ))}
+            </Stack>
+          </Box>
         )}
 
         {/* 次要：其他來源與說明，預設收起來 */}
@@ -226,6 +351,11 @@ SourcePicker.propTypes = {
   loading: PropTypes.bool,
   onFolder: PropTypes.func.isRequired,
   onSheet: PropTypes.func.isRequired,
+  recent: PropTypes.array,
+  onForget: PropTypes.func,
+  pendingSheet: PropTypes.string,
+  onAcceptPending: PropTypes.func,
+  onDismissPending: PropTypes.func,
   error: PropTypes.string,
 };
 

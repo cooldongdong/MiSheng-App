@@ -15,13 +15,15 @@ import {
 import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import GameShell from '../component/GameShell';
-import { loadGameFromSheet } from '../game/sheetLoader';
+import { loadGameFromSheet, parseSpreadsheetId } from '../game/sheetLoader';
 import { validateGame } from '../validator/validateGame';
 import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
 import SourcePicker from './SourcePicker';
 import ExportPackButton from './ExportPackButton';
+import { readRecentSheets, rememberSheet, forgetSheet } from './recentSheets';
+import { readSheetFromHash, writeSheetToHash, clearSheetHash } from './sheetHash';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 
@@ -55,6 +57,9 @@ const CreateApp = () => {
   const [reloading, setReloading] = useState(false);
   const [dataVersion, setDataVersion] = useState(0); // 換過幾份資料，給 GameController 判斷要不要重解析
   const [notice, setNotice] = useState('');
+  const [recent, setRecent] = useState(readRecentSheets);
+  // 網址帶了 #sheet= 但來源不是自己書籤過的，先問一聲再載入（見底下的 useEffect）
+  const [pendingSheet, setPendingSheet] = useState('');
 
   const [showSource, setShowSource] = useState(true); // 左側面板
   const [showFlow, setShowFlow] = useState(true); // 右側流程圖
@@ -70,6 +75,21 @@ const CreateApp = () => {
   }, [status]);
 
   useEffect(() => () => revokeImgs.current?.(), []);
+
+  // 帶著 #sheet= 進來時要不要自動載入，取決於這份是不是「你自己的書籤」：
+  // 在最近使用清單裡＝你自己存的，直接載入；不認得＝多半是別人傳來的連結，先問一聲。
+  //
+  // 這個分界線是有意義的：自動載入等於「連結即動作」——任何人給你一個網址，
+  // 你的瀏覽器就替他去抓一份試算表。對自己的書籤那是便利，對陌生連結那是被代勞。
+  useEffect(() => {
+    const fromHash = readSheetFromHash();
+    if (!fromHash) return;
+    const id = parseSpreadsheetId(fromHash);
+    if (!id) return;
+    if (readRecentSheets().some((it) => it.id === id)) handleSheet(id);
+    else setPendingSheet(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // keepPlaying：在左側面板就地換資料時，不要退回檢查畫面
   const runChecks = (tables, csvFiles, map, keepPlaying) => {
@@ -98,12 +118,17 @@ const CreateApp = () => {
     const keepPlaying = status === 'playing';
     beginLoad(keepPlaying);
     try {
-      const { csvFiles, tables } = await loadGameFromSheet(url);
+      const { csvFiles, tables, spreadsheetId } = await loadGameFromSheet(url);
       // 不動 imgMap：試算表只負責資料，圖片那一層維持現狀。
       // 以前這裡會清掉，於是「試算表 ＋ 本機圖片」永遠湊不起來，
       // 而且每重讀一次試算表就得重選一次資料夾。
       setSheetUrl(url);
       setSource('Google 試算表');
+      // 只在讀成功後才記——記下讀不到的連結只會讓清單變成一排地雷。
+      // 用遊戲名稱當標籤（gviz 拿不到試算表檔名，見 recentSheets.js）
+      setRecent(rememberSheet(spreadsheetId, tables.config?.rows?.[0]?.title));
+      // 網址列隨時反映當下這一份，使用者要分享直接複製就好
+      writeSheetToHash(spreadsheetId);
       runChecks(tables, csvFiles, imgMap, keepPlaying);
     } catch (err) {
       failLoad(keepPlaying, err, '匯入失敗');
@@ -135,6 +160,9 @@ const CreateApp = () => {
         `${folderName}：${Object.keys(csvFiles).length} 張表 ＋ ${imgCount} 張圖`
       );
       setImgSource(imgCount ? `${folderName}：${imgCount} 張圖` : '');
+      // 本機資料夾沒有網址可指，留著上一份的 hash 會讓複製出去的連結指向別的遊戲
+      setSheetUrl('');
+      clearSheetHash();
       if (ignored.length) {
         setError(
           `這些 CSV 的檔名認不出是哪一張表，已略過：${ignored.join('、')}`
@@ -188,6 +216,8 @@ const CreateApp = () => {
     setImgSource('');
     setSheetUrl('');
     setSource('');
+    setPendingSheet('');
+    clearSheetHash();
   };
 
   // 匯出遊戲包只對試算表來源有意義：全本機那條路的 CSV 和圖片本來就都在
@@ -367,6 +397,18 @@ const CreateApp = () => {
       onFolder={handleFolder}
       onSheet={handleSheet}
       error={error}
+      recent={recent}
+      onForget={(id) => setRecent(forgetSheet(id))}
+      pendingSheet={pendingSheet}
+      onAcceptPending={() => {
+        const id = pendingSheet;
+        setPendingSheet('');
+        handleSheet(id);
+      }}
+      onDismissPending={() => {
+        setPendingSheet('');
+        clearSheetHash();
+      }}
     />
   );
 };

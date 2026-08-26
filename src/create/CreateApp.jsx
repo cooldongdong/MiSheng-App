@@ -6,7 +6,6 @@ import {
   Chip,
   Fade,
   IconButton,
-  Slide,
   Snackbar,
   Stack,
   Tooltip,
@@ -294,29 +293,35 @@ const CreateApp = () => {
             )
           }
           leftPanel={
-            // 收起時整欄不渲染，否則會留一條空白佔著畫面
+            // 收起時整欄不渲染，否則會留一條空白佔著畫面。
+            //
+            // 這裡刻意**不加進場動畫**。原本包了 <Slide timeout={260}>，但欄寬與
+            // 分隔線是 flex 的同步 reflow——一個是動畫、一個是瞬間，兩者永遠對不齊：
+            // 實測切開後 60ms，兩條分隔線都已就位，面板還停在 translateX(-268px)。
+            // 看起來就是「資料比拖曳線晚進畫面」。
+            //
+            // 另一條路是讓欄寬也跟著動畫走，但那會跟拖曳分隔線的即時性打架
+            // ——拖的時候你不會想要任何過渡。所以是拿掉動畫，不是補動畫。
             showSource ? (
-              <Slide direction="right" in mountOnEnter appear timeout={260}>
-                <Box sx={{ height: '100%' }}>
-                  <SourcePanel
-                    source={source}
-                    imgSource={imgSource}
-                    issues={issues}
-                    onPickFolder={handleFolder}
-                    onPickImageFolder={handleImageFolder}
-                    onReset={reset}
-                    onReload={() => handleSheet(sheetUrl)}
-                    canReload={!!sheetUrl}
-                    reloading={reloading}
-                    error={error}
-                    exportSlot={
-                      canExport ? (
-                        <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
-                      ) : null
-                    }
-                  />
-                </Box>
-              </Slide>
+              <Box sx={{ height: '100%' }}>
+                <SourcePanel
+                  source={source}
+                  imgSource={imgSource}
+                  issues={issues}
+                  onPickFolder={handleFolder}
+                  onPickImageFolder={handleImageFolder}
+                  onReset={reset}
+                  onReload={() => handleSheet(sheetUrl)}
+                  canReload={!!sheetUrl}
+                  reloading={reloading}
+                  error={error}
+                  exportSlot={
+                    canExport ? (
+                      <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
+                    ) : null
+                  }
+                />
+              </Box>
             ) : null
           }
           sideFlex={beside ? 1 : undefined}

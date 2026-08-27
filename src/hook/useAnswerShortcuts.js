@@ -14,10 +14,6 @@ export const isMacLike = () =>
   typeof navigator !== 'undefined' &&
   /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
 
-// 按鈕上標的鍵位。Mac 用符號，其他平台寫字——⌘ 對 Windows 使用者不是提示，是謎題。
-export const FILL_HINT = () => (isMacLike() ? '⌘⏎' : 'Ctrl+↵');
-export const SKIP_HINT = () => (isMacLike() ? '⌘↓' : 'Ctrl+↓');
-
 const useAnswerShortcuts = ({ enabled = false, onFill = null, onSkip = null }) => {
   useEffect(() => {
     if (!enabled) return undefined;

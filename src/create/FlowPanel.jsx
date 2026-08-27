@@ -1,4 +1,4 @@
-import { useContext, useMemo, useCallback } from 'react';
+import { useContext, useMemo, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Box } from '@mui/material';
 import { GameContext } from '../store/game-context';
@@ -28,6 +28,19 @@ const FlowPanel = ({ rundownRows, toolbarActions = null }) => {
   const handleGraphReady = useCallback(
     (graph) => setSpatialNav(graph ? buildSpatialNav(graph.nodes) : null),
     [setSpatialNav]
+  );
+
+  // 流程圖收起來時把導覽收回去，並切回照流程走。
+  //
+  // 看不到圖還留在地圖模式等於叫人盲操——方向鍵會往一個你看不見的方向跳。
+  // 順帶讓鍵盤提示列跟著消失（它掛在 spatialNav 上），收起流程圖的人多半是想
+  // 專心看遊戲本身，那一列字這時候只是雜訊。鍵盤功能本身還在，只是不再喊。
+  useEffect(
+    () => () => {
+      setSpatialNav(null);
+      setMapMode(false);
+    },
+    [setSpatialNav, setMapMode]
   );
 
   // 大綱裡的關卡直接顯示關卡名稱，比「第 49 列」有用得多

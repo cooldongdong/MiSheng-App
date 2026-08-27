@@ -255,7 +255,9 @@ const GameController = ({
   //
   // 每一頁只講這一頁真的能按的東西——不能前進的頁面寫「↑↓ 翻頁」，等於叫人去按
   // 一個不會有反應的鍵，那正是這整條規則想避免的困惑。
-  const keyHint = !devTools
+  // 沒有流程圖就不出這一列：/demo 本來就沒有，/create 收起右欄時也一樣——
+  // 那時使用者是想專心看遊戲，一行鍵盤提示只是雜訊（鍵盤功能本身還在）。
+  const keyHint = !devTools || !spatialNav
     ? null
     : mapNav
       ? '↑↓←→ 走圖上的位置 · ⌫ 回剛才那頁'
@@ -286,7 +288,7 @@ const GameController = ({
 
   return (
     <>
-      <KeyHintBar hint={keyHint} mapMode={mapNav} />
+      <KeyHintBar hint={keyHint} />
       {renderContent()}
     </>
   );

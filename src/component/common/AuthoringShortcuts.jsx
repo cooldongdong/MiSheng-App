@@ -1,7 +1,6 @@
 import { Button, Stack } from '@mui/material';
 import PropTypes from 'prop-types';
-import { FILL_HINT, SKIP_HINT } from '../../hook/useAnswerShortcuts';
-import KeyCap from './KeyCap';
+import KeyCap, { ModifierGlyph, ReturnGlyph, DownGlyph } from './KeyCap';
 
 // 作答頁的兩顆試玩輔助鍵，只在 /create 出現（devTools），玩家端沒有。
 //
@@ -17,13 +16,19 @@ const AuthoringShortcuts = ({ onFill, fillLabel, onSkip }) => (
     {onFill && (
       <Button size="small" color="inherit" onClick={onFill}>
         {fillLabel}
-        <KeyCap side="right">{FILL_HINT()}</KeyCap>
+        <KeyCap side="right">
+          <ModifierGlyph />
+          <ReturnGlyph />
+        </KeyCap>
       </Button>
     )}
     {onSkip && (
       <Button size="small" color="inherit" onClick={onSkip}>
         略過這題
-        <KeyCap side="right">{SKIP_HINT()}</KeyCap>
+        <KeyCap side="right">
+          <ModifierGlyph />
+          <DownGlyph />
+        </KeyCap>
       </Button>
     )}
   </Stack>

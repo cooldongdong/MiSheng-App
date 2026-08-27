@@ -75,14 +75,20 @@ const GameShell = ({
     };
   }, []);
 
-  // 兩條分隔線長一樣
+  // 兩條分隔線長一樣。
+  //
+  // 這條 bar 有 8px 寬（要抓得到），所以它不是一條線、是一塊面——用 divider 的值上色
+  // 會變成兩側面板之間插進一塊比誰都亮的板子，深色模式下特別跳。改成跟面板同色，
+  // 讓「這裡可以拖」這件事由中間那根握把去講，而不是由整條 bar 去喊。
   const splitterSx = {
     flex: '0 0 8px',
     cursor: 'col-resize',
-    bgcolor: '#e2e8f0',
+    bgcolor: 'background.paper',
     position: 'relative',
     zIndex: 600,
-    '&:hover': { bgcolor: '#cbd5e1' },
+    transition: 'background-color 120ms ease',
+    '&:hover': { bgcolor: 'action.hover' },
+    '&:hover::after': { bgcolor: 'text.secondary' },
     '&::after': {
       content: '""',
       position: 'absolute',
@@ -92,7 +98,9 @@ const GameShell = ({
       width: '2px',
       height: '28px',
       borderRadius: '1px',
-      bgcolor: '#94a3b8',
+      // 握把才是要被看見的東西，但也只要「看得見」就好——滑過去才提亮
+      bgcolor: 'text.disabled',
+      transition: 'background-color 120ms ease',
     },
   };
 
@@ -127,6 +135,9 @@ const GameShell = ({
           height: '100dvh',
           display: sidePanel || leftPanel ? 'flex' : 'block',
           alignItems: 'stretch',
+          // 遊戲欄兩側的襯底。原本是 App.css 的 #root 在上色，但 #root 是掛載點、
+          // 碰不到 theme，深色模式下會留一片亮灰。改由這裡畫，值就跟著 palette 走。
+          bgcolor: 'game.frame',
         }}
       >
         {leftPanel && (
@@ -143,7 +154,7 @@ const GameShell = ({
           disableGutters={!!sidePanel}
           sx={{
             height: 'calc(100dvh - 56px)',
-            backgroundColor: '#eee',
+            backgroundColor: 'game.bg',
             width: sidePanel && resizable ? paneW : '100%',
             flex:
               sidePanel && resizable

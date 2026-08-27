@@ -55,13 +55,13 @@ const SourcePanel = ({
     fontSize: 13,
     fontWeight: 400,
     lineHeight: 1.6,
-    color: '#1976d2',
+    color: 'primary.main',
     textTransform: 'none',
     '&:hover': { background: 'none', textDecoration: 'underline' },
   };
   const rowSx = { pl: '28px', mt: 0.25, alignItems: 'center' }; // 對齊狀態行的文字
   const dot = (
-    <Typography component="span" sx={{ color: '#cfd8dc', fontSize: 13 }}>
+    <Typography component="span" sx={{ color: 'divider', fontSize: 13 }}>
       ·
     </Typography>
   );
@@ -71,8 +71,9 @@ const SourcePanel = ({
       sx={{
         width: '100%',
         height: '100dvh',
-        borderRight: '1px solid #e0e0e0',
-        bgcolor: '#fff',
+        borderRight: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.default',
         display: 'flex',
         flexDirection: 'column',
         pt: '44px', // 讓開右上角固定按鈕那一列
@@ -80,12 +81,12 @@ const SourcePanel = ({
     >
       <Box sx={{ px: 2, pb: 1.5 }}>
         {/* ---- 遊戲資料 ---- */}
-        <Typography variant="overline" sx={{ color: '#90a4ae', letterSpacing: 1 }}>
+        <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: 1 }}>
           遊戲資料
         </Typography>
         <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 0.5 }}>
-          <FolderRoundedIcon fontSize="small" sx={{ color: '#90a4ae', mt: 0.25 }} />
-          <Typography variant="body2" sx={{ color: '#37474f', lineHeight: 1.5 }}>
+          <FolderRoundedIcon fontSize="small" sx={{ color: 'text.disabled', mt: 0.25 }} />
+          <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
             {source || '未命名'}
           </Typography>
         </Stack>
@@ -143,15 +144,15 @@ const SourcePanel = ({
         {/* ---- 圖片 ---- */}
         <Typography
           variant="overline"
-          sx={{ color: '#90a4ae', letterSpacing: 1, display: 'block', mt: 1.5 }}
+          sx={{ color: 'text.disabled', letterSpacing: 1, display: 'block', mt: 1.5 }}
         >
           圖片
         </Typography>
         <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 0.5 }}>
-          <ImageRoundedIcon fontSize="small" sx={{ color: '#90a4ae', mt: 0.25 }} />
+          <ImageRoundedIcon fontSize="small" sx={{ color: 'text.disabled', mt: 0.25 }} />
           <Typography
             variant="body2"
-            sx={{ color: imgSource ? '#37474f' : '#90a4ae', lineHeight: 1.5 }}
+            sx={{ color: imgSource ? 'text.primary' : 'text.disabled', lineHeight: 1.5 }}
           >
             {imgSource || '用表格裡填的網址'}
           </Typography>
@@ -210,7 +211,7 @@ const SourcePanel = ({
           sx={{ bgcolor: 'transparent' }}
         >
           <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
-            <Typography variant="body2" sx={{ color: '#546e7a' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               檢查報告
               {issues.length > 0 ? `（${issues.length} 項）` : '（無問題）'}
             </Typography>
@@ -219,7 +220,7 @@ const SourcePanel = ({
             {issues.length > 0 ? (
               <ValidationReport issues={issues} />
             ) : (
-              <Typography variant="caption" sx={{ color: '#90a4ae' }}>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 沒有發現任何問題。
               </Typography>
             )}

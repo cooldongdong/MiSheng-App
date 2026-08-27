@@ -16,6 +16,8 @@ import {
   labelBoxWidth,
   MODEL_COLOR,
   MODEL_TINT,
+  EDGE_COLOR,
+  FLOW_PALETTE as P,
   NODE_W,
   NODE_H,
 } from '../src/create/flowLayout.js';
@@ -47,36 +49,35 @@ const view = layoutFlow(graph);
 const esc = (s) =>
   String(s ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 
-const EDGE_COLOR = { option: '#7c3aed', jump: '#0ea5e9', seq: '#cbd5e1' };
 
 const edgeSvg = view.edges
   .map((e) => {
-    const line = `  <path d="${e.d}" fill="none" stroke="${EDGE_COLOR[e.type] || '#cbd5e1'}" stroke-width="${
+    const line = `  <path d="${e.d}" fill="none" stroke="${EDGE_COLOR[e.type] || P.fallback}" stroke-width="${
       e.type === 'seq' ? 1.5 : 1.8
     }"${e.type === 'jump' ? ' stroke-dasharray="6 4"' : ''} marker-end="url(#fm-arrow)"/>`;
     if (!e.label) return line;
     const w = labelBoxWidth(e.label);
     return `${line}
-  <rect x="${e.labelX - w / 2}" y="${e.labelY - 9}" width="${w}" height="18" rx="9" fill="#fff" stroke="#e9d5ff"/>
-  <text x="${e.labelX}" y="${e.labelY + 4}" font-size="11" fill="#7c3aed" text-anchor="middle">${esc(edgeLabel(e.label))}</text>`;
+  <rect x="${e.labelX - w / 2}" y="${e.labelY - 9}" width="${w}" height="18" rx="9" fill="${P.surface}" stroke="${EDGE_COLOR[e.type] || P.dot}" stroke-opacity="0.45"/>
+  <text x="${e.labelX}" y="${e.labelY + 4}" font-size="11" fill="${EDGE_COLOR[e.type] || P.ink}" text-anchor="middle">${esc(edgeLabel(e.label))}</text>`;
   })
   .join('\n');
 
 const nodeSvg = view.nodes
   .map((n) => {
-    const color = MODEL_COLOR[n.model] || '#64748b';
-    const tint = MODEL_TINT[n.model] || '#f8fafc';
+    const color = MODEL_COLOR[n.model] || P.fallback;
+    const tint = MODEL_TINT[n.model] || P.fallbackTint;
     const bad = !n.reachable;
     return `  <g>
     <rect x="${n.x}" y="${n.y}" width="${NODE_W}" height="${NODE_H}" rx="10" fill="${
-      bad ? '#fef2f2' : tint
-    }" stroke="${bad ? '#dc2626' : '#e2e8f0'}" stroke-width="${bad ? 1.6 : 1}"${
+      bad ? P.dangerSurface : tint
+    }" stroke="${bad ? P.dangerMain : P.dot}" stroke-width="${bad ? 1.6 : 1}"${
       bad ? ' stroke-dasharray="6 4"' : ''
     }/>
     <rect x="${n.x}" y="${n.y + 10}" width="3" height="${NODE_H - 20}" rx="1.5" fill="${color}"/>
     <text x="${n.x + 16}" y="${n.y + 24}" font-size="11" fill="${color}">${esc(nodeTitle(n))}</text>
-    <text x="${n.x + 16}" y="${n.y + 44}" font-size="12.5" fill="#0f172a">${esc(nodeSubtitle(n))}</text>
-    <text x="${n.x + NODE_W - 12}" y="${n.y + 24}" font-size="10" fill="#94a3b8" text-anchor="end">${esc(
+    <text x="${n.x + 16}" y="${n.y + 44}" font-size="12.5" fill="${P.ink}">${esc(nodeSubtitle(n))}</text>
+    <text x="${n.x + NODE_W - 12}" y="${n.y + 24}" font-size="10" fill="${P.sub}" text-anchor="end">${esc(
       n.merged > 1 ? `${n.id}–${n.lastId}` : n.id
     )}</text>
   </g>`;
@@ -84,10 +85,10 @@ const nodeSvg = view.nodes
   .join('\n');
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${view.width}" height="${view.height}" viewBox="${view.minX} 0 ${view.width} ${view.height}" font-family="system-ui, -apple-system, 'Noto Sans TC', sans-serif">
-  <rect x="${view.minX}" y="0" width="${view.width}" height="${view.height}" fill="#f8fafc"/>
+  <rect x="${view.minX}" y="0" width="${view.width}" height="${view.height}" fill="${P.canvas}"/>
   <defs>
     <marker id="fm-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-      <path d="M 0 0 L 8 4 L 0 8 z" fill="#94a3b8"/>
+      <path d="M 0 0 L 8 4 L 0 8 z" fill="${P.sub}"/>
     </marker>
   </defs>
 ${edgeSvg}

@@ -15,7 +15,9 @@ export default function FixedBottomNavigation({ value, onChange }) {
         width: '100%',
         maxWidth: '600px',
         margin: 'auto',
-        backgroundColor: '#f8f9fa', // 背景色
+        // 底色必須跟著 theme 走。寫死淺色的話，深色模式下 icon 與文字會照樣吃到
+        // theme 的 text.secondary（淺灰），淺灰畫在近白底上就是看不見。
+        backgroundColor: 'game.nav',
         boxShadow: '0 -1px 5px rgba(0, 0, 0, 0.1)', // 輕微陰影
       }}
       value={value}

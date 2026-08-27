@@ -1,15 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { CssBaseline, ThemeProvider } from '@mui/material';
 import './create/create.css';
+import theme from './theme.js';
 import CreateApp from './create/CreateApp.jsx';
-
-// index.css 帶深色底，但轉化頁是表單介面，固定用淺色主題才讀得清楚
-const theme = createTheme({ palette: { mode: 'light' } });
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
+    {/* defaultMode="system" ＝ 沒手動選過就跟隨作業系統；
+        使用者按了 toggle 之後，MUI 自己寫進 localStorage 並記住。
+        重整時的第一格底色不在這裡決定——見 create.html <head> 裡的行內 script。 */}
+    <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
       <CreateApp />
     </ThemeProvider>

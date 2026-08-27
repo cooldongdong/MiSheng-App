@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { Box } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 
 // 圖例：畫在畫布右下角的小卡，用圖示講規則（原本是一大段文字，太醜）
 const Line = ({ color, dash }) => (
@@ -22,34 +22,39 @@ const Row = ({ children }) => (
 );
 Row.propTypes = { children: PropTypes.node };
 
-const FlowLegend = ({ clickable = false }) => (
+const FlowLegend = ({ clickable = false }) => {
+  // 線色從 theme 拿，不再手抄一份。圖例與圖畫的是同一組常數，
+  // 才不會出現「圖例說橘色、圖上是紫色」那種只有比對才發現得了的錯。
+  const { palette } = useTheme();
+  return (
   <Box
     sx={{
       position: 'absolute',
       right: 12,
       bottom: 12,
-      bgcolor: 'rgba(255,255,255,0.94)',
-      border: '1px solid #e0e0e0',
+      bgcolor: 'background.overlay',
+      border: '1px solid',
+      borderColor: 'divider',
       borderRadius: 2,
       px: 1.5,
       py: 1,
       fontSize: 11.5,
-      color: '#546e7a',
-      boxShadow: '0 1px 3px rgba(15,23,42,0.08)',
+      color: 'text.secondary',
+      boxShadow: 1,
       pointerEvents: 'none',
       userSelect: 'none',
     }}
   >
     <Row>
-      <Line color="#b0bec5" />
+      <Line color={palette.edge.seq} />
       依順序
     </Row>
     <Row>
-      <Line color="#78909c" dash="6 4" />
+      <Line color={palette.edge.jump} dash="6 4" />
       nextId 跳轉
     </Row>
     <Row>
-      <Line color="#b2591f" />
+      <Line color={palette.edge.option} />
       Quiz 選項
     </Row>
     <Row>
@@ -60,8 +65,8 @@ const FlowLegend = ({ clickable = false }) => (
           width="24"
           height="10"
           rx="3"
-          fill="#fbeceb"
-          stroke="#b23c2f"
+          fill={palette.error.surface}
+          stroke={palette.error.main}
           strokeDasharray="4 3"
         />
       </svg>
@@ -74,7 +79,8 @@ const FlowLegend = ({ clickable = false }) => (
       </Row>
     )}
   </Box>
-);
+  );
+};
 
 FlowLegend.propTypes = { clickable: PropTypes.bool };
 

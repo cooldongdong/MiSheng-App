@@ -1,15 +1,16 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useRef, useLayoutEffect } from 'react';
 import {
   Box,
+  ClickAwayListener,
   Divider,
   IconButton,
-  Popover,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import PropTypes from 'prop-types';
 import { GameContext } from '../../store/game-context';
 import KeyCap, {
@@ -188,11 +189,26 @@ KeyRow.propTypes = {
   label: PropTypes.string.isRequired,
 };
 
+// 展開時的寬度。遊戲欄最窄是 300px（GameShell 的夾擠下限），所以 288 塞得下。
+const EXPANDED_W = 288;
+
 const KeyHintBar = ({ kind }) => {
   const { mapMode, setMapMode } = useContext(GameContext);
-  const [anchor, setAnchor] = useState(null);
+  const [open, setOpen] = useState(false);
+  const rowRef = useRef(null);
+  const [collapsedW, setCollapsedW] = useState(null);
+
+  // 收起時量一次那條膠囊的自然寬度，展開／收合才有兩個都是數字的端點可以補間——
+  // width: auto 是插值不了的，不量就只能瞬間跳寬，那就不是「同一個東西長大」了。
+  // 提示文字會隨頁面變（kind），所以每次換都要重量。
+  useLayoutEffect(() => {
+    if (open) return;
+    setCollapsedW(rowRef.current?.offsetWidth ?? null);
+  }, [kind, open, mapMode]);
 
   if (!kind || !HINTS[kind]) return null;
+
+  const directionRows = DIRECTION_ROWS[mapMode ? 'map' : 'flow'];
 
   return (
     <Box
@@ -206,87 +222,118 @@ const KeyHintBar = ({ kind }) => {
         boxSizing: 'border-box',
         px: '20px',
         pt: '14px',
+        display: 'flex',
+        justifyContent: 'center',
       }}
     >
-      <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-        <Typography
-          variant="caption"
-          component="div"
+      <ClickAwayListener onClickAway={() => setOpen(false)}>
+        {/* 收起是一條膠囊、展開是一張卡片，但**是同一個元素**在長大：寬度與圓角補間、
+            高度用 grid 0fr→1fr。中心點不動，所以展開的內容天然跟提示列對齊——
+            前一版用 Popover，anchor 是右邊那顆問號鈕，浮層就永遠偏在一邊。 */}
+        <Box
           sx={{
-            // 這行字坐在遊戲插圖上，純灰字會被背景吃掉——墊一層半透明才讀得到
-            px: 1,
-            py: '2px',
-            borderRadius: 2,
+            width: open ? EXPANDED_W : (collapsedW ?? 'auto'),
+            maxWidth: '100%',
             bgcolor: 'background.overlay',
-            color: 'text.secondary',
+            borderRadius: open ? '14px' : '999px',
+            boxShadow: open ? 3 : 0,
+            overflow: 'hidden',
+            transition: (theme) =>
+              theme.transitions.create(['width', 'border-radius', 'box-shadow'], {
+                duration: 260,
+                easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+              }),
           }}
         >
-          {HINTS[kind]}
-        </Typography>
-        <IconButton
-          size="small"
-          onClick={(e) => setAnchor(e.currentTarget)}
-          sx={{
-            bgcolor: 'background.overlay',
-            color: 'text.secondary',
-            // 預設的 action.hover 是半透明的，疊在同樣半透明的 overlay 上幾乎看不出
-            // 變化（淺色模式尤其明顯）。改成直接換成不透明的面板色 ＋ 提亮文字。
-            '&:hover': { bgcolor: 'background.paper', color: 'text.primary' },
-          }}
-        >
-          <HelpOutlineRoundedIcon sx={{ fontSize: 15 }} />
-        </IconButton>
-      </Stack>
-
-      <Popover
-        open={!!anchor}
-        anchorEl={anchor}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        {/* 寬度寫死：兩種模式的字數不同，讓它自己撐的話每切一次就跳一次 */}
-        <Box sx={{ p: 1.5, width: 288, boxSizing: 'border-box' }}>
-          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-            方向鍵
-          </Typography>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            fullWidth
-            value={mapMode ? 'map' : 'flow'}
-            onChange={(e, next) => next && setMapMode(next === 'map')}
-            sx={{ mt: 0.75, mb: 1.25 }}
+          <Stack
+            ref={rowRef}
+            direction="row"
+            spacing={0.5}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ width: 'fit-content', mx: 'auto', pl: 1.25, pr: 0.5, py: '2px' }}
           >
-            <ToggleButton value="flow" sx={{ textTransform: 'none', py: 0.5 }}>
-              照流程走
-            </ToggleButton>
-            <ToggleButton value="map" sx={{ textTransform: 'none', py: 0.5 }}>
-              照圖走
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-          <Stack spacing={0.75}>
-            {DIRECTION_ROWS[mapMode ? 'map' : 'flow'].map(([cap, label]) => (
-              <KeyRow key={label} cap={cap} label={label} />
-            ))}
+            <Typography
+              variant="caption"
+              component="div"
+              sx={{ color: 'text.secondary' }}
+            >
+              {HINTS[kind]}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => setOpen((v) => !v)}
+              sx={{
+                color: 'text.secondary',
+                // 預設的 action.hover 是半透明的，疊在同樣半透明的 overlay 上幾乎
+                // 看不出變化（淺色模式尤其明顯）。改成不透明的面板色 ＋ 提亮文字。
+                '&:hover': { bgcolor: 'background.paper', color: 'text.primary' },
+              }}
+            >
+              {open ? (
+                <CloseRoundedIcon sx={{ fontSize: 15 }} />
+              ) : (
+                <HelpOutlineRoundedIcon sx={{ fontSize: 15 }} />
+              )}
+            </IconButton>
           </Stack>
 
-          <Divider sx={{ my: 1.25 }} />
-
-          <Typography
-            variant="caption"
-            sx={{ display: 'block', mb: 0.75, color: 'text.disabled' }}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateRows: open ? '1fr' : '0fr',
+              transition: (theme) =>
+                theme.transitions.create('grid-template-rows', {
+                  duration: 260,
+                  easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+                }),
+            }}
           >
-            其他
-          </Typography>
-          <Stack spacing={0.75}>
-            {OTHER_ROWS.map(([cap, label]) => (
-              <KeyRow key={label} cap={cap} label={label} />
-            ))}
-          </Stack>
+            <Box sx={{ overflow: 'hidden' }}>
+              <Box sx={{ px: 1.5, pb: 1.5, pt: 0.5 }}>
+                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                  方向鍵
+                </Typography>
+                <ToggleButtonGroup
+                  size="small"
+                  exclusive
+                  fullWidth
+                  value={mapMode ? 'map' : 'flow'}
+                  onChange={(e, next) => next && setMapMode(next === 'map')}
+                  sx={{ mt: 0.75, mb: 1.25 }}
+                >
+                  <ToggleButton value="flow" sx={{ textTransform: 'none', py: 0.5 }}>
+                    照流程走
+                  </ToggleButton>
+                  <ToggleButton value="map" sx={{ textTransform: 'none', py: 0.5 }}>
+                    照圖走
+                  </ToggleButton>
+                </ToggleButtonGroup>
+
+                <Stack spacing={0.75}>
+                  {directionRows.map(([cap, label]) => (
+                    <KeyRow key={label} cap={cap} label={label} />
+                  ))}
+                </Stack>
+
+                <Divider sx={{ my: 1.25 }} />
+
+                <Typography
+                  variant="caption"
+                  sx={{ display: 'block', mb: 0.75, color: 'text.disabled' }}
+                >
+                  其他
+                </Typography>
+                <Stack spacing={0.75}>
+                  {OTHER_ROWS.map(([cap, label]) => (
+                    <KeyRow key={label} cap={cap} label={label} />
+                  ))}
+                </Stack>
+              </Box>
+            </Box>
+          </Box>
         </Box>
-      </Popover>
+      </ClickAwayListener>
     </Box>
   );
 };

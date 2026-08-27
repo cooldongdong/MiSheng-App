@@ -1,8 +1,9 @@
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { Box } from '@mui/material';
 import { GameContext } from '../store/game-context';
 import FlowMap from './FlowMap';
+import { buildSpatialNav } from './spatialNav';
 
 // 並排模式的右半邊：流程圖 ＋ 遊戲的雙向連動
 //   - 遊戲走到哪 → 圖上高亮並自動捲過去（currentId）
@@ -11,8 +12,23 @@ import FlowMap from './FlowMap';
 // 掛在 GameProvider 裡面才拿得到 currentId／goToId，
 // 所以是用 GameShell 的 sidePanel 插進去，而不是自己另外包一層。
 const FlowPanel = ({ rundownRows, toolbarActions = null }) => {
-  const { currentId, goToId, setCurrentMissionId, rundownData, missionData } =
-    useContext(GameContext);
+  const {
+    currentId,
+    goToId,
+    setCurrentMissionId,
+    rundownData,
+    missionData,
+    mapMode,
+    setMapMode,
+    setSpatialNav,
+  } = useContext(GameContext);
+
+  // 圖一變（換資料、摺疊開關）就換一份導覽函式。節點集合要跟畫面上看到的一致，
+  // 所以這件事只能由畫圖的那一邊來報——外面自己再算一次不保證算出同一張圖。
+  const handleGraphReady = useCallback(
+    (graph) => setSpatialNav(graph ? buildSpatialNav(graph.nodes) : null),
+    [setSpatialNav]
+  );
 
   // 大綱裡的關卡直接顯示關卡名稱，比「第 49 列」有用得多
   const missionTitles = useMemo(() => {
@@ -41,6 +57,9 @@ const FlowPanel = ({ rundownRows, toolbarActions = null }) => {
         onNodeClick={jumpTo}
         missionTitles={missionTitles}
         toolbarActions={toolbarActions}
+        onGraphReady={handleGraphReady}
+        mapMode={mapMode}
+        onToggleMapMode={() => setMapMode((v) => !v)}
         dense
       />
     </Box>

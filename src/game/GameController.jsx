@@ -50,6 +50,8 @@ const GameController = ({
     setCurrentMissionId,
     updateMissionStatus,
     playerMissionData,
+    mapMode,
+    spatialNav,
   } = useContext(GameContext);
   // 目前這一列直接從 currentId 算，不再存成 state。
   //
@@ -200,7 +202,25 @@ const GameController = ({
     goToId(prevId);
   }, [getPrevId, goToId]);
 
+  // 地圖模式：往某個方向走到圖上相鄰的那一顆。走過的路照樣記，所以 ⌫ 一樣退得回來。
+  // 回傳有沒有真的走成，讓鍵盤那邊能把「這個方向沒有東西」講出來
+  const handleMove = useCallback(
+    (direction) => {
+      const target = spatialNav?.(currentId, direction);
+      if (!target || target === currentId) return false;
+      setWentBack(false);
+      goToId(target);
+      return true;
+    },
+    [spatialNav, currentId, goToId]
+  );
+
+  // 沒有流程圖就沒有地圖模式（/demo 就是這樣）——spatialNav 是 null 時整個關掉
+  const mapNav = devTools && mapMode && !!spatialNav;
+
   useFlowKeys({
+    mapMode: mapNav,
+    onMove: handleMove,
     canAdvance,
     onNext: handleNext,
     onPrev: handlePrev,
@@ -237,7 +257,9 @@ const GameController = ({
   // 一個不會有反應的鍵，那正是這整條規則想避免的困惑。
   const keyHint = !devTools
     ? null
-    : wentBack
+    : mapNav
+      ? '↑↓←→ 走圖上的位置 · ⌫ 回剛才那頁'
+      : wentBack
       ? '已回退 · 變數與關卡進度不會跟著倒回'
       : quizOptions.length > 0
         ? '按數字選選項 · ↑ 上一步'

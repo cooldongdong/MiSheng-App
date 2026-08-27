@@ -93,6 +93,20 @@ export const GameProvider = ({
   // 不寫進 localStorage：這是這一次試玩的導覽軌跡，重整就該消失，
   // 跟「玩到哪」（currentId）不是同一種東西。
   const [history, setHistory] = useState([]);
+
+  // 鍵盤的兩種導覽（Dong 2026-08-27）：
+  //   false ＝ 流程模式，↑↓ 沿著流程的邊走（誰指向誰）
+  //   true  ＝ 地圖模式，↑↓←→ 照流程圖上的位置走，而且**方向鍵的優先權高於一切**
+  //            ——Quiz、輸入框都攔不住它。是一個「方向鍵屬於圖」的模式，不是
+  //            「有時候這樣有時候那樣」，所以不會有現在到底在哪一種的困惑。
+  const [mapMode, setMapMode] = useState(false);
+
+  // (id, 'up'|'down'|'left'|'right') => id｜null。由流程圖那邊塞進來——座標是圖才有的
+  // 概念，而且節點集合要跟畫面上看到的一致（摺疊是 FlowMap 的內部狀態）。
+  // 沒有圖的時候（/demo）它是 null，地圖模式自然就不存在。
+  const [spatialNav, setSpatialNavRaw] = useState(null);
+  // useState 存「函式」一定要包一層：直接傳函式會被當成 updater 呼叫掉
+  const setSpatialNav = useCallback((fn) => setSpatialNavRaw(() => fn ?? null), []);
   const [currentMissionId, setCurrentMissionId] = useState('0');
   const [unlockedHints, setUnlockedHints] = useState({});
   const [customPairs, setCustomPairs] = useState({});
@@ -301,6 +315,10 @@ export const GameProvider = ({
         goToId,
         goBack,
         canGoBack: history.length > 0,
+        mapMode,
+        setMapMode,
+        spatialNav,
+        setSpatialNav,
         currentMissionId,
         setCurrentMissionId,
         unlockedHints,

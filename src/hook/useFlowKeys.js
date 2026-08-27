@@ -41,6 +41,16 @@ const hasOpenDialog = () =>
 // 使用者，所以這不是邊緣情況，是主要路徑。
 const KEY_UP = 'ArrowUp';
 const KEY_DOWN = 'ArrowDown';
+const KEY_LEFT = 'ArrowLeft';
+const KEY_RIGHT = 'ArrowRight';
+
+// 地圖模式下四個方向鍵對應的走法
+const DIRECTIONS = {
+  [KEY_UP]: 'up',
+  [KEY_DOWN]: 'down',
+  [KEY_LEFT]: 'left',
+  [KEY_RIGHT]: 'right',
+};
 const KEY_ESC = 'Escape';
 const KEY_BACK = 'Backspace';
 
@@ -60,6 +70,8 @@ const digitOf = (code) => {
 const isWatchedKey = (code) =>
   code === KEY_UP ||
   code === KEY_DOWN ||
+  code === KEY_LEFT ||
+  code === KEY_RIGHT ||
   code === KEY_ESC ||
   code === KEY_BACK ||
   digitOf(code) !== null;
@@ -96,6 +108,8 @@ const describeTarget = (el) => {
 };
 
 const useFlowKeys = ({
+  mapMode = false,
+  onMove = null,
   canAdvance = false,
   onNext,
   onPrev,
@@ -157,12 +171,39 @@ const useFlowKeys = ({
         return;
       }
 
-      if (isTypingTarget(document.activeElement)) {
-        log('不處理：游標在輸入框裡，這一下是打字（按 Esc 可以放掉焦點）');
-        return;
-      }
+      // 對話框開著時連地圖模式也不搶：它是 modal，這一刻的操作對象就是它。
+      // （不擋的話會出現「確定送出？」還開著、背後的流程已經跳走的畫面。）
       if (hasOpenDialog()) {
         log('不處理：畫面上有對話框開著');
+        return;
+      }
+
+      // 地圖模式：方向鍵屬於圖，優先權高於一切——Quiz 攔不住它，輸入框也攔不住。
+      // 這是刻意的（Dong 2026-08-27）：它不是「有時候這樣有時候那樣」，而是一個
+      // 明確的「現在方向鍵是拿來走圖的」模式，所以使用者不必猜這一下會做什麼。
+      // 代價是這個模式下方向鍵不能在輸入框裡移動游標——打字本身不受影響。
+      const direction = mapMode && onMove ? DIRECTIONS[code] : null;
+      if (direction) {
+        event.preventDefault();
+        const moved = onMove(direction);
+        const where = { up: '上', down: '下', left: '左', right: '右' }[direction];
+        log(
+          moved === false
+            ? `地圖模式：圖上這一顆的${where}邊沒有東西`
+            : `地圖模式：往${where}走`
+        );
+        return;
+      }
+
+      // 流程模式下左右鍵沒有作用——它們是地圖模式的鍵。講出來，不然按了沒反應
+      // 又要猜是壞了還是沒開。
+      if (code === KEY_LEFT || code === KEY_RIGHT) {
+        log('不處理：左右鍵只在地圖模式作用（工具列那顆四向箭頭可以切換）');
+        return;
+      }
+
+      if (isTypingTarget(document.activeElement)) {
+        log('不處理：游標在輸入框裡，這一下是打字（按 Esc 可以放掉焦點）');
         return;
       }
 
@@ -245,6 +286,8 @@ const useFlowKeys = ({
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [
+    mapMode,
+    onMove,
     canAdvance,
     onNext,
     onPrev,

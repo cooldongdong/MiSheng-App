@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { GameContext } from '../store/game-context';
 import { Typography } from '@mui/material';
-import ModelTestInfo from '../component/common/ModelTestInfo';
+import KeyHintBar from '../component/common/KeyHintBar';
 import TalkModel from './TalkModel';
 import QuizModel from './QuizModel';
 import MissionStartModel from './MissionStartModel';
@@ -250,7 +250,7 @@ const GameController = ({
     CustomValueInput: CustomValueInputModel,
   };
 
-  // 鍵盤提示借用 ModelTestInfo 那一列。回退後的但書優先——那一刻要講的是
+  // 遊戲欄頂端那一列的內容。回退後的但書優先——那一刻要講的是
   // 「狀態沒跟著倒回」，不是還有哪些鍵可以按。
   //
   // 每一頁只講這一頁真的能按的東西——不能前進的頁面寫「↑↓ 翻頁」，等於叫人去按
@@ -286,7 +286,7 @@ const GameController = ({
 
   return (
     <>
-      <ModelTestInfo model={currentRow.model} hint={keyHint} />
+      <KeyHintBar hint={keyHint} mapMode={mapNav} />
       {renderContent()}
     </>
   );

@@ -255,21 +255,24 @@ const GameController = ({
   //
   // 每一頁只講這一頁真的能按的東西——不能前進的頁面寫「↑↓ 翻頁」，等於叫人去按
   // 一個不會有反應的鍵，那正是這整條規則想避免的困惑。
+  // 提示列要說哪一種。**只傳種類、不傳句子**——句子裡的 ↑↓⌫ 只能是 Unicode 字元，
+  // 而那些字的寬高在不同字型裡差很多；畫成什麼樣子交給 KeyHintBar 用 icon 決定。
+  //
   // 沒有流程圖就不出這一列：/demo 本來就沒有，/create 收起右欄時也一樣——
   // 那時使用者是想專心看遊戲，一行鍵盤提示只是雜訊（鍵盤功能本身還在）。
-  const keyHint = !devTools || !spatialNav
+  const hintKind = !devTools || !spatialNav
     ? null
     : mapNav
-      ? '↑↓←→ 走圖上的位置 · ⌫ 回剛才那頁'
+      ? 'map'
       : wentBack
-      ? '已回退 · 變數與關卡進度不會跟著倒回'
-      : quizOptions.length > 0
-        ? '按數字選選項 · ↑ 上一步'
-        : INPUT_MODELS.has(currentRow?.model) && !canAdvance
-          ? 'Esc 離開輸入框 · ↑ 上一步'
-          : canAdvance
-            ? '↑↓ 走流程 · ⌫ 回剛才那頁'
-            : '↑ 上一步 · ⌫ 回剛才那頁';
+        ? 'wentBack'
+        : quizOptions.length > 0
+          ? 'quiz'
+          : INPUT_MODELS.has(currentRow?.model) && !canAdvance
+            ? 'input'
+            : canAdvance
+              ? 'flow'
+              : 'back';
 
   // Render content based on the model type
   const renderContent = () => {
@@ -288,7 +291,7 @@ const GameController = ({
 
   return (
     <>
-      <KeyHintBar hint={keyHint} />
+      <KeyHintBar kind={hintKind} />
       {renderContent()}
     </>
   );

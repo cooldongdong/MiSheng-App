@@ -3,6 +3,8 @@ import KeyboardCommandKeyRoundedIcon from '@mui/icons-material/KeyboardCommandKe
 import KeyboardReturnRoundedIcon from '@mui/icons-material/KeyboardReturnRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded';
+import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded';
+import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded';
 import BackspaceRoundedIcon from '@mui/icons-material/BackspaceRounded';
 import PropTypes from 'prop-types';
 import { isMacLike } from '../../hook/useAnswerShortcuts';
@@ -22,6 +24,8 @@ export const CmdGlyph = () => <KeyboardCommandKeyRoundedIcon sx={GLYPH_SX} />;
 export const ReturnGlyph = () => <KeyboardReturnRoundedIcon sx={GLYPH_SX} />;
 export const DownGlyph = () => <KeyboardArrowDownRoundedIcon sx={GLYPH_SX} />;
 export const UpGlyph = () => <KeyboardArrowUpRoundedIcon sx={GLYPH_SX} />;
+export const LeftGlyph = () => <KeyboardArrowLeftRoundedIcon sx={GLYPH_SX} />;
+export const RightGlyph = () => <KeyboardArrowRightRoundedIcon sx={GLYPH_SX} />;
 export const BackspaceGlyph = () => <BackspaceRoundedIcon sx={GLYPH_SX} />;
 
 // Mac 用符號，其他平台寫字——⌘ 對 Windows 使用者不是提示，是謎題

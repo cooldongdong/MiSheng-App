@@ -17,6 +17,8 @@ import KeyCap, {
   ReturnGlyph,
   DownGlyph,
   UpGlyph,
+  LeftGlyph,
+  RightGlyph,
   BackspaceGlyph,
 } from './KeyCap';
 
@@ -26,9 +28,91 @@ import KeyCap, {
 // 流程圖的年代留下的：model 現在看圖上的節點顏色與標籤就知道，清存檔是玩家端的功能
 // （已移到 /demo 右上角）。
 //
-// 常駐一行簡短提示 ＋ 一顆問號展開完整鍵位表：一行字放不下八個鍵，但完全收起來又會
-// 讓人不知道有鍵盤可用。模式切換也放進來——它跟「哪個鍵會做什麼」是同一個問題，
-// 而流程圖工具列那顆四向箭頭離這件事太遠。
+// 提示的內容由 kind 決定、在這裡畫成 icon，而不是讓 GameController 傳一句字串進來：
+// 字串只能寫 ↑↓⌫ 那些 Unicode 字，而那些字的寬高在不同字型裡差很多（鍵位表已經為此
+// 全面換成 icon，提示列再用字元就是同一個畫面上兩套寫法）。
+
+// 一行提示：icon 與文字混排，交給 flex 對齊，不靠行高硬湊
+const Line = ({ children }) => (
+  <Stack direction="row" alignItems="center" spacing={0.25} component="span">
+    {children}
+  </Stack>
+);
+Line.propTypes = { children: PropTypes.node.isRequired };
+
+const Sep = () => (
+  <Box component="span" sx={{ mx: 0.5, opacity: 0.5 }}>
+    ·
+  </Box>
+);
+
+const BackHint = () => (
+  <>
+    <Sep />
+    <BackspaceGlyph />
+    <Box component="span" sx={{ ml: 0.25 }}>
+      回剛才那頁
+    </Box>
+  </>
+);
+
+const PrevHint = () => (
+  <>
+    <Sep />
+    <UpGlyph />
+    <Box component="span" sx={{ ml: 0.25 }}>
+      上一步
+    </Box>
+  </>
+);
+
+const HINTS = {
+  map: (
+    <Line>
+      <UpGlyph />
+      <DownGlyph />
+      <LeftGlyph />
+      <RightGlyph />
+      <Box component="span" sx={{ ml: 0.25 }}>
+        走圖上的位置
+      </Box>
+      <BackHint />
+    </Line>
+  ),
+  wentBack: <Line>已回退，變數與關卡進度不會跟著倒回</Line>,
+  quiz: (
+    <Line>
+      按數字選選項
+      <PrevHint />
+    </Line>
+  ),
+  input: (
+    <Line>
+      Esc 離開輸入框
+      <PrevHint />
+    </Line>
+  ),
+  flow: (
+    <Line>
+      <UpGlyph />
+      <DownGlyph />
+      <Box component="span" sx={{ ml: 0.25 }}>
+        走流程
+      </Box>
+      <BackHint />
+    </Line>
+  ),
+  back: (
+    <Line>
+      <UpGlyph />
+      <Box component="span" sx={{ ml: 0.25 }}>
+        上一步
+      </Box>
+      <BackHint />
+    </Line>
+  ),
+};
+
 const ROWS = [
   [<DownGlyph key="d" />, '下一步'],
   [<UpGlyph key="u" />, '上一步'],
@@ -52,11 +136,11 @@ const ROWS = [
   ['Esc', '把游標放出輸入框'],
 ];
 
-const KeyHintBar = ({ hint }) => {
+const KeyHintBar = ({ kind }) => {
   const { mapMode, setMapMode } = useContext(GameContext);
   const [anchor, setAnchor] = useState(null);
 
-  if (!hint) return null;
+  if (!kind || !HINTS[kind]) return null;
 
   return (
     <Box
@@ -75,6 +159,7 @@ const KeyHintBar = ({ hint }) => {
       <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
         <Typography
           variant="caption"
+          component="div"
           sx={{
             // 這行字坐在遊戲插圖上，純灰字會被背景吃掉——墊一層半透明才讀得到
             px: 1,
@@ -84,12 +169,18 @@ const KeyHintBar = ({ hint }) => {
             color: 'text.secondary',
           }}
         >
-          {hint}
+          {HINTS[kind]}
         </Typography>
         <IconButton
           size="small"
           onClick={(e) => setAnchor(e.currentTarget)}
-          sx={{ bgcolor: 'background.overlay', color: 'text.secondary' }}
+          sx={{
+            bgcolor: 'background.overlay',
+            color: 'text.secondary',
+            // 預設的 action.hover 是半透明的，疊在同樣半透明的 overlay 上幾乎看不出
+            // 變化（淺色模式尤其明顯）。改成直接換成不透明的面板色 ＋ 提亮文字。
+            '&:hover': { bgcolor: 'background.paper', color: 'text.primary' },
+          }}
         >
           <HelpOutlineRoundedIcon sx={{ fontSize: 15 }} />
         </IconButton>
@@ -102,7 +193,8 @@ const KeyHintBar = ({ hint }) => {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         transformOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Box sx={{ p: 1.5, minWidth: 250 }}>
+        {/* 寬度寫死：兩種模式的說明長度不同，讓它自己撐的話每切一次就跳一次寬度 */}
+        <Box sx={{ p: 1.5, width: 288, boxSizing: 'border-box' }}>
           <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             方向鍵怎麼走
           </Typography>
@@ -121,16 +213,22 @@ const KeyHintBar = ({ hint }) => {
               照圖走
             </ToggleButton>
           </ToggleButtonGroup>
+          {/* 固定高度：兩段說明的行數不同，不撐住的話整塊會上下抽動 */}
           <Typography
             variant="caption"
-            sx={{ display: 'block', mt: 0.75, color: 'text.disabled' }}
+            sx={{
+              display: 'block',
+              mt: 0.75,
+              minHeight: 48,
+              color: 'text.disabled',
+            }}
           >
             {mapMode
               ? '↑↓←→ 走流程圖上的位置，並排的節點可以左右互換。Quiz 與輸入框都攔不住它。'
               : '↑↓ 沿著遊戲會走的路徑。左右鍵在這個模式沒有作用。'}
           </Typography>
 
-          <Divider sx={{ my: 1.25 }} />
+          <Divider sx={{ mb: 1.25 }} />
 
           <Stack spacing={0.75}>
             {ROWS.map(([cap, label]) => (
@@ -158,7 +256,7 @@ const KeyHintBar = ({ hint }) => {
 };
 
 KeyHintBar.propTypes = {
-  hint: PropTypes.string,
+  kind: PropTypes.oneOf([...Object.keys(HINTS), null]),
 };
 
 export default KeyHintBar;

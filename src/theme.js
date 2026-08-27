@@ -60,6 +60,7 @@ const DIALOGUE = {
   // 輸入框上不是動作的字（label、提示）。動作色會讓「輸入答案」這種說明文字
   // 看起來像可以點，所以另給一階中性深灰（對白底 7.0:1）。
   onFieldMuted: '#5f6368',
+  onFieldText: '#202124', // 使用者打進去的字（對白底 16.1:1）
 };
 
 const flow = (p, modelColor, modelTint, edge) => ({

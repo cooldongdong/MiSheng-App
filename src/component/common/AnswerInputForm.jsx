@@ -98,6 +98,15 @@ const AnswerInputForm = ({
         sx={{
           backgroundColor: 'dialogue.field',
           borderRadius: '10px',
+          // 打進去的字也要固定色。不指定就會吃 text.primary——深色模式下那是近白，
+          // 畫在這個永遠白的框裡等於沒有。這是同一個坑的第四次（送出鈕兩次、
+          // label 一次、這裡一次），所以這個框上的每一種顏色現在都寫死在這裡，
+          // 不留任何一項給會隨模式變的預設值。
+          color: 'dialogue.onFieldText',
+          '& input::placeholder': {
+            color: 'dialogue.onFieldMuted',
+            opacity: 1, // 不設的話瀏覽器會再套一層 0.54，指定的顏色就淡掉了
+          },
           '&:hover': { backgroundColor: 'dialogue.field' },
           '&.Mui-focused': { backgroundColor: 'dialogue.field' },
           '&:focus-within': { backgroundColor: 'dialogue.field' },

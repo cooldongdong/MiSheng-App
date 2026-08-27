@@ -53,7 +53,7 @@ const BackHint = () => (
     <BackspaceGlyph />
     {/* 比其他 icon 多一點：箭頭類的 icon 自己帶留白，Backspace 是實心圖形，
         同樣的 margin 看起來會黏在字上 */}
-    <Box component="span" sx={{ ml: 0.75 }}>
+    <Box component="span" sx={{ ml: 1 }}>
       回剛才那頁
     </Box>
   </>
@@ -171,17 +171,13 @@ const OTHER_ROWS = [
   ['Esc', '把游標放出輸入框'],
 ];
 
+// 鍵位表的鍵帽一律等寬（撐得下最長的 Enter），一整欄才不會左緣齊、右緣參差
+const CAP_W = 52;
+
 const KeyRow = ({ cap, label }) => (
-  <Stack direction="row" alignItems="center" spacing={1}>
-    <Box
-      sx={{
-        minWidth: 64,
-        display: 'flex',
-        justifyContent: 'flex-start',
-        color: 'text.primary',
-      }}
-    >
-      <KeyCap>{cap}</KeyCap>
+  <Stack direction="row" alignItems="center" spacing={1.5}>
+    <Box sx={{ display: 'flex', color: 'text.primary' }}>
+      <KeyCap minWidth={CAP_W}>{cap}</KeyCap>
     </Box>
     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
       {label}

@@ -32,7 +32,9 @@ export const BackspaceGlyph = () => <BackspaceRoundedIcon sx={GLYPH_SX} />;
 export const ModifierGlyph = () =>
   isMacLike() ? <CmdGlyph /> : <Box component="span">Ctrl</Box>;
 
-const KeyCap = ({ children, side = 'left' }) => (
+// minWidth 可以外面指定：鍵位表要一整欄等寬（不然框隨內容大小不一，左緣對齊、右緣
+// 參差，內容各自置中也看不出來），標在按鈕上時則該貼著內容走。
+const KeyCap = ({ children, side = 'left', minWidth = 20 }) => (
   <Box
     component="span"
     sx={{
@@ -42,7 +44,7 @@ const KeyCap = ({ children, side = 'left' }) => (
       // 內容之間的距離交給 gap，不要各自加 margin——混排 icon 與文字時
       // （Ctrl + 箭頭）那是唯一排得齊的辦法
       gap: '2px',
-      minWidth: 20,
+      minWidth,
       height: 20,
       px: '5px',
       [side === 'left' ? 'mr' : 'ml']: 0.75,
@@ -63,6 +65,7 @@ KeyCap.propTypes = {
   children: PropTypes.node.isRequired,
   // 標在文字前面（選項的編號）還是後面（快捷鍵）
   side: PropTypes.oneOf(['left', 'right']),
+  minWidth: PropTypes.number,
 };
 
 export default KeyCap;

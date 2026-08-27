@@ -34,18 +34,15 @@ const hasOpenDialog = () =>
 const isWatchedKey = (key) =>
   key === 'ArrowUp' || key === 'ArrowDown' || key === 'Escape' || /^[1-9]$/.test(key);
 
-// 診斷開關。
+// 診斷（暫時性，等鍵盤的行為定案就收掉）。
 //
-// 原本只在 devTools（＝/create）印，結果「連 log 都不出現」自己變成一個謎：那既可能
-// 是鍵盤沒接上，也可能只是這一頁不是 /create——而這兩件事在畫面上長得一模一樣。
-// 所以 ?keylog=1 可以在任何入口強制打開，/demo 也印得出「數字鍵只在 /create 開」。
-const keylogForced = () => {
-  try {
-    return new URLSearchParams(window.location.search).get('keylog') === '1';
-  } catch {
-    return false;
-  }
-};
+// 這幾個鍵一律印，不看 devTools、不看入口、不看焦點在哪。前兩版分別綁過 devTools
+// 與 ?keylog=1，結果每一次「看不到 log」都同時有兩種解釋——是這條路沒走到，還是
+// log 自己被關著？兩個未知數擺在一起就查不下去了。
+//
+// 所以現在只剩一個變因：按了 ↑ ↓ Esc 或數字而 console 一片安靜，就只可能是
+// 這個頁面跑的不是這份程式碼（舊 bundle、別的 port、線上版）。
+const keylogForced = () => true;
 
 // 按了沒反應的時候，畫面上看不出是哪一關卡住的：焦點在別的地方？這一頁不能前進？
 // 還是根本沒開？所以每一次「我們想處理的鍵」都在 console 交代自己走到哪、為什麼停。

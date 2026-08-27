@@ -64,15 +64,25 @@ const isWatchedKey = (code) =>
   code === KEY_BACK ||
   digitOf(code) !== null;
 
-// 診斷（暫時性，等鍵盤的行為定案就收掉）。
+// 診斷：網址加 ?keylog=1 打開，會逐鍵印出「這一下走到哪、為什麼停」。
 //
-// 這幾個鍵一律印，不看 devTools、不看入口、不看焦點在哪。前兩版分別綁過 devTools
-// 與 ?keylog=1，結果每一次「看不到 log」都同時有兩種解釋——是這條路沒走到，還是
-// log 自己被關著？兩個未知數擺在一起就查不下去了。
+// 留著這條路而不是刪掉，是因為「按了沒反應」有太多長得一樣的成因，而且**有一大半
+// 不在這份程式碼裡**。2026-08-27 查過一輪，最後的兇手是 Vimium 擴充套件：它把數字
+// 當成重複次數的前綴（3j ＝ 往下捲三次），在 document_start 就註冊捕獲期 listener
+// 並 stopImmediatePropagation，比 React 早，網頁這邊沒有能贏的招。
 //
-// 所以現在只剩一個變因：按了 ↑ ↓ Esc 或數字而 console 一片安靜，就只可能是
-// 這個頁面跑的不是這份程式碼（舊 bundle、別的 port、線上版）。
-const keylogForced = () => true;
+// 那次的三個症狀值得記下來，因為它們是這類問題的指紋：
+//   ① 只有數字失效，方向鍵正常——擴充只綁了裸數字
+//   ② 只有作答頁有反應——游標在輸入框裡時它切到 insert mode 放行
+//   ③ 按著修飾鍵就正常——不再符合它的裸鍵規則
+// 換一個瀏覽器就好、或改用 file:// 開就好（擴充預設不注入 file://），也都指向擴充。
+const keylogForced = () => {
+  try {
+    return new URLSearchParams(window.location.search).get('keylog') === '1';
+  } catch {
+    return false;
+  }
+};
 
 // 按了沒反應的時候，畫面上看不出是哪一關卡住的：焦點在別的地方？這一頁不能前進？
 // 還是根本沒開？所以每一次「我們想處理的鍵」都在 console 交代自己走到哪、為什麼停。
@@ -101,7 +111,7 @@ const useFlowKeys = ({
   // 而且看得到這一頁是哪個入口、devTools 是不是真的。印不出來＝這個頁面跑的
   // 根本不是這份程式碼（舊的 bundle、別的 port、線上版）。
   useEffect(() => {
-    if (!devTools && !keylogForced()) return;
+    if (!keylogForced()) return;
     console.log(
       `[misheng 鍵盤] 已接上 | 入口=${window.location.pathname}` +
         ` devTools=${devTools}（數字鍵與回上一頁只在 devTools=true 時作用）`
@@ -113,7 +123,7 @@ const useFlowKeys = ({
       const code = codeOf(event);
       const watched = isWatchedKey(code);
       const log = (verdict) => {
-        if (watched && (devTools || keylogForced())) {
+        if (watched && keylogForced()) {
           console.log(
             `[misheng 鍵盤] 按下 ${code}（key=${event.key}）→ ${verdict}` +
               ` | 目前：model=${model} 可前進=${canAdvance} 選項=${optionCount}` +

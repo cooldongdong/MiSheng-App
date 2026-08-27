@@ -36,14 +36,12 @@ const useAnswerShortcuts = ({ enabled = false, onFill = null, onSkip = null }) =
       const code = event.code || event.key;
       if ((code === 'Enter' || code === 'NumpadEnter') && onFill) {
         event.preventDefault();
-        console.log('[misheng 鍵盤] 填入答案並送出');
         onFill();
         return;
       }
 
       if (code === 'ArrowDown' && onSkip) {
         event.preventDefault();
-        console.log('[misheng 鍵盤] 略過這題');
         onSkip();
       }
     };

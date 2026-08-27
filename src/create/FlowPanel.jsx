@@ -6,12 +6,12 @@ import FlowMap from './FlowMap';
 
 // 並排模式的右半邊：流程圖 ＋ 遊戲的雙向連動
 //   - 遊戲走到哪 → 圖上高亮並自動捲過去（currentId）
-//   - 點圖上的方塊 → 遊戲直接跳到那一頁（setCurrentId）
+//   - 點圖上的方塊 → 遊戲直接跳到那一頁（goToId）
 //
-// 掛在 GameProvider 裡面才拿得到 currentId／setCurrentId，
+// 掛在 GameProvider 裡面才拿得到 currentId／goToId，
 // 所以是用 GameShell 的 sidePanel 插進去，而不是自己另外包一層。
 const FlowPanel = ({ rundownRows, toolbarActions = null }) => {
-  const { currentId, setCurrentId, setCurrentMissionId, rundownData, missionData } =
+  const { currentId, goToId, setCurrentMissionId, rundownData, missionData } =
     useContext(GameContext);
 
   // 大綱裡的關卡直接顯示關卡名稱，比「第 49 列」有用得多
@@ -25,7 +25,8 @@ const FlowPanel = ({ rundownRows, toolbarActions = null }) => {
   }, [missionData]);
 
   const jumpTo = (id) => {
-    setCurrentId(id);
+    // 走 goToId 而不是 setCurrentId：跳過去看一眼之後，← 要回得來
+    goToId(id);
     // 跳過去的那一列若屬於某個關卡，關卡狀態也要跟著換，
     // 不然提示／道具頁會停在上一關
     const row = (rundownData || []).find((r) => String(r.id) === String(id));

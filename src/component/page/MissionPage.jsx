@@ -12,7 +12,7 @@ const MissionPage = () => {
     playerMissionData,
     rundownData,
     currentMissionId,
-    setCurrentId,
+    goToId,
     setCurrentMissionId,
     updateMissionStatus,
   } = useContext(GameContext);
@@ -58,7 +58,8 @@ const MissionPage = () => {
     );
 
     if (missionStartRow) {
-      setCurrentId(missionStartRow.id);
+      // 跟流程圖的跳關同一條路：進歷史，← 才回得來
+      goToId(missionStartRow.id);
       setCurrentMissionId(missionStartRow.missionId);
       updateMissionStatus(missionStartRow.missionId, 'solving');
     }

@@ -18,7 +18,7 @@ const QuizModel = ({ currentRow }) => {
     rundownData,
     currentMissionId,
     currentId,
-    setCurrentId,
+    goToId,
     customPairs,
   } = useContext(GameContext);
   const [speaker, setSpeaker] = useState(null);
@@ -66,7 +66,7 @@ const QuizModel = ({ currentRow }) => {
     if (!nextId) {
       return;
     }
-    setCurrentId(nextId);
+    goToId(nextId);
   };
 
   if (!currentRow) {

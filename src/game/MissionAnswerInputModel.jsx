@@ -11,6 +11,7 @@ import NextButton from '../component/common/NextButton';
 import AnswerInputForm from '../component/common/AnswerInputForm';
 import ConfirmDialog from '../component/common/ConfirmDialog';
 import AuthoringShortcuts from '../component/common/AuthoringShortcuts';
+import useAnswerShortcuts from '../hook/useAnswerShortcuts';
 import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import PropTypes from 'prop-types';
 
@@ -25,13 +26,6 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
   const answerRef = useRef(null);
-
-  // 填完把游標還給輸入框，才能接著按 Enter 送出。
-  // 不還的話焦點留在剛才那顆按鈕上，得再點一次輸入框——那就抵銷掉這顆鈕省下的事。
-  const fillAnswer = () => {
-    setUserAnswer(answerArray[0]);
-    answerRef.current?.focus();
-  };
   const [confirmGiveUpText, setConfirmGiveUpText] = useState('確定要放棄嗎？');
   const [isAnswerCorrect, setIsAnswerCorrect] = useState(false); // 用於控制按鈕顯示
   const [isGiveUp, setIsGiveUp] = useState(false);
@@ -88,13 +82,15 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
   // 比對答案前的標準化函式： 全形轉半形 & 去除空白 & 大寫變小寫
   const normalize = (str) => toHalfWidth(str).replace(/\s+/g, '').toLowerCase();
 
-  const handleAnswerSubmit = () => {
+  // 吃參數而不是直接讀 userAnswer state：「自動作答」要在同一個 tick 裡填好又送出，
+  // 而 setUserAnswer 要等下一次 render 才生效，讀 state 會拿到上一輪的空字串。
+  const submitAnswer = (value) => {
     const isCorrect = answerArray.some(
-      (answer) => normalize(answer) === normalize(userAnswer)
+      (answer) => normalize(answer) === normalize(value)
     );
 
     const similarKey = Object.keys(similarAnswers).find(
-      (simiAnswer) => normalize(simiAnswer) === normalize(userAnswer)
+      (simiAnswer) => normalize(simiAnswer) === normalize(value)
     );
 
     if (isCorrect) {
@@ -105,7 +101,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
     } else if (similarKey) {
       setFeedback(similarAnswers[similarKey]);
       setOpenDialog(true);
-    } else if (userAnswer.trim() === '我放棄了') {
+    } else if (value.trim() === '我放棄了') {
       currentMission.confirmGiveUpText &&
         setConfirmGiveUpText(currentMission.confirmGiveUpText);
       setOpenConfirmDialog(true); // 顯示確認放棄的對話框
@@ -119,6 +115,18 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
     }
     setUserAnswer(''); // 清空輸入框內容
   };
+
+  const handleAnswerSubmit = () => submitAnswer(userAnswer);
+
+  // 滑鼠點按鈕與按 ⌘Enter 走的是同一個函式——按鈕上標著那個鍵位，
+  // 兩者行為不一樣的話那個標示就是在說謊。
+  const autoAnswer = () => submitAnswer(answerArray[0]);
+
+  useAnswerShortcuts({
+    enabled: devTools && !isAnswerCorrect,
+    onFill: answerArray[0] ? autoAnswer : null,
+    onSkip: canProceed ? onNext : null,
+  });
 
   const confirmGiveUp = () => {
     updateMissionStatus(currentMission.id, 'complete');
@@ -170,8 +178,8 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
               />
               {devTools && (
                 <AuthoringShortcuts
-                  onFill={answerArray[0] ? fillAnswer : null}
-                  fillLabel="填入答案"
+                  onFill={answerArray[0] ? autoAnswer : null}
+                  fillLabel="自動作答"
                   onSkip={canProceed ? onNext : null}
                 />
               )}
@@ -194,6 +202,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
             open={openConfirmDialog}
             onClose={handleCloseDialog}
             onConfirm={confirmGiveUp}
+            confirmOnEnter
             confirmText={confirmGiveUpText}
           />
         </BottomBox>

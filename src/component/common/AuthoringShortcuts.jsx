@@ -1,5 +1,25 @@
-import { Button, Stack } from '@mui/material';
+import { Box, Button, Stack } from '@mui/material';
 import PropTypes from 'prop-types';
+import { FILL_HINT, SKIP_HINT } from '../../hook/useAnswerShortcuts';
+
+// 鍵位標在按鈕上，跟 Quiz 選項標數字同一個做法：標示本身就是說明，
+// 不必另外寫一行「可以按 ⌘Enter」。
+const KeyCap = ({ children }) => (
+  <Box
+    component="span"
+    sx={{
+      ml: 0.75,
+      px: 0.6,
+      borderRadius: 1,
+      fontSize: '0.7rem',
+      bgcolor: 'action.selected',
+    }}
+  >
+    {children}
+  </Box>
+);
+
+KeyCap.propTypes = { children: PropTypes.node.isRequired };
 
 // 作答頁的兩顆試玩輔助鍵，只在 /create 出現（devTools），玩家端沒有。
 //
@@ -15,11 +35,13 @@ const AuthoringShortcuts = ({ onFill, fillLabel, onSkip }) => (
     {onFill && (
       <Button size="small" color="inherit" onClick={onFill}>
         {fillLabel}
+        <KeyCap>{FILL_HINT()}</KeyCap>
       </Button>
     )}
     {onSkip && (
       <Button size="small" color="inherit" onClick={onSkip}>
         略過這題
+        <KeyCap>{SKIP_HINT()}</KeyCap>
       </Button>
     )}
   </Stack>

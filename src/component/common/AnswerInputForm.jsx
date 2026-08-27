@@ -24,6 +24,9 @@ const AnswerInputForm = ({
   // 不是「我打完了」。不擋的話每打一個中文詞就會送出一次空的或半截的答案。
   const handleKeyDown = (event) => {
     if (event.key !== 'Enter') return;
+    // 帶修飾鍵的 Enter 不是這裡的送出：⌘/Ctrl+Enter 是 /create 的「自動作答」，
+    // 不擋的話它會先被這裡當成普通送出，送出一個還沒填東西的空答案。
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     if (event.nativeEvent?.isComposing) return;
     event.preventDefault();
     onClick();

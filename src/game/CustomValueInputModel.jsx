@@ -11,6 +11,7 @@ import NextButton from '../component/common/NextButton';
 import AnswerInputForm from '../component/common/AnswerInputForm';
 import ConfirmDialog from '../component/common/ConfirmDialog';
 import AuthoringShortcuts from '../component/common/AuthoringShortcuts';
+import useAnswerShortcuts from '../hook/useAnswerShortcuts';
 import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import SpeakerText from '../component/common/SpeakerText';
 import TalkText from '../component/common/TalkText';
@@ -32,10 +33,12 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = fals
   const [feedback, setFeedback] = useState('');
   const answerRef = useRef(null);
 
-  // 同 MissionAnswerInput：填完把游標還回輸入框，接著就能 Enter 送出
-  const fillTestValue = () => {
+  // 填入測試值並送出（送出＝開確認框，跟手動打完按 Enter 是同一條路）。
+  // 這一頁沒有「正確答案」，填的是測試值——重點是讓 {{變數}} 有東西，
+  // 後面引用到它的對白才驗得出來；略過就沒有這個效果。
+  const autoFillValue = () => {
     setUserAnswer('測試');
-    answerRef.current?.focus();
+    setOpenConfirmDialog(true);
   };
   const [isSubmit, setIsSubmit] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -74,6 +77,12 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = fals
     setUserAnswer(customPairs[currentRow.customKey]);
     console.log(customPairs[currentRow.customKey]);
   }, [currentRow, customPairs]);
+
+  useAnswerShortcuts({
+    enabled: devTools && !isSubmit,
+    onFill: autoFillValue,
+    onSkip: canProceed ? onNext : null,
+  });
 
   const handleAnswerSubmit = () => {
     if (userAnswer.trim() === '') {
@@ -136,11 +145,9 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = fals
                 inputRef={answerRef}
               />
               {devTools && (
-                // 這一頁沒有「正確答案」，填的是測試值——重點是讓 {{變數}} 有東西，
-                // 後面引用到它的對白才驗得出來。略過就沒有這個效果。
                 <AuthoringShortcuts
-                  onFill={fillTestValue}
-                  fillLabel="填入測試值"
+                  onFill={autoFillValue}
+                  fillLabel="自動填值"
                   onSkip={canProceed ? onNext : null}
                 />
               )}
@@ -162,6 +169,7 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = fals
             open={openConfirmDialog}
             onClose={() => setOpenConfirmDialog(false)}
             onConfirm={() => confirmSubmit()}
+            confirmOnEnter
             title={'確定送出？'}
             confirmText={`確定要送出資料了嗎？`}
           />

@@ -51,7 +51,9 @@ const BackHint = () => (
   <>
     <Sep />
     <BackspaceGlyph />
-    <Box component="span" sx={{ ml: 0.25 }}>
+    {/* 比其他 icon 多一點：箭頭類的 icon 自己帶留白，Backspace 是實心圖形，
+        同樣的 margin 看起來會黏在字上 */}
+    <Box component="span" sx={{ ml: 0.75 }}>
       回剛才那頁
     </Box>
   </>
@@ -61,7 +63,7 @@ const PrevHint = () => (
   <>
     <Sep />
     <UpGlyph />
-    <Box component="span" sx={{ ml: 0.25 }}>
+    <Box component="span" sx={{ ml: 0.5 }}>
       上一步
     </Box>
   </>
@@ -74,7 +76,7 @@ const HINTS = {
       <DownGlyph />
       <LeftGlyph />
       <RightGlyph />
-      <Box component="span" sx={{ ml: 0.25 }}>
+      <Box component="span" sx={{ ml: 0.5 }}>
         走圖上的位置
       </Box>
       <BackHint />
@@ -99,7 +101,7 @@ const HINTS = {
     <Line>
       <UpGlyph />
       <DownGlyph />
-      <Box component="span" sx={{ ml: 0.25 }}>
+      <Box component="span" sx={{ ml: 0.5 }}>
         走流程
       </Box>
       <BackHint />
@@ -108,7 +110,7 @@ const HINTS = {
   back: (
     <Line>
       <UpGlyph />
-      <Box component="span" sx={{ ml: 0.25 }}>
+      <Box component="span" sx={{ ml: 0.5 }}>
         上一步
       </Box>
       <BackHint />
@@ -241,11 +243,16 @@ const KeyHintBar = ({ kind }) => {
             width: open ? EXPANDED_W : (collapsedW ?? 'auto'),
             maxWidth: '100%',
             bgcolor: 'background.overlay',
-            // border-radius 刻意**不進 transition**：999px → 14px 是數值插值，而
-            // border-radius 會被 clamp 在高度的一半；展開時高度同時從 26px 長到 300px，
-            // 那個上限跟著變大，中間某一刻真的會鼓成 150px 的大圓角。瞬間切換反而無感
-            // ——999px 在 26px 高的膠囊上本來就渲染成 13px，跟 14px 幾乎一樣。
-            borderRadius: open ? '14px' : '999px',
+            // 圓角**固定不變**。
+            //
+            // 前一版是 open ? 14px : 999px，即使移出 transition 也還是會跳：
+            // border-radius 被 clamp 在「當下高度的一半」，而收起的那一瞬間高度還是
+            // 300px（才正要縮回去），999px 就被 clamp 成 150px 的大圓角，等高度縮完
+            // 才變回 13px——那就是收起時看到的那一下鼓脹。
+            //
+            // 膠囊高約 29px、半高 14.5px，所以固定 14px 在收起時仍然是膠囊，展開時
+            // 正好是卡片的圓角。一個值同時滿足兩種狀態，就沒有東西需要變。
+            borderRadius: '14px',
             boxShadow: open ? 3 : 0,
             overflow: 'hidden',
             transition: (theme) =>
@@ -273,10 +280,23 @@ const KeyHintBar = ({ kind }) => {
               py: '2px',
             }}
           >
+            {/* key 一變就重掛，於是每次換提示都重跑一次淡入。
+                為什麼需要它：文字是立刻換的，寬度要等量完才更新，所以中間有一幀是
+                「新文字 ＋ 舊寬度」。變長時那一幀是文字被裁掉一截、接著露出來，看起來
+                像揭露；變短時卻是短文字浮在還沒收回來的寬容器裡，容器再追上去，文字
+                位置就跳了一下。淡入蓋住的正是那一下。 */}
             <Typography
+              key={`${kind}-${mapMode}`}
               variant="caption"
               component="div"
-              sx={{ color: 'text.secondary' }}
+              sx={{
+                color: 'text.secondary',
+                animation: 'hintIn 200ms ease-out',
+                '@keyframes hintIn': {
+                  from: { opacity: 0 },
+                  to: { opacity: 1 },
+                },
+              }}
             >
               {HINTS[kind]}
             </Typography>

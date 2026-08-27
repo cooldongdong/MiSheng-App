@@ -80,7 +80,9 @@ const HINTS = {
       <BackHint />
     </Line>
   ),
-  wentBack: <Line>已回退，變數與關卡進度不會跟著倒回</Line>,
+  // 不寫「變數與關卡進度不會跟著倒回」：nowrap 之後那一句會把膠囊撐得比遊戲欄還寬
+  // （最窄 300px），完整說明留在展開後的鍵位表裡
+  wentBack: <Line>已回退，狀態不會倒回</Line>,
   quiz: (
     <Line>
       按數字選選項
@@ -198,11 +200,15 @@ const KeyHintBar = ({ kind }) => {
   const rowRef = useRef(null);
   const [collapsedW, setCollapsedW] = useState(null);
 
-  // 收起時量一次那條膠囊的自然寬度，展開／收合才有兩個都是數字的端點可以補間——
-  // width: auto 是插值不了的，不量就只能瞬間跳寬，那就不是「同一個東西長大」了。
-  // 提示文字會隨頁面變（kind），所以每次換都要重量。
+  // 量那條列的自然寬度，展開／收合才有兩個都是數字的端點可以補間——width: auto 是
+  // 插值不了的，不量就只能瞬間跳寬，那就不是「同一個東西長大」了。
+  //
+  // **展開時也要量**：模式可以從流程圖工具列那邊切換，那時提示文字會變長；只在收起時
+  // 量的話，收合回去用的還是上一種模式的舊寬度。
+  //
+  // 而量得準的前提是那條列不會被壓縮（見下面的 nowrap / flexShrink）——fit-content 在
+  // 空間不夠時會退讓，於是文字被壓著換行，下一次又量到那個被壓過的寬度，就再也回不來了。
   useLayoutEffect(() => {
-    if (open) return;
     setCollapsedW(rowRef.current?.offsetWidth ?? null);
   }, [kind, open, mapMode]);
 
@@ -235,11 +241,15 @@ const KeyHintBar = ({ kind }) => {
             width: open ? EXPANDED_W : (collapsedW ?? 'auto'),
             maxWidth: '100%',
             bgcolor: 'background.overlay',
+            // border-radius 刻意**不進 transition**：999px → 14px 是數值插值，而
+            // border-radius 會被 clamp 在高度的一半；展開時高度同時從 26px 長到 300px，
+            // 那個上限跟著變大，中間某一刻真的會鼓成 150px 的大圓角。瞬間切換反而無感
+            // ——999px 在 26px 高的膠囊上本來就渲染成 13px，跟 14px 幾乎一樣。
             borderRadius: open ? '14px' : '999px',
             boxShadow: open ? 3 : 0,
             overflow: 'hidden',
             transition: (theme) =>
-              theme.transitions.create(['width', 'border-radius', 'box-shadow'], {
+              theme.transitions.create(['width', 'box-shadow'], {
                 duration: 260,
                 easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
               }),
@@ -251,7 +261,17 @@ const KeyHintBar = ({ kind }) => {
             spacing={0.5}
             alignItems="center"
             justifyContent="center"
-            sx={{ width: 'fit-content', mx: 'auto', pl: 1.25, pr: 0.5, py: '2px' }}
+            sx={{
+              // 不換行、不退讓：這兩件事讓 offsetWidth 永遠等於內容的真實寬度，
+              // 量測才不會被自己上一次的結果越縮越小
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              width: 'fit-content',
+              mx: 'auto',
+              pl: 1.25,
+              pr: 0.5,
+              py: '2px',
+            }}
           >
             <Typography
               variant="caption"

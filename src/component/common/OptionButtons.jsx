@@ -1,5 +1,5 @@
-import { Box } from '@mui/material';
 import NextButton from './NextButton';
+import KeyCap from './KeyCap';
 import PropTypes from 'prop-types';
 
 // showKeys：在 /create 試玩時，選項前面標上它的數字鍵。
@@ -13,20 +13,7 @@ const OptionButtons = ({ options, onOptionClick, showKeys = false }) => (
           href={option.url}
           onClick={!option.url ? () => onOptionClick(option.nextId) : undefined}
         >
-          {showKeys && index < 9 && (
-            <Box
-              component="span"
-              sx={{
-                mr: 1,
-                px: 0.7,
-                borderRadius: 1,
-                fontSize: '0.75rem',
-                bgcolor: 'action.selected',
-              }}
-            >
-              {index + 1}
-            </Box>
-          )}
+          {showKeys && index < 9 && <KeyCap>{index + 1}</KeyCap>}
           {option.title}
         </NextButton>
       );

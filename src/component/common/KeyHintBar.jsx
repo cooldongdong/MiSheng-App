@@ -113,10 +113,40 @@ const HINTS = {
   ),
 };
 
-const ROWS = [
-  [<DownGlyph key="d" />, '下一步'],
-  [<UpGlyph key="u" />, '上一步'],
-  [<BackspaceGlyph key="b" />, '回到剛才那一頁'],
+// 鍵位表分兩區。
+//
+// 上半區**隨模式變**：切到照圖走之後，↑↓ 不再是「上一步／下一步」而是「走上下一層」，
+// 表上照舊寫著舊語意就是在說謊。前一版是用一段散文補充說明去蓋掉這個矛盾——那段
+// 散文其實是在替表格的錯誤打補丁，而且為了切換時不跳高度還得撐 minHeight，於是
+// 變成一塊有空洞的字擠在標題與表格之間。讓表格自己跟著模式走，那段散文就不必存在。
+//
+// 兩邊都排三行，所以切換時高度天然一致，不用撐。
+const DIRECTION_ROWS = {
+  flow: [
+    [<DownGlyph key="d" />, '下一步'],
+    [<UpGlyph key="u" />, '上一步'],
+    [<BackspaceGlyph key="b" />, '回到剛才那一頁'],
+  ],
+  map: [
+    [
+      <>
+        <UpGlyph key="u" />
+        <DownGlyph key="d" />
+      </>,
+      '走上下一層',
+    ],
+    [
+      <>
+        <LeftGlyph key="l" />
+        <RightGlyph key="r" />
+      </>,
+      '同一層的左右鄰居',
+    ],
+    [<BackspaceGlyph key="b" />, '回到剛才那一頁'],
+  ],
+};
+
+const OTHER_ROWS = [
   ['1-9', '選 Quiz 的選項'],
   ['Enter', '送出答案／確認對話框'],
   [
@@ -135,6 +165,28 @@ const ROWS = [
   ],
   ['Esc', '把游標放出輸入框'],
 ];
+
+const KeyRow = ({ cap, label }) => (
+  <Stack direction="row" alignItems="center" spacing={1}>
+    <Box
+      sx={{
+        minWidth: 64,
+        display: 'flex',
+        justifyContent: 'flex-start',
+        color: 'text.primary',
+      }}
+    >
+      <KeyCap>{cap}</KeyCap>
+    </Box>
+    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+      {label}
+    </Typography>
+  </Stack>
+);
+KeyRow.propTypes = {
+  cap: PropTypes.node.isRequired,
+  label: PropTypes.string.isRequired,
+};
 
 const KeyHintBar = ({ kind }) => {
   const { mapMode, setMapMode } = useContext(GameContext);
@@ -193,10 +245,10 @@ const KeyHintBar = ({ kind }) => {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         transformOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        {/* 寬度寫死：兩種模式的說明長度不同，讓它自己撐的話每切一次就跳一次寬度 */}
+        {/* 寬度寫死：兩種模式的字數不同，讓它自己撐的話每切一次就跳一次 */}
         <Box sx={{ p: 1.5, width: 288, boxSizing: 'border-box' }}>
           <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-            方向鍵怎麼走
+            方向鍵
           </Typography>
           <ToggleButtonGroup
             size="small"
@@ -204,7 +256,7 @@ const KeyHintBar = ({ kind }) => {
             fullWidth
             value={mapMode ? 'map' : 'flow'}
             onChange={(e, next) => next && setMapMode(next === 'map')}
-            sx={{ mt: 0.75 }}
+            sx={{ mt: 0.75, mb: 1.25 }}
           >
             <ToggleButton value="flow" sx={{ textTransform: 'none', py: 0.5 }}>
               照流程走
@@ -213,40 +265,24 @@ const KeyHintBar = ({ kind }) => {
               照圖走
             </ToggleButton>
           </ToggleButtonGroup>
-          {/* 固定高度：兩段說明的行數不同，不撐住的話整塊會上下抽動 */}
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              mt: 0.75,
-              minHeight: 48,
-              color: 'text.disabled',
-            }}
-          >
-            {mapMode
-              ? '↑↓←→ 走流程圖上的位置，並排的節點可以左右互換。Quiz 與輸入框都攔不住它。'
-              : '↑↓ 沿著遊戲會走的路徑。左右鍵在這個模式沒有作用。'}
-          </Typography>
-
-          <Divider sx={{ mb: 1.25 }} />
 
           <Stack spacing={0.75}>
-            {ROWS.map(([cap, label]) => (
-              <Stack key={label} direction="row" alignItems="center" spacing={1}>
-                <Box
-                  sx={{
-                    minWidth: 64,
-                    display: 'flex',
-                    justifyContent: 'flex-start',
-                    color: 'text.primary',
-                  }}
-                >
-                  <KeyCap>{cap}</KeyCap>
-                </Box>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {label}
-                </Typography>
-              </Stack>
+            {DIRECTION_ROWS[mapMode ? 'map' : 'flow'].map(([cap, label]) => (
+              <KeyRow key={label} cap={cap} label={label} />
+            ))}
+          </Stack>
+
+          <Divider sx={{ my: 1.25 }} />
+
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', mb: 0.75, color: 'text.disabled' }}
+          >
+            其他
+          </Typography>
+          <Stack spacing={0.75}>
+            {OTHER_ROWS.map(([cap, label]) => (
+              <KeyRow key={label} cap={cap} label={label} />
             ))}
           </Stack>
         </Box>

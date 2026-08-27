@@ -1,11 +1,11 @@
 import { Box } from '@mui/material';
 import KeyboardCommandKeyRoundedIcon from '@mui/icons-material/KeyboardCommandKeyRounded';
 import KeyboardReturnRoundedIcon from '@mui/icons-material/KeyboardReturnRounded';
-import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
-import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded';
-import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded';
-import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded';
-import BackspaceRoundedIcon from '@mui/icons-material/BackspaceRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
 import PropTypes from 'prop-types';
 import { isMacLike } from '../../hook/useAnswerShortcuts';
 
@@ -18,15 +18,25 @@ import { isMacLike } from '../../hook/useAnswerShortcuts';
 // **用外框不用底色**：這些鍵帽坐在三種不同的底上（選項按鈕淺色近白／深色是
 // primary.main，輔助鈕透明底，鍵位表的面板底）。任何固定的 bgcolor 都會在其中一種
 // 上糊掉。currentColor 跟著文字走，而文字對它自己的底本來就有對比。
+// 每個 icon 的**圖形**在 24×24 的 viewBox 裡佔多大並不一樣，所以同一個 fontSize 畫出來
+// 的視覺大小差很多：KeyboardArrowDown 那組是「小 v」，只佔 6.6/24 高，而實心的
+// Backspace 佔 18/24——在等高的框裡，一個離上下邊 5px、另一個離 8px，看起來就是
+// 「有的貼邊、有的浮在中間」。這不是 padding 或 alignItems 修得掉的，是 icon 本身的事。
+//
+// 所以方向鍵改用 ArrowUpward 那組（帶軸的長箭頭，佔比跟 Backspace 同一個量級），
+// Backspace 也換成 outlined，跟其他線條 icon 的視覺重量對得上。
+//
+// 順帶修掉另一個小問題：KeyboardArrowUp 的路徑中心在 11.71、Down 在 12.29，各偏 0.29
+// ——兩個並排時（地圖模式的 ↑↓）間距看起來就不對稱。
 const GLYPH_SX = { fontSize: 13 };
 
 export const CmdGlyph = () => <KeyboardCommandKeyRoundedIcon sx={GLYPH_SX} />;
 export const ReturnGlyph = () => <KeyboardReturnRoundedIcon sx={GLYPH_SX} />;
-export const DownGlyph = () => <KeyboardArrowDownRoundedIcon sx={GLYPH_SX} />;
-export const UpGlyph = () => <KeyboardArrowUpRoundedIcon sx={GLYPH_SX} />;
-export const LeftGlyph = () => <KeyboardArrowLeftRoundedIcon sx={GLYPH_SX} />;
-export const RightGlyph = () => <KeyboardArrowRightRoundedIcon sx={GLYPH_SX} />;
-export const BackspaceGlyph = () => <BackspaceRoundedIcon sx={GLYPH_SX} />;
+export const DownGlyph = () => <ArrowDownwardRoundedIcon sx={GLYPH_SX} />;
+export const UpGlyph = () => <ArrowUpwardRoundedIcon sx={GLYPH_SX} />;
+export const LeftGlyph = () => <ArrowBackRoundedIcon sx={GLYPH_SX} />;
+export const RightGlyph = () => <ArrowForwardRoundedIcon sx={GLYPH_SX} />;
+export const BackspaceGlyph = () => <BackspaceOutlinedIcon sx={GLYPH_SX} />;
 
 // Mac 用符號，其他平台寫字——⌘ 對 Windows 使用者不是提示，是謎題
 export const ModifierGlyph = () =>

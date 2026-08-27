@@ -57,6 +57,9 @@ const DIALOGUE = {
   field: '#fff', // 輸入框永遠是白的
   onField: '#b2591f', // 畫在輸入框上的動作色（鏽橘，對白底 4.9:1）
   onFieldHover: '#8f4718',
+  // 輸入框上不是動作的字（label、提示）。動作色會讓「輸入答案」這種說明文字
+  // 看起來像可以點，所以另給一階中性深灰（對白底 7.0:1）。
+  onFieldMuted: '#5f6368',
 };
 
 const flow = (p, modelColor, modelTint, edge) => ({

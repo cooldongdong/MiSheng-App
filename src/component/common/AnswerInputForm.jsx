@@ -31,7 +31,21 @@ const AnswerInputForm = ({
 
   return (
     <FormControl variant="filled" fullWidth>
-      <InputLabel htmlFor="mission-answer">輸入答案</InputLabel>
+      {/* label 坐的是輸入框的白底，不是底下那層深墨——所以它跟送出鈕一樣，
+          必須用對白底成立的固定色。不指定的話會吃 MUI 預設的 text.secondary，
+          深色模式下那是淺灰，畫在白底上等於看不見（palette.dialogue 的註解裡
+          記著同一個錯誤已經咬過送出鈕兩次，這是第三次）。 */}
+      <InputLabel
+        htmlFor="mission-answer"
+        sx={{
+          color: 'dialogue.onFieldMuted',
+          // focus 時 MUI 會把 label 換成 primary，那顏色是會隨模式變的，一樣不能吃。
+          // 換成輸入框自己的動作色，跟旁邊的送出鈕同一組。
+          '&.Mui-focused': { color: 'dialogue.onField' },
+        }}
+      >
+        輸入答案
+      </InputLabel>
       <FilledInput
         id="mission-answer"
         type="text"

@@ -370,6 +370,7 @@ const CreateApp = () => {
           previewMode
           imgMap={imgMap}
           dataVersion={dataVersion}
+          allowBack
           onPositionLost={() =>
             setNotice(
               '你剛才停的那一列在新資料裡找不到了（id 被改掉或刪掉），已回到開頭。'

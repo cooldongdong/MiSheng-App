@@ -26,6 +26,7 @@ const GameShell = ({
   imgMap = null,
   dataVersion = 0,
   onPositionLost = null,
+  allowBack = false,
   leftPanel = null,
   sidePanel = null,
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
@@ -113,7 +114,13 @@ const GameShell = ({
       case 1:
         return <PropPage />;
       case 2:
-        return <GameController {...gameData} dataVersion={dataVersion} />;
+        return (
+          <GameController
+            {...gameData}
+            dataVersion={dataVersion}
+            allowBack={allowBack}
+          />
+        );
       case 3:
         return <HintPage />;
       case 4:
@@ -238,6 +245,7 @@ GameShell.propTypes = {
   imgMap: PropTypes.instanceOf(Map),
   dataVersion: PropTypes.number,
   onPositionLost: PropTypes.func,
+  allowBack: PropTypes.bool,
   leftPanel: PropTypes.node,
   sidePanel: PropTypes.node,
   sideFlex: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),

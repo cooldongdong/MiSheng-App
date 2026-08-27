@@ -2,6 +2,10 @@ import { useCallback } from 'react';
 
 const useNextId = (data, currentDialogue) => {
   const getNextId = useCallback(() => {
+    // 資料還沒載進來就被問「下一列是誰」——鍵盤翻頁是在 render 的最上層問的，
+    // 會早於 GameController 那道「rundownData 還沒好就先顯示 Loading」的守門。
+    // 這裡自己擋住，hook 才不會依賴呼叫端的呼叫順序。
+    if (!Array.isArray(data)) return null;
     if (!currentDialogue) return null; // 如果 currentDialogue 是 null，返回 null
 
     if (currentDialogue?.nextId) {

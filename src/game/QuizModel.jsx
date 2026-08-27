@@ -10,7 +10,7 @@ import BackgroundLayer from '../component/layer/BackgroundLayer';
 import CharacterLayer from '../component/layer/CharacterLayer';
 import QuestionBox from '../component/feature/QuestionBox';
 
-const QuizModel = ({ currentRow }) => {
+const QuizModel = ({ currentRow, devTools = false }) => {
   const {
     getImg,
     characterData,
@@ -101,6 +101,7 @@ const QuizModel = ({ currentRow }) => {
           text={displayText}
           options={options}
           onOptionClick={handleOptionClick}
+          showKeys={devTools}
         />
       </Layer>
     </ThemeColorLayer>
@@ -110,6 +111,7 @@ const QuizModel = ({ currentRow }) => {
 // 定義 propTypes
 QuizModel.propTypes = {
   currentRow: PropTypes.object,
+  devTools: PropTypes.bool,
 };
 
 export default QuizModel;

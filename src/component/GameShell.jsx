@@ -26,7 +26,7 @@ const GameShell = ({
   imgMap = null,
   dataVersion = 0,
   onPositionLost = null,
-  allowBack = false,
+  devTools = false,
   leftPanel = null,
   sidePanel = null,
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
@@ -118,7 +118,7 @@ const GameShell = ({
           <GameController
             {...gameData}
             dataVersion={dataVersion}
-            allowBack={allowBack}
+            devTools={devTools}
           />
         );
       case 3:
@@ -245,7 +245,7 @@ GameShell.propTypes = {
   imgMap: PropTypes.instanceOf(Map),
   dataVersion: PropTypes.number,
   onPositionLost: PropTypes.func,
-  allowBack: PropTypes.bool,
+  devTools: PropTypes.bool,
   leftPanel: PropTypes.node,
   sidePanel: PropTypes.node,
   sideFlex: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),

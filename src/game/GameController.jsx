@@ -13,6 +13,11 @@ import useNextId from '../hook/useNextId';
 import useFlowKeys from '../hook/useFlowKeys';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 
+// 「按一下就走」的三種 model
+const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart']);
+// 游標會自動落在輸入框裡的兩種——那時方向鍵是移動游標，得先按 Esc 才拿得回來
+const INPUT_MODELS = new Set(['MissionAnswerInput', 'CustomValueInput']);
+
 const GameController = ({
   characterCsvFile,
   hintCsvFile,
@@ -22,7 +27,7 @@ const GameController = ({
   storyCsvFile,
   configCsvFile,
   dataVersion = 0,
-  allowBack = false,
+  devTools = false,
 }) => {
   const {
     setCharacterData,
@@ -43,6 +48,7 @@ const GameController = ({
     canGoBack,
     setCurrentMissionId,
     updateMissionStatus,
+    playerMissionData,
   } = useContext(GameContext);
   // 目前這一列直接從 currentId 算，不再存成 state。
   //
@@ -127,6 +133,50 @@ const GameController = ({
     }
   }, [currentRow, missionData]);
 
+  // Quiz 的選項＝以這一列為 parentId 的那些 row（跟 QuizModel 的算法一致）。
+  // 這裡也算一次，是為了讓數字鍵不必等 QuizModel 把它算好再往上傳。
+  const quizOptions = useMemo(() => {
+    if (currentRow?.model !== 'Quiz' || !Array.isArray(rundownData)) return [];
+    return rundownData.filter((row) => row.parentId === currentId);
+  }, [currentRow, rundownData, currentId]);
+
+  // 這一頁能不能用 down 鍵前進。
+  //
+  // 「按一下就走」的三種 model 可以；Quiz 要選分支、兩種輸入頁要打字，不行——
+  // 「按了沒反應」與「按了會作弊」是兩種都不想要的困惑，不攔就只剩前者，
+  // 而且是使用者看畫面就懂的那一種。
+  //
+  // 例外是答對之後的 MissionAnswerInput：那時畫面上顯示的已經是 Next 按鈕，
+  // 這一頁實質上就是「按一下就走」了，鍵盤跟著能走才不會前後矛盾。
+  const canAdvance = useMemo(() => {
+    if (!canProceedToNext()) return false;
+    const model = currentRow?.model;
+    if (FORWARD_MODELS.has(model)) return true;
+    if (model !== 'MissionAnswerInput') return false;
+    return playerMissionData.some(
+      (item) =>
+        String(item.id) === String(currentRow?.missionId) &&
+        item.status === 'complete'
+    );
+  }, [currentRow, canProceedToNext, playerMissionData]);
+
+  const handlePickOption = useCallback(
+    (index) => {
+      const option = quizOptions[index];
+      if (!option) return;
+      // 選項也可以是外連（OptionButtons 會把它畫成 href），數字鍵就等同點它
+      if (option.url) {
+        window.open(option.url, '_blank', 'noopener');
+        return;
+      }
+      if (option.nextId) {
+        setWentBack(false);
+        goToId(option.nextId);
+      }
+    },
+    [quizOptions, goToId]
+  );
+
   const handleNext = useCallback(() => {
     const nextId = getNextId();
     if (nextId) {
@@ -140,12 +190,13 @@ const GameController = ({
   }, [goBack]);
 
   useFlowKeys({
-    model: currentRow?.model,
+    canAdvance,
     onNext: handleNext,
-    canProceed: canProceedToNext(),
     goBack: handleBack,
     canGoBack,
-    allowBack,
+    devTools,
+    optionCount: quizOptions.length,
+    onPickOption: handlePickOption,
   });
 
   if (!rundownData || !Array.isArray(rundownData)) {
@@ -165,6 +216,23 @@ const GameController = ({
     CustomValueInput: CustomValueInputModel,
   };
 
+  // 鍵盤提示借用 ModelTestInfo 那一列。回退後的但書優先——那一刻要講的是
+  // 「狀態沒跟著倒回」，不是還有哪些鍵可以按。
+  //
+  // 每一頁只講這一頁真的能按的東西——不能前進的頁面寫「↑↓ 翻頁」，等於叫人去按
+  // 一個不會有反應的鍵，那正是這整條規則想避免的困惑。
+  const keyHint = !devTools
+    ? null
+    : wentBack
+      ? '已回退 · 變數與關卡進度不會跟著倒回'
+      : quizOptions.length > 0
+        ? '按數字選選項 · ↑ 回上一頁'
+        : INPUT_MODELS.has(currentRow?.model) && !canAdvance
+          ? 'Esc 離開輸入框 · ↑ 回上一頁'
+          : canAdvance
+            ? '↑↓ 翻頁'
+            : '↑ 回上一頁';
+
   // Render content based on the model type
   const renderContent = () => {
     const ModelComponent = modelComponents[currentRow.model];
@@ -173,6 +241,7 @@ const GameController = ({
         currentRow={currentRow}
         onNext={handleNext}
         canProceed={canProceedToNext()}
+        devTools={devTools}
       />
     ) : (
       <Typography>Unknown model type: {currentRow.model}</Typography>
@@ -181,16 +250,7 @@ const GameController = ({
 
   return (
     <>
-      <ModelTestInfo
-        model={currentRow.model}
-        hint={
-          allowBack
-            ? wentBack
-              ? '已回退 · 變數與關卡進度不會跟著倒回'
-              : '← → 翻頁'
-            : null
-        }
-      />
+      <ModelTestInfo model={currentRow.model} hint={keyHint} />
       {renderContent()}
     </>
   );
@@ -206,7 +266,7 @@ GameController.propTypes = {
   storyCsvFile: PropTypes.string.isRequired,
   configCsvFile: PropTypes.string.isRequired,
   dataVersion: PropTypes.number,
-  allowBack: PropTypes.bool,
+  devTools: PropTypes.bool,
 };
 
 export default GameController;

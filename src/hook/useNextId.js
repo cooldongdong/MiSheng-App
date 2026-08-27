@@ -1,5 +1,15 @@
 import { useCallback } from 'react';
 
+// 「這一列走完會去哪」的規則，抽出來給反方向（usePrevId）共用。
+// 兩邊必須是同一條規則，否則會出現「往下走一步、往上走一步，回不到原地」。
+export const nextIdOf = (data, row, index = null) => {
+  if (!row) return null;
+  if (row.nextId) return row.nextId;
+  const idx = index ?? data.findIndex((item) => item.id === row.id);
+  if (idx < 0) return null;
+  return data[idx + 1]?.id ?? null;
+};
+
 const useNextId = (data, currentDialogue) => {
   const getNextId = useCallback(() => {
     // 資料還沒載進來就被問「下一列是誰」——鍵盤翻頁是在 render 的最上層問的，

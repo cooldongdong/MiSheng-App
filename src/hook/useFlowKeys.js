@@ -225,8 +225,15 @@ const useFlowKeys = ({
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    // capture 階段：window 的捕獲期是整條路徑的**第一站**，冒泡期是最後一站。
+    // 掛在冒泡期的話，中間任何一個元件（MUI 的按鈕、清單、對話框，或瀏覽器擴充
+    // 注入的 script）只要 stopPropagation，這裡就完全收不到——而且看起來會跟
+    // 「這個鍵沒有作用」一模一樣。
+    //
+    // 搶在最前面不會弄壞打字：下面第一件事就是檢查焦點在不在輸入框，是的話原封
+    // 不動放行。
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [
     canAdvance,
     onNext,

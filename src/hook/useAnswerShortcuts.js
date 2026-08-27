@@ -48,8 +48,9 @@ const useAnswerShortcuts = ({ enabled = false, onFill = null, onSkip = null }) =
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    // 理由同 useFlowKeys：捕獲期是第一站，不會被中間的 stopPropagation 吃掉
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [enabled, onFill, onSkip]);
 };
 

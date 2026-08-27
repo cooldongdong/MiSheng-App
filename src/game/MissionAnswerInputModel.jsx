@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { GameContext } from '../store/game-context';
 import { Typography } from '@mui/material';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
@@ -10,10 +10,11 @@ import BottomBox from '../component/common/BottomBox';
 import NextButton from '../component/common/NextButton';
 import AnswerInputForm from '../component/common/AnswerInputForm';
 import ConfirmDialog from '../component/common/ConfirmDialog';
+import AuthoringShortcuts from '../component/common/AuthoringShortcuts';
 import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import PropTypes from 'prop-types';
 
-const MissionAnswerInputModel = ({ onNext, canProceed }) => {
+const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
   const {
     getImg,
     currentMissionId,
@@ -23,6 +24,14 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
   } = useContext(GameContext);
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
+  const answerRef = useRef(null);
+
+  // 填完把游標還給輸入框，才能接著按 Enter 送出。
+  // 不還的話焦點留在剛才那顆按鈕上，得再點一次輸入框——那就抵銷掉這顆鈕省下的事。
+  const fillAnswer = () => {
+    setUserAnswer(answerArray[0]);
+    answerRef.current?.focus();
+  };
   const [confirmGiveUpText, setConfirmGiveUpText] = useState('確定要放棄嗎？');
   const [isAnswerCorrect, setIsAnswerCorrect] = useState(false); // 用於控制按鈕顯示
   const [isGiveUp, setIsGiveUp] = useState(false);
@@ -150,13 +159,23 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
           <MissionSubtitleText subtitle={currentMission.subtitle} />
           <MissionTitleText title={currentMission.title} />
           {!isAnswerCorrect ? (
-            <AnswerInputForm
-              value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
-              onClick={handleAnswerSubmit}
-              disabled={isAnswerCorrect}
-              giveupCountdown={giveupCountdown}
-            />
+            <>
+              <AnswerInputForm
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                onClick={handleAnswerSubmit}
+                disabled={isAnswerCorrect}
+                giveupCountdown={giveupCountdown}
+                inputRef={answerRef}
+              />
+              {devTools && (
+                <AuthoringShortcuts
+                  onFill={answerArray[0] ? fillAnswer : null}
+                  fillLabel="填入答案"
+                  onSkip={canProceed ? onNext : null}
+                />
+              )}
+            </>
           ) : (
             canProceed && <NextButton onClick={onNext}>Next</NextButton>
           )}
@@ -187,6 +206,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
 MissionAnswerInputModel.propTypes = {
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
+  devTools: PropTypes.bool,
 };
 
 export default MissionAnswerInputModel;

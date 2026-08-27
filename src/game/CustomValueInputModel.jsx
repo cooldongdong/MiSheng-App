@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { GameContext } from '../store/game-context';
 import { Stack } from '@mui/material';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
@@ -10,12 +10,13 @@ import BottomBox from '../component/common/BottomBox';
 import NextButton from '../component/common/NextButton';
 import AnswerInputForm from '../component/common/AnswerInputForm';
 import ConfirmDialog from '../component/common/ConfirmDialog';
+import AuthoringShortcuts from '../component/common/AuthoringShortcuts';
 import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import SpeakerText from '../component/common/SpeakerText';
 import TalkText from '../component/common/TalkText';
 import PropTypes from 'prop-types';
 
-const CustomValueInputModel = ({ currentRow, onNext, canProceed }) => {
+const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = false }) => {
   const {
     getImg,
     currentMissionId,
@@ -29,6 +30,13 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed }) => {
   const [backgroundImg, setBackgroundImg] = useState(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
+  const answerRef = useRef(null);
+
+  // 同 MissionAnswerInput：填完把游標還回輸入框，接著就能 Enter 送出
+  const fillTestValue = () => {
+    setUserAnswer('測試');
+    answerRef.current?.focus();
+  };
   const [isSubmit, setIsSubmit] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
@@ -119,12 +127,24 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed }) => {
             <TalkText text={currentRow?.text} />
           </Stack>
           {!isSubmit ? (
-            <AnswerInputForm
-              value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
-              onClick={handleAnswerSubmit}
-              disabled={isSubmit}
-            />
+            <>
+              <AnswerInputForm
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                onClick={handleAnswerSubmit}
+                disabled={isSubmit}
+                inputRef={answerRef}
+              />
+              {devTools && (
+                // 這一頁沒有「正確答案」，填的是測試值——重點是讓 {{變數}} 有東西，
+                // 後面引用到它的對白才驗得出來。略過就沒有這個效果。
+                <AuthoringShortcuts
+                  onFill={fillTestValue}
+                  fillLabel="填入測試值"
+                  onSkip={canProceed ? onNext : null}
+                />
+              )}
+            </>
           ) : (
             canProceed && <NextButton onClick={onNext}>Next</NextButton>
           )}
@@ -156,6 +176,7 @@ CustomValueInputModel.propTypes = {
   currentRow: PropTypes.object.isRequired,
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
+  devTools: PropTypes.bool,
 };
 
 export default CustomValueInputModel;

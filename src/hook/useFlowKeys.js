@@ -30,6 +30,21 @@ const isTypingTarget = (el) => {
 const hasOpenDialog = () =>
   !!document.querySelector('[role="dialog"], [role="alertdialog"]');
 
+// 這個鍵是不是「我們本來就想處理」的——只有這些才印診斷，不然使用者打字會洗版
+const isWatchedKey = (key) =>
+  key === 'ArrowUp' || key === 'ArrowDown' || key === 'Escape' || /^[1-9]$/.test(key);
+
+// 按了沒反應的時候，畫面上看不出是哪一關卡住的：焦點在別的地方？這一頁不能前進？
+// 還是根本沒開？所以每一次「我們想處理的鍵」都在 console 交代自己走到哪、為什麼停。
+// 只在 /create（devTools）印。
+const describeTarget = (el) => {
+  if (!el) return '（沒有焦點）';
+  const bits = [el.tagName];
+  if (el.id) bits.push(`#${el.id}`);
+  if (el.placeholder) bits.push(`placeholder="${el.placeholder}"`);
+  return bits.join(' ');
+};
+
 const useFlowKeys = ({
   canAdvance = false,
   onNext,
@@ -38,11 +53,24 @@ const useFlowKeys = ({
   devTools = false,
   optionCount = 0,
   onPickOption = null,
+  model = null,
 }) => {
   useEffect(() => {
     const onKeyDown = (event) => {
-      // 帶修飾鍵的是瀏覽器／作業系統的（上一頁、切桌面…），不要搶
+      const watched = isWatchedKey(event.key);
+      const log = (verdict) => {
+        if (devTools && watched) {
+          console.log(
+            `[misheng 鍵盤] 按下 ${event.key} → ${verdict}` +
+              ` | 目前：model=${model} 可前進=${canAdvance} 選項=${optionCount}` +
+              ` 有上一頁=${canGoBack} 焦點=${describeTarget(document.activeElement)}`
+          );
+        }
+      };
+
+      // 帶修飾鍵的方向鍵是瀏覽器／作業系統的（上一頁、切桌面…），不要搶
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        log('不處理：同時按著 Cmd / Ctrl / Alt / Shift');
         return;
       }
 
@@ -52,41 +80,83 @@ const useFlowKeys = ({
         if (isTypingTarget(document.activeElement)) {
           event.preventDefault();
           document.activeElement.blur();
+          log('放掉輸入框的焦點');
+        } else {
+          log('不處理：焦點本來就不在輸入框裡');
         }
         return;
       }
 
-      if (isTypingTarget(document.activeElement)) return;
-      if (hasOpenDialog()) return;
+      if (isTypingTarget(document.activeElement)) {
+        log('不處理：游標在輸入框裡，這一下是打字（按 Esc 可以放掉焦點）');
+        return;
+      }
+      if (hasOpenDialog()) {
+        log('不處理：畫面上有對話框開著');
+        return;
+      }
 
       // Quiz 的選項按數字。不佔方向鍵，而且「按 1、退回、按 2」是驗分支時
       // 真正在做的事——比用高亮一格一格移過去快。
-      if (devTools && onPickOption && optionCount > 0 && /^[1-9]$/.test(event.key)) {
+      if (/^[1-9]$/.test(event.key)) {
+        if (!devTools) {
+          log('不處理：數字鍵只在 /create 開');
+          return;
+        }
+        if (!onPickOption || optionCount === 0) {
+          log('不處理：這一頁沒有選項（數字鍵只在 Quiz 那一頁作用）');
+          return;
+        }
         const index = Number(event.key) - 1;
-        if (index >= optionCount) return;
+        if (index >= optionCount) {
+          log(`不處理：這一頁只有 ${optionCount} 個選項`);
+          return;
+        }
         event.preventDefault();
+        log(`選第 ${index + 1} 個選項`);
         onPickOption(index);
         return;
       }
 
       if (event.key === 'ArrowDown') {
-        if (!canAdvance) return;
+        if (!canAdvance) {
+          log(`不處理：這一頁不能用鍵盤前進（model=${model}）`);
+          return;
+        }
         event.preventDefault();
+        log('前進到下一列');
         onNext();
         return;
       }
 
       if (event.key === 'ArrowUp') {
         // 回上一頁是開發工具（它不會把狀態倒回來），只在 /create 開
-        if (!devTools || !canGoBack) return;
+        if (!devTools) {
+          log('不處理：回上一頁只在 /create 開');
+          return;
+        }
+        if (!canGoBack) {
+          log('不處理：沒有上一頁了（這一次試玩還沒走過任何一步）');
+          return;
+        }
         event.preventDefault();
+        log('回到上一頁');
         goBack();
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [canAdvance, onNext, goBack, canGoBack, devTools, optionCount, onPickOption]);
+  }, [
+    canAdvance,
+    onNext,
+    goBack,
+    canGoBack,
+    devTools,
+    optionCount,
+    onPickOption,
+    model,
+  ]);
 };
 
 export default useFlowKeys;

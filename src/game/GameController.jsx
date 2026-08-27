@@ -197,6 +197,7 @@ const GameController = ({
     devTools,
     optionCount: quizOptions.length,
     onPickOption: handlePickOption,
+    model: currentRow?.model,
   });
 
   if (!rundownData || !Array.isArray(rundownData)) {

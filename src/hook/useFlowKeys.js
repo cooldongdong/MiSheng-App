@@ -34,6 +34,19 @@ const hasOpenDialog = () =>
 const isWatchedKey = (key) =>
   key === 'ArrowUp' || key === 'ArrowDown' || key === 'Escape' || /^[1-9]$/.test(key);
 
+// 診斷開關。
+//
+// 原本只在 devTools（＝/create）印，結果「連 log 都不出現」自己變成一個謎：那既可能
+// 是鍵盤沒接上，也可能只是這一頁不是 /create——而這兩件事在畫面上長得一模一樣。
+// 所以 ?keylog=1 可以在任何入口強制打開，/demo 也印得出「數字鍵只在 /create 開」。
+const keylogForced = () => {
+  try {
+    return new URLSearchParams(window.location.search).get('keylog') === '1';
+  } catch {
+    return false;
+  }
+};
+
 // 按了沒反應的時候，畫面上看不出是哪一關卡住的：焦點在別的地方？這一頁不能前進？
 // 還是根本沒開？所以每一次「我們想處理的鍵」都在 console 交代自己走到哪、為什麼停。
 // 只在 /create（devTools）印。
@@ -55,11 +68,22 @@ const useFlowKeys = ({
   onPickOption = null,
   model = null,
 }) => {
+  // 掛載時先報一次到。這一行才是真正能結案的證據：印得出來＝鍵盤確實接上了、
+  // 而且看得到這一頁是哪個入口、devTools 是不是真的。印不出來＝這個頁面跑的
+  // 根本不是這份程式碼（舊的 bundle、別的 port、線上版）。
+  useEffect(() => {
+    if (!devTools && !keylogForced()) return;
+    console.log(
+      `[misheng 鍵盤] 已接上 | 入口=${window.location.pathname}` +
+        ` devTools=${devTools}（數字鍵與回上一頁只在 devTools=true 時作用）`
+    );
+  }, [devTools]);
+
   useEffect(() => {
     const onKeyDown = (event) => {
       const watched = isWatchedKey(event.key);
       const log = (verdict) => {
-        if (devTools && watched) {
+        if (watched && (devTools || keylogForced())) {
           console.log(
             `[misheng 鍵盤] 按下 ${event.key} → ${verdict}` +
               ` | 目前：model=${model} 可前進=${canAdvance} 選項=${optionCount}` +

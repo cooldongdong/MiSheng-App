@@ -10,6 +10,7 @@ import CustomValueInputModel from './CustomValueInputModel';
 import ImgModel from './ImgModel';
 import { loadCSVData } from './csvLoader';
 import useNextId from '../hook/useNextId';
+import usePrevId from '../hook/usePrevId';
 import useFlowKeys from '../hook/useFlowKeys';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 
@@ -63,6 +64,7 @@ const GameController = ({
   // 剛剛是用 ← 退回來的嗎——只為了在畫面上講一句「狀態沒跟著倒回來」
   const [wentBack, setWentBack] = useState(false);
   const { getNextId, canProceedToNext } = useNextId(rundownData, currentRow);
+  const { getPrevId, canGoPrev } = usePrevId(rundownData, currentId);
 
   // 讀取該遊戲的資料表
   //
@@ -189,9 +191,20 @@ const GameController = ({
     if (goBack()) setWentBack(true);
   }, [goBack]);
 
+  // ↑ 走圖上的上一步。它也算「走了一步」，所以照樣進歷史——
+  // 這樣 ↑ 過頭之後 Backspace 還回得來。
+  const handlePrev = useCallback(() => {
+    const prevId = getPrevId();
+    if (!prevId) return;
+    setWentBack(true);
+    goToId(prevId);
+  }, [getPrevId, goToId]);
+
   useFlowKeys({
     canAdvance,
     onNext: handleNext,
+    onPrev: handlePrev,
+    canGoPrev: canGoPrev(),
     goBack: handleBack,
     canGoBack,
     devTools,
@@ -227,12 +240,12 @@ const GameController = ({
     : wentBack
       ? '已回退 · 變數與關卡進度不會跟著倒回'
       : quizOptions.length > 0
-        ? '按數字選選項 · ↑ 回上一頁'
+        ? '按數字選選項 · ↑ 上一步'
         : INPUT_MODELS.has(currentRow?.model) && !canAdvance
-          ? 'Esc 離開輸入框 · ↑ 回上一頁'
+          ? 'Esc 離開輸入框 · ↑ 上一步'
           : canAdvance
-            ? '↑↓ 翻頁'
-            : '↑ 回上一頁';
+            ? '↑↓ 走流程 · ⌫ 回剛才那頁'
+            : '↑ 上一步 · ⌫ 回剛才那頁';
 
   // Render content based on the model type
   const renderContent = () => {

@@ -23,19 +23,25 @@ const useAnswerShortcuts = ({ enabled = false, onFill = null, onSkip = null }) =
     if (!enabled) return undefined;
 
     const onKeyDown = (event) => {
+      // 輸入法正在組字時這一下屬於輸入法
+      if (event.isComposing || event.keyCode === 229) return;
+
       // 只認 ⌘（Mac）或 Ctrl（其他），而且不能同時按著 Alt／Shift——
       // 那些組合多半已經是瀏覽器或輸入法的
       const modifier = isMacLike() ? event.metaKey : event.ctrlKey;
       if (!modifier || event.altKey || event.shiftKey) return;
 
-      if (event.key === 'Enter' && onFill) {
+      // 看實體鍵位而不是 event.key，理由同 useFlowKeys：中文輸入法會改寫 key。
+      // 沒有 code 的合成事件退回 key。
+      const code = event.code || event.key;
+      if ((code === 'Enter' || code === 'NumpadEnter') && onFill) {
         event.preventDefault();
         console.log('[misheng 鍵盤] 填入答案並送出');
         onFill();
         return;
       }
 
-      if (event.key === 'ArrowDown' && onSkip) {
+      if (code === 'ArrowDown' && onSkip) {
         event.preventDefault();
         console.log('[misheng 鍵盤] 略過這題');
         onSkip();

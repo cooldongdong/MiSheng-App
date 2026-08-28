@@ -5,6 +5,16 @@ import { Box, Fab, Paper, Slider } from '@mui/material';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 
+// 轉盤跟著 slider 轉，所以**不能給 transform 補間**。
+//
+// 原本兩個會轉的圖層都掛著 transition: transform 0.1s linear。slider 是連續的
+// （0–360，每拖一像素就發一次 onChange），於是每一格都在重啟一次 0.1 秒的補間、
+// 而且永遠在下一格到來前被打斷——圖片從頭到尾在追一個一直跑掉的目標，看起來就是
+// 抽搐（Dong 2026-08-28 回報）。補間要處理的是「值一次跳很遠」，而這裡的值本來就
+// 是連續的，本來就不需要。
+//
+// will-change 是給 drop-shadow 的：帶 filter 的圖層每轉一格都要重算濾鏡，
+// 提升成獨立的合成層之後，旋轉交給合成器，濾鏡不必每格重來。
 const Wheel = ({
   prop,
   elevation = 10,
@@ -212,7 +222,7 @@ const Wheel = ({
                       top: 0,
                       left: 0,
                       transform: `rotate(${angle2}deg)`,
-                      transition: 'transform 0.1s linear',
+                      willChange: 'transform',
                       objectFit: 'scale-down',
                       filter: 'drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))',
                     }}
@@ -231,7 +241,7 @@ const Wheel = ({
                     top: 0,
                     left: 0,
                     transform: `rotate(${angle}deg)`,
-                    transition: 'transform 0.1s linear',
+                    willChange: 'transform',
                     objectFit: 'scale-down',
                     filter: 'drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))',
                   }}

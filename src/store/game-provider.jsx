@@ -84,6 +84,29 @@ export const GameProvider = ({
 
   const [playerMissionData, setPlayerMissionData] = useState([]);
   const [currentId, setCurrentId] = useState(null);
+  // 走過的路：每次前進／跳關就把「離開的那一列」推進來，← 後退時沿著它退回去。
+  //
+  // 為什麼不是「物理上一列」：流程一有分支，rundown 的上一列就跟你剛才在的那一頁
+  // 沒有關係了——Quiz 的選項是獨立的 row，nextId 跳轉之後的上一列是另一條支線的
+  // 尾巴。真正想要的是「回到剛才那一頁」，那只有走過的路徑記得。
+  //
+  // 不寫進 localStorage：這是這一次試玩的導覽軌跡，重整就該消失，
+  // 跟「玩到哪」（currentId）不是同一種東西。
+  const [history, setHistory] = useState([]);
+
+  // 鍵盤的兩種導覽（Dong 2026-08-27）：
+  //   false ＝ 流程模式，↑↓ 沿著流程的邊走（誰指向誰）
+  //   true  ＝ 地圖模式，↑↓←→ 照流程圖上的位置走，而且**方向鍵的優先權高於一切**
+  //            ——Quiz、輸入框都攔不住它。是一個「方向鍵屬於圖」的模式，不是
+  //            「有時候這樣有時候那樣」，所以不會有現在到底在哪一種的困惑。
+  const [mapMode, setMapMode] = useState(false);
+
+  // (id, 'up'|'down'|'left'|'right') => id｜null。由流程圖那邊塞進來——座標是圖才有的
+  // 概念，而且節點集合要跟畫面上看到的一致（摺疊是 FlowMap 的內部狀態）。
+  // 沒有圖的時候（/demo）它是 null，地圖模式自然就不存在。
+  const [spatialNav, setSpatialNavRaw] = useState(null);
+  // useState 存「函式」一定要包一層：直接傳函式會被當成 updater 呼叫掉
+  const setSpatialNav = useCallback((fn) => setSpatialNavRaw(() => fn ?? null), []);
   const [currentMissionId, setCurrentMissionId] = useState('0');
   const [unlockedHints, setUnlockedHints] = useState({});
   const [customPairs, setCustomPairs] = useState({});
@@ -125,6 +148,8 @@ export const GameProvider = ({
     if (!firstRow) return;
     if (currentId && rundownData.some((row) => row?.id === currentId)) return;
     if (currentId) onPositionLostRef.current?.();
+    // 資料換過了，舊的軌跡指向的那些 id 可能都不存在了，整條丟掉
+    setHistory([]);
     setCurrentId(firstRow.id);
   }, [rundownData, currentId]);
 
@@ -162,6 +187,43 @@ export const GameProvider = ({
       JSON.stringify(customPairs)
     );
   }, [customPairs]);
+
+  // 前進／跳關一律走這裡，才記得下走過的路。
+  // 直接 setCurrentId 的地方只剩「設起點」——那一列本來就不該進歷史。
+  const goToId = useCallback(
+    (id) => {
+      if (id === null || id === undefined || id === currentId) return;
+      if (currentId !== null && currentId !== undefined) {
+        setHistory((h) => [...h, currentId]);
+      }
+      setCurrentId(id);
+    },
+    [currentId]
+  );
+
+  // 回到剛才那一頁。
+  //
+  // 沿路的狀態（{{變數}}、關卡進度、解鎖的提示）**不會**跟著倒回來——那需要一整套
+  // 快照堆疊，成本高一個量級。這裡的定位是給創作者驗流程用的導覽鍵，不是玩家的
+  // 「上一頁」，所以與流程圖的「點方塊跳關」接受同一個限制。
+  //
+  // 退的目標可能在換資料後已經不存在（id 被改掉或刪掉），所以是一路 pop
+  // 到找得到的那一列為止，而不是退一格就算數。
+  const goBack = useCallback(() => {
+    const rows = Array.isArray(rundownData) ? rundownData : [];
+    let stack = history;
+    while (stack.length > 0) {
+      const prev = stack[stack.length - 1];
+      stack = stack.slice(0, -1);
+      if (rows.some((row) => row?.id === prev)) {
+        setHistory(stack);
+        setCurrentId(prev);
+        return true;
+      }
+    }
+    setHistory([]);
+    return false;
+  }, [history, rundownData]);
 
   const clearGameData = (gameId) => {
     if (!gameId) {
@@ -250,6 +312,13 @@ export const GameProvider = ({
         setLoadedVersion,
         currentId,
         setCurrentId,
+        goToId,
+        goBack,
+        canGoBack: history.length > 0,
+        mapMode,
+        setMapMode,
+        spatialNav,
+        setSpatialNav,
         currentMissionId,
         setCurrentMissionId,
         unlockedHints,

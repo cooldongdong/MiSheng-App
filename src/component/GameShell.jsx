@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Box, Container } from '@mui/material';
+import { Box, Container, Stack } from '@mui/material';
+import RestartButton from './common/RestartButton';
 import { GameProvider } from '../store/game-provider';
 import FixedBottomNavigation from './BottomNavigation';
 import MissionPage from './page/MissionPage';
@@ -26,6 +27,8 @@ const GameShell = ({
   imgMap = null,
   dataVersion = 0,
   onPositionLost = null,
+  devTools = false,
+  headerActions = null,
   leftPanel = null,
   sidePanel = null,
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
@@ -113,7 +116,13 @@ const GameShell = ({
       case 1:
         return <PropPage />;
       case 2:
-        return <GameController {...gameData} dataVersion={dataVersion} />;
+        return (
+          <GameController
+            {...gameData}
+            dataVersion={dataVersion}
+            devTools={devTools}
+          />
+        );
       case 3:
         return <HintPage />;
       case 4:
@@ -199,6 +208,29 @@ const GameShell = ({
             </Box>
           </Box>
 
+          {/* 右上角那組控制項。掛在這裡（Provider 內）而不是 App.jsx，是因為重啟鈕
+              要拿 gameId 與 clearGameData；順帶讓外觀開關跟它排在一起，不必各自
+              算座標。/create 不給——那邊右上角已經有面板按鈕，而且重啟鈕在
+              previewMode 下只會把試算表一起丟掉。 */}
+          {!devTools && (
+            <Stack
+              direction="row"
+              spacing={0.5}
+              alignItems="center"
+              sx={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                zIndex: 1200,
+                borderRadius: 2,
+                bgcolor: 'background.overlay',
+              }}
+            >
+              <RestartButton />
+              {headerActions}
+            </Stack>
+          )}
+
           <Box
             id="TabBar"
             sx={{
@@ -238,6 +270,8 @@ GameShell.propTypes = {
   imgMap: PropTypes.instanceOf(Map),
   dataVersion: PropTypes.number,
   onPositionLost: PropTypes.func,
+  devTools: PropTypes.bool,
+  headerActions: PropTypes.node,
   leftPanel: PropTypes.node,
   sidePanel: PropTypes.node,
   sideFlex: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),

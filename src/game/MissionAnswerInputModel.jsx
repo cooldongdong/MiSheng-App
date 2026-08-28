@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { GameContext } from '../store/game-context';
 import { Typography } from '@mui/material';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
@@ -10,10 +10,12 @@ import BottomBox from '../component/common/BottomBox';
 import NextButton from '../component/common/NextButton';
 import AnswerInputForm from '../component/common/AnswerInputForm';
 import ConfirmDialog from '../component/common/ConfirmDialog';
+import AuthoringShortcuts from '../component/common/AuthoringShortcuts';
+import useAnswerShortcuts from '../hook/useAnswerShortcuts';
 import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import PropTypes from 'prop-types';
 
-const MissionAnswerInputModel = ({ onNext, canProceed }) => {
+const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
   const {
     getImg,
     currentMissionId,
@@ -23,6 +25,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
   } = useContext(GameContext);
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
+  const answerRef = useRef(null);
   const [confirmGiveUpText, setConfirmGiveUpText] = useState('確定要放棄嗎？');
   const [isAnswerCorrect, setIsAnswerCorrect] = useState(false); // 用於控制按鈕顯示
   const [isGiveUp, setIsGiveUp] = useState(false);
@@ -79,13 +82,15 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
   // 比對答案前的標準化函式： 全形轉半形 & 去除空白 & 大寫變小寫
   const normalize = (str) => toHalfWidth(str).replace(/\s+/g, '').toLowerCase();
 
-  const handleAnswerSubmit = () => {
+  // 吃參數而不是直接讀 userAnswer state：「自動作答」要在同一個 tick 裡填好又送出，
+  // 而 setUserAnswer 要等下一次 render 才生效，讀 state 會拿到上一輪的空字串。
+  const submitAnswer = (value) => {
     const isCorrect = answerArray.some(
-      (answer) => normalize(answer) === normalize(userAnswer)
+      (answer) => normalize(answer) === normalize(value)
     );
 
     const similarKey = Object.keys(similarAnswers).find(
-      (simiAnswer) => normalize(simiAnswer) === normalize(userAnswer)
+      (simiAnswer) => normalize(simiAnswer) === normalize(value)
     );
 
     if (isCorrect) {
@@ -96,7 +101,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
     } else if (similarKey) {
       setFeedback(similarAnswers[similarKey]);
       setOpenDialog(true);
-    } else if (userAnswer.trim() === '我放棄了') {
+    } else if (value.trim() === '我放棄了') {
       currentMission.confirmGiveUpText &&
         setConfirmGiveUpText(currentMission.confirmGiveUpText);
       setOpenConfirmDialog(true); // 顯示確認放棄的對話框
@@ -110,6 +115,18 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
     }
     setUserAnswer(''); // 清空輸入框內容
   };
+
+  const handleAnswerSubmit = () => submitAnswer(userAnswer);
+
+  // 滑鼠點按鈕與按 ⌘Enter 走的是同一個函式——按鈕上標著那個鍵位，
+  // 兩者行為不一樣的話那個標示就是在說謊。
+  const autoAnswer = () => submitAnswer(answerArray[0]);
+
+  useAnswerShortcuts({
+    enabled: devTools && !isAnswerCorrect,
+    onFill: answerArray[0] ? autoAnswer : null,
+    onSkip: canProceed ? onNext : null,
+  });
 
   const confirmGiveUp = () => {
     updateMissionStatus(currentMission.id, 'complete');
@@ -150,13 +167,23 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
           <MissionSubtitleText subtitle={currentMission.subtitle} />
           <MissionTitleText title={currentMission.title} />
           {!isAnswerCorrect ? (
-            <AnswerInputForm
-              value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
-              onClick={handleAnswerSubmit}
-              disabled={isAnswerCorrect}
-              giveupCountdown={giveupCountdown}
-            />
+            <>
+              <AnswerInputForm
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                onClick={handleAnswerSubmit}
+                disabled={isAnswerCorrect}
+                giveupCountdown={giveupCountdown}
+                inputRef={answerRef}
+              />
+              {devTools && (
+                <AuthoringShortcuts
+                  onFill={answerArray[0] ? autoAnswer : null}
+                  fillLabel="自動作答"
+                  onSkip={canProceed ? onNext : null}
+                />
+              )}
+            </>
           ) : (
             canProceed && <NextButton onClick={onNext}>Next</NextButton>
           )}
@@ -175,6 +202,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
             open={openConfirmDialog}
             onClose={handleCloseDialog}
             onConfirm={confirmGiveUp}
+            confirmOnEnter
             confirmText={confirmGiveUpText}
           />
         </BottomBox>
@@ -187,6 +215,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed }) => {
 MissionAnswerInputModel.propTypes = {
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
+  devTools: PropTypes.bool,
 };
 
 export default MissionAnswerInputModel;

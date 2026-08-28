@@ -10,6 +10,7 @@ import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import MyLocationRoundedIcon from '@mui/icons-material/MyLocationRounded';
 import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
 import UnfoldLessRoundedIcon from '@mui/icons-material/UnfoldLessRounded';
+import OpenWithRoundedIcon from '@mui/icons-material/OpenWithRounded';
 import { buildFlowGraph } from './flowGraph';
 import {
   layoutFlow,
@@ -37,6 +38,9 @@ const FlowMap = ({
   dense = false,
   missionTitles = null,
   toolbarActions = null,
+  onGraphReady = null,
+  mapMode = false,
+  onToggleMapMode = null,
 }) => {
   // 預設展開全部列：Dong 的使用習慣是先看到全貌，再自己決定要不要摺疊
   // 節點色、連線色、畫布底都從 theme 拿——深色模式換的是 theme，不是這支元件。
@@ -88,6 +92,12 @@ const FlowMap = ({
     [rundownRows, collapse],
   );
   const view = useMemo(() => layoutFlow(graph), [graph]);
+
+  // 把節點（含 depth／col）交給外面，讓鍵盤也能照圖上的位置走。
+  // 報的是 graph 而不是 view：座標是 depth／col 的線性函數，算方向不需要像素。
+  useEffect(() => {
+    onGraphReady?.(graph);
+  }, [graph, onGraphReady]);
 
   // 預設視角：用看得清楚字的比例，而不是把整張圖硬縮到看得完
   //（六千像素長的流程整張塞進畫面＝每個字都糊掉，「縮到看得完」留給按鈕）
@@ -501,6 +511,22 @@ const FlowMap = ({
               )}
             </IconButton>
           </Tooltip>
+          {onToggleMapMode && (
+            <Tooltip
+              title={
+                mapMode
+                  ? '方向鍵：照圖上的位置走（點一下改回照流程走）'
+                  : '方向鍵：照流程走（點一下改成照圖上的位置走）'
+              }
+            >
+              <IconButton size="small" onClick={onToggleMapMode}>
+                <OpenWithRoundedIcon
+                  fontSize="small"
+                  color={mapMode ? 'secondary' : 'inherit'}
+                />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title={showLegend ? '隱藏圖例' : '顯示圖例'}>
             <IconButton size="small" onClick={() => setShowLegend((v) => !v)}>
               <InfoOutlinedIcon
@@ -577,6 +603,9 @@ FlowMap.propTypes = {
   dense: PropTypes.bool,
   missionTitles: PropTypes.object,
   toolbarActions: PropTypes.node,
+  onGraphReady: PropTypes.func,
+  mapMode: PropTypes.bool,
+  onToggleMapMode: PropTypes.func,
 };
 
 export default FlowMap;

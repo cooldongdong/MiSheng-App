@@ -315,15 +315,30 @@ export const nodeTitle = (n) =>
     11
   );
 
-// MissionStart 這種「章節起點」列本身沒有對白，顯示關卡名稱才有意義
-export const nodeSubtitle = (n, missionTitles = null) => {
-  const missionName =
-    n.model === 'MissionStart' && missionTitles?.[n.missionId]
-      ? missionTitles[n.missionId]
-      : null;
-  const body =
+// 一個節點該用什麼字來認人。
+//
+// 排序是「有自己的話就講自己的，沒有就借關卡名，再沒有才報列號」：
+//   1. MissionStart ＝ 章節起點，一律顯示關卡名（就算那一列自己有字）——它在圖上的
+//      工作是當章節書籤，講對白反而認不出章節
+//   2. 有對白的列講對白
+//   3. **沒有對白的列借關卡名**。MissionAnswerInput 就是這一種（Dong 2026-08-28 回報）：
+//      作答頁沒有 text，照舊邏輯只剩「第 287 列」，而列號是這張圖上最不需要再講一次的
+//      東西——右上角已經印著 id 了
+//   4. 真的什麼都沒有才報列號
+//
+// 抽成獨立函式是因為大綱／搜尋那邊本來自己寫了一份，而且寫得不一樣（它讓關卡名蓋過
+// 對白，於是搜對白搜出來一整排關卡名）。同一個問題只能有一個答案。
+export const nodeBodyText = (n, missionTitles = null) => {
+  const missionName = missionTitles?.[n.missionId] || null;
+  const own = n.text ? (n.speaker ? `${n.speaker}：` : '') + n.text : '';
+  return (
+    (n.model === 'MissionStart' ? missionName : null) ||
+    own ||
     missionName ||
-    (n.speaker ? `${n.speaker}：` : '') + (n.text || `第 ${n.id} 列`);
-  return fitText(body, NODE_W - 32, 12.5);
+    `第 ${n.id} 列`
+  );
 };
+
+export const nodeSubtitle = (n, missionTitles = null) =>
+  fitText(nodeBodyText(n, missionTitles), NODE_W - 32, 12.5);
 

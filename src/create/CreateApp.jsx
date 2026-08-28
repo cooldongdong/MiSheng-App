@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
 import GameShell from '../component/GameShell';
 import { loadGameFromSheet, parseSpreadsheetId } from '../game/sheetLoader';
 import { validateGame } from '../validator/validateGame';
@@ -25,7 +26,13 @@ import SourcePicker from './SourcePicker';
 import LoadingScreen from './LoadingScreen';
 import ExportPackButton from './ExportPackButton';
 import { readRecentSheets, rememberSheet, forgetSheet } from './recentSheets';
-import { readSheetFromHash, writeSheetToHash, clearSheetHash } from './sheetHash';
+import {
+  readSheetFromHash,
+  readPlayFromHash,
+  buildPlayLink,
+  writeSheetToHash,
+  clearSheetHash,
+} from './sheetHash';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 import ColorSchemeToggle from '../component/ColorSchemeToggle';
@@ -61,16 +68,21 @@ const isNarrowViewport = () => {
 
 const readHashIntent = () => {
   const id = parseSpreadsheetId(readSheetFromHash());
-  if (!id) return { autoload: '', pending: '' };
-  // 在最近使用清單裡＝自己的書籤，直接載入；不認得＝別人傳來的，先問一聲
+  const play = readPlayFromHash();
+  if (!id) return { autoload: '', pending: '', play: false };
+  // 在最近使用清單裡＝自己的書籤，直接載入；不認得＝別人傳來的，先問一聲。
+  // 試玩連結也照這條規則走——「連結即動作」的顧慮不會因為它自稱是遊戲就消失，
+  // 而惡意連結一樣寫得出 mode=play。
   return readRecentSheets().some((it) => it.id === id)
-    ? { autoload: id, pending: '' }
-    : { autoload: '', pending: id };
+    ? { autoload: id, pending: '', play }
+    : { autoload: '', pending: id, play };
 };
 
 const CreateApp = () => {
   // useState 的 lazy initializer：只在掛載時算一次
   const [hashIntent] = useState(readHashIntent);
+  // 這一次是「被分享試玩」還是「自己在做」——由進來的網址決定，整個 session 不變
+  const playMode = hashIntent.play;
   const [status, setStatus] = useState(hashIntent.autoload ? 'loading' : 'idle'); // idle | loading | checked | playing
   const [error, setError] = useState('');
   const [issues, setIssues] = useState([]);
@@ -191,6 +203,20 @@ const CreateApp = () => {
     // 如果 warn 也擋，幾乎每次都會被擋住，等於沒改。
     // 提醒不會因此消失：左欄有 chip 與報告，而且報告在有 error 時會自己展開。
     const blocked = found.some((it) => it.level === 'error');
+
+    // 被分享來試玩的人不該看到檢查頁——那是工具的畫面，而且會把答案攤開。
+    // 真的過不了就只講一句話，細節留給作者自己開 /create 看。
+    if (playMode) {
+      if (blocked) {
+        setGameData(null);
+        setError('這份遊戲目前還不能玩，請通知作者。');
+        setStatus('idle');
+      } else {
+        setStatus('playing');
+      }
+      return;
+    }
+
     setStatus(keepPlaying || !blocked ? 'playing' : 'checked');
   };
 
@@ -212,6 +238,19 @@ const CreateApp = () => {
 
   const handleSheet = async (url) => {
     const keepPlaying = status === 'playing';
+
+    // 連不像試算表網址的東西，**連讀取畫面都不要進**（Dong 2026-08-28 回報）。
+    //
+    // 這件事本來就不必等網路才知道答案——parseSpreadsheetId 是同步的純字串判斷。
+    // 但原本的順序是先 beginLoad 再丟進 loadGameFromSheet，於是貼一個明顯不是試算表
+    // 的連結，畫面照樣整個換成「正在讀取試算表」、遮罩蓋上、再淡出退回來。
+    // 使用者看到的是「它去試了、然後不知道發生什麼事」，而正確的回饋是
+    // 「這串東西我一眼就知道不對」——後者要當場、在原地、不換頁。
+    if (!parseSpreadsheetId(url)) {
+      setError('這不像 Google 試算表的連結，請貼上試算表網址');
+      return;
+    }
+
     beginLoad(keepPlaying, ' Google 試算表');
     try {
       const { csvFiles, tables, spreadsheetId } = await loadGameFromSheet(url);
@@ -222,9 +261,13 @@ const CreateApp = () => {
       setSource('Google 試算表');
       // 只在讀成功後才記——記下讀不到的連結只會讓清單變成一排地雷。
       // 用遊戲名稱當標籤（gviz 拿不到試算表檔名，見 recentSheets.js）
-      setRecent(rememberSheet(spreadsheetId, tables.config?.rows?.[0]?.title));
-      // 網址列隨時反映當下這一份，使用者要分享直接複製就好
-      writeSheetToHash(spreadsheetId);
+      // 被分享來試玩的人不記、也不改寫他的網址：那份試算表不是他的東西，
+      // 塞進他的「最近使用」只是把別人的檔案掛在他的工具列上
+      if (!playMode) {
+        setRecent(rememberSheet(spreadsheetId, tables.config?.rows?.[0]?.title));
+        // 網址列隨時反映當下這一份，使用者要分享直接複製就好
+        writeSheetToHash(spreadsheetId);
+      }
       runChecks(tables, csvFiles, imgMap, keepPlaying);
     } catch (err) {
       failLoad(keepPlaying, err, '匯入失敗');
@@ -323,12 +366,56 @@ const CreateApp = () => {
 
   const hasError = issues.some((it) => it.level === 'error');
 
+  // 「複製試玩連結」：把同一份試算表包成一條只會進遊戲的網址。
+  // 只有走試算表這條路才有——本機資料夾的資料在對方電腦上不存在，給不了連結。
+  const shareId = parseSpreadsheetId(sheetUrl);
+  const playLinkEl = shareId ? (
+    <Button
+      fullWidth
+      size="small"
+      variant="outlined"
+      startIcon={<LinkRoundedIcon />}
+      onClick={async () => {
+        const link = buildPlayLink(shareId);
+        try {
+          await navigator.clipboard.writeText(link);
+          setNotice('試玩連結已複製');
+        } catch {
+          // 沒有剪貼簿權限（http 或使用者拒絕）就把網址attach在提示裡讓他自己選取
+          setNotice(`試玩連結：${link}`);
+        }
+      }}
+    >
+      複製試玩連結
+    </Button>
+  ) : null;
+
   // ---- 試玩中：三欄 ----
   // 三個畫面分支都要蓋同一塊遮罩——它跨越的正是分支切換的那一刻
   const veilEl =
     veil === 'off' ? null : (
       <LoadingScreen label={loadingLabel} fadingOut={veil === 'fading'} />
     );
+
+  // 被分享來試玩的：只給遊戲本身。沒有流程圖、沒有驗證報告、沒有匯出鈕，
+  // 也沒有 devTools（於是數字鍵、自動作答、鍵盤提示列一併不存在）。
+  if (playMode && status === 'playing' && gameData) {
+    return (
+      <>
+        <GameShell
+          gameData={gameData}
+          previewMode
+          imgMap={imgMap}
+          dataVersion={dataVersion}
+          // 深色開關要給——這一頁對收到連結的人來說就是「遊戲」，而 /demo 的遊戲
+          // 一直都有這顆。/create 自己那顆長在工具的殼上，而試玩模式沒有那個殼。
+          // （重啟鈕不會跟著出現：它需要 gameId，而試算表這條路沒有遊戲資料夾。）
+          headerActions={<ColorSchemeToggle />}
+        />
+        {veilEl}
+      </>
+    );
+  }
 
   if (status === 'playing' && gameData) {
     // 窄螢幕上三欄擺不下（375px 的手機扣掉 268 的左欄只剩 100px 給遊戲），
@@ -356,9 +443,19 @@ const CreateApp = () => {
         reloading={reloading}
         error={error}
         exportSlot={
-          canExport ? (
-            <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
-          ) : null
+          <Stack spacing={1}>
+            {playLinkEl}
+            {/* 這句話每一次都成立，所以它不該住在六秒後就消失的通知裡。
+                常駐在按鈕底下，才擋得住「以為它是保密的」。 */}
+            {playLinkEl && (
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                收到的人只會看到遊戲。但試算表本身仍是公開的，別當成保密。
+              </Typography>
+            )}
+            {canExport ? (
+              <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
+            ) : null}
+          </Stack>
         }
       />
     );
@@ -468,7 +565,21 @@ const CreateApp = () => {
           onClose={() => setNotice('')}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert severity="info" variant="filled" onClose={() => setNotice('')}>
+          {/* 全 app 只有這一顆曾經是 severity="info" ＋ variant="filled"，於是它吃到
+              MUI 預設的亮藍——正是 theme.js 當初特地換掉的那個色（「去掉亮藍紫的
+              AI 味」）。theme 沒有定義 palette.info，所以它不會被收編，只能在這裡指定。
+              改用 primary：淺色是藍灰墨配白字、深色翻成近白配深字，兩邊都跟其他畫面
+              同一種語言。ⓘ 圖示也拿掉——那個符號讓一句「複製好了」看起來像系統警告。 */}
+          <Alert
+            icon={false}
+            variant="filled"
+            onClose={() => setNotice('')}
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              '& .MuiAlert-action': { color: 'inherit' },
+            }}
+          >
             {notice}
           </Alert>
         </Snackbar>
@@ -567,6 +678,7 @@ const CreateApp = () => {
       recent={recent}
       onForget={(id) => setRecent(forgetSheet(id))}
       pendingSheet={pendingSheet}
+      playMode={playMode}
       onAcceptPending={() => {
         const id = pendingSheet;
         setPendingSheet('');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { GameContext } from './game-context';
 import { resolveExternalImg } from '../game/imgUrl';
@@ -190,11 +190,29 @@ export const GameProvider = ({
 
   // 前進／跳關一律走這裡，才記得下走過的路。
   // 直接 setCurrentId 的地方只剩「設起點」——那一列本來就不該進歷史。
+  //
+  // **走過的路是一條不重複的路徑，不是一步不漏的流水帳**（Dong 2026-08-28 回報）。
+  // 回到一個路徑上已經有的列，就把路徑砍回那一次，而不是再往後接一段。
+  //
+  // 為什麼：demo 裡 a 有分支 b、d 走完會跳回 a，玩家在 a→b→d→a 之間繞三圈，流水帳
+  // 版本就記下六格，往回滑要沿著那個圈退六次才出得來——而他要的是「a 之前那一頁」。
+  // 瀏覽器的上一頁確實是流水帳（a→d→a→d 按返回就是來回），但這裡不是瀏覽器：
+  // 「回上一頁」在故事裡的意思是回到剛才讀的，而繞回主線是玩家自己走出來的，
+  // 他要的是離開不是重看。
+  //
+  // 代價講清楚：從支線走回主線之後，就**退不回那條支線**了（路徑上它已經被砍掉）。
+  // 取捨的理由是不對稱——繞圈退不出去是每一次繞圈都會踩到的，而「想倒退回剛走完的
+  // 支線」是罕見的，而且那條支線本來就還在流程上，往前走就會再遇到。
   const goToId = useCallback(
     (id) => {
       if (id === null || id === undefined || id === currentId) return;
       if (currentId !== null && currentId !== undefined) {
-        setHistory((h) => [...h, currentId]);
+        setHistory((h) => {
+          const seen = h.indexOf(id);
+          // 繞回來了：把路徑砍回上次經過它的那一刻（那一格就是現在這一頁，不必留）
+          if (seen >= 0) return h.slice(0, seen);
+          return [...h, currentId];
+        });
       }
       setCurrentId(id);
     },
@@ -223,6 +241,19 @@ export const GameProvider = ({
     }
     setHistory([]);
     return false;
+  }, [history, rundownData]);
+
+  // 「現在退回去會落在哪一列」——跟 goBack 同一條規則（一路 pop 到還存在的那一列）。
+  //
+  // 抽出來是為了上下滑的預覽（上下滑翻頁）：往下拉時露出的那張卡片必須真的是待會會去的
+  // 那一頁。自己在外面重算一次「history 的最後一個」會在資料換過之後說謊——那一列可能
+  // 已經不存在了，goBack 會再往前跳，於是預覽的跟實際去的不是同一頁。
+  const backId = useMemo(() => {
+    const rows = Array.isArray(rundownData) ? rundownData : [];
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      if (rows.some((row) => row?.id === history[i])) return history[i];
+    }
+    return null;
   }, [history, rundownData]);
 
   const clearGameData = (gameId) => {
@@ -315,6 +346,7 @@ export const GameProvider = ({
         goToId,
         goBack,
         canGoBack: history.length > 0,
+        backId,
         mapMode,
         setMapMode,
         spatialNav,

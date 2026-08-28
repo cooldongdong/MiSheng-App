@@ -15,7 +15,12 @@ import useAnswerShortcuts from '../hook/useAnswerShortcuts';
 import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import PropTypes from 'prop-types';
 
-const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
+const MissionAnswerInputModel = ({
+  onNext,
+  canProceed,
+  devTools = false,
+  hideContent = false,
+}) => {
   const {
     getImg,
     currentMissionId,
@@ -120,7 +125,15 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
 
   // 滑鼠點按鈕與按 ⌘Enter 走的是同一個函式——按鈕上標著那個鍵位，
   // 兩者行為不一樣的話那個標示就是在說謊。
-  const autoAnswer = () => submitAnswer(answerArray[0]);
+  //
+  // **只填進去，不送出**（Dong 2026-08-28 回報）。原本直接呼叫 submitAnswer，於是
+  // 按一下就整關過了——你看不到答案長什麼樣，也**跳過了送出這條路本身**，而送出
+  // 正是作答頁最需要被驗的地方。想要「不作答直接往下」已經有旁邊那顆「略過」了，
+  // 兩顆按鈕各做一件事才分得清楚。
+  // **只填，連游標都不放進去。** 一度加了 focus()，讓桌機可以填完直接按 Enter——
+  // 但那在手機上就是把鍵盤整個叫出來，跟剛拿掉的 autoFocus 是同一件事
+  // （Dong 2026-08-28）。送出鈕就在旁邊，為了省桌機一次點擊而嚇到手機使用者不划算。
+  const autoAnswer = () => setUserAnswer(answerArray[0]);
 
   useAnswerShortcuts({
     enabled: devTools && !isAnswerCorrect,
@@ -161,8 +174,9 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
         </Layer>
       )}
 
-      {/* AnswerInput */}
-      <Layer>
+      {/* AnswerInput。hideContent 見 TalkModel 檔頭 */}
+      {!hideContent && (
+        <Layer>
         <BottomBox>
           <MissionSubtitleText subtitle={currentMission.subtitle} />
           <MissionTitleText title={currentMission.title} />
@@ -207,6 +221,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
           />
         </BottomBox>
       </Layer>
+      )}
     </ThemeColorLayer>
   );
 };
@@ -216,6 +231,7 @@ MissionAnswerInputModel.propTypes = {
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
   devTools: PropTypes.bool,
+  hideContent: PropTypes.bool,
 };
 
 export default MissionAnswerInputModel;

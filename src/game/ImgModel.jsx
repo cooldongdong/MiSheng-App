@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 import ZoomableImage from '../component/common/ZoomableImage';
 import NextButton from '../component/common/NextButton';
 
-const Img = ({ currentRow, onNext, canProceed }) => {
+const Img = ({ currentRow, onNext, canProceed, hideContent = false }) => {
   const [fullScreenIndex, setFullScreenIndex] = useState(null);
   const { getImg } = useContext(GameContext);
 
@@ -25,7 +25,9 @@ const Img = ({ currentRow, onNext, canProceed }) => {
         alignItems: 'center',
       }}
     >
-      {currentRow?.backgroundImg && (
+      {/* hideContent 見 TalkModel 檔頭。這一種沒有底圖層，圖本身就是謎面，
+          所以預覽時整個留白——那也正好跟真正那一頁的底是同一個顏色 */}
+      {!hideContent && currentRow?.backgroundImg && (
         <ZoomableImage
           src={getImg(currentRow.backgroundImg)}
           alt={`${currentRow.backgroundImg}`}
@@ -39,7 +41,7 @@ const Img = ({ currentRow, onNext, canProceed }) => {
         />
       )}
 
-      {canProceed && (
+      {!hideContent && canProceed && (
         <NextButton onClick={onNext} disabled={!canProceed}>
           Next
         </NextButton>
@@ -50,6 +52,7 @@ const Img = ({ currentRow, onNext, canProceed }) => {
 
 // 定義 propTypes
 Img.propTypes = {
+  hideContent: PropTypes.bool,
   currentRow: PropTypes.object.isRequired,
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,

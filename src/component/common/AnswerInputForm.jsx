@@ -53,9 +53,10 @@ const AnswerInputForm = ({
         id="mission-answer"
         type="text"
         inputRef={inputRef}
-        // 進到作答頁游標就在框裡，打完 Enter 送出——不用先摸一次滑鼠。
-        // 代價是這一頁的方向鍵會變成移動游標，所以 useFlowKeys 提供 Esc 當出口。
-        autoFocus
+        // 不 autoFocus（Dong 2026-08-28）。原本是為了「進到作答頁就能直接打字」，
+        // 但它在手機上會立刻叫出鍵盤蓋掉半個畫面——玩家還沒讀完題目就被推到打字的
+        // 姿勢，而且上下滑翻頁也會因為游標在框裡而被讓掉。想打字的人自己點一下就好，
+        // 不想打字的人不必先把鍵盤收掉。
         onKeyDown={handleKeyDown}
         // filled 變體自帶一條底線。這裡已經把它改成白底圓角的樣子，那條線就變成
         // 圓角框下面多出來的一槓——關掉才是完整的那個造型。

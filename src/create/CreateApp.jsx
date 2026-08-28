@@ -379,7 +379,10 @@ const CreateApp = () => {
         const link = buildPlayLink(shareId);
         try {
           await navigator.clipboard.writeText(link);
-          setNotice('試玩連結已複製。收到的人只會看到遊戲，不會看到流程圖與檢查報告。');
+          setNotice(
+            '試玩連結已複製。收到的人只會看到遊戲，不會看到流程圖與檢查報告——' +
+              '但試算表本身仍然是公開的，別把它當成保密。'
+          );
         } catch {
           // 沒有剪貼簿權限（http 或使用者拒絕）就把網址attach在提示裡讓他自己選取
           setNotice(`試玩連結：${link}`);

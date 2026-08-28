@@ -212,6 +212,19 @@ const CreateApp = () => {
 
   const handleSheet = async (url) => {
     const keepPlaying = status === 'playing';
+
+    // 連不像試算表網址的東西，**連讀取畫面都不要進**（Dong 2026-08-28 回報）。
+    //
+    // 這件事本來就不必等網路才知道答案——parseSpreadsheetId 是同步的純字串判斷。
+    // 但原本的順序是先 beginLoad 再丟進 loadGameFromSheet，於是貼一個明顯不是試算表
+    // 的連結，畫面照樣整個換成「正在讀取試算表」、遮罩蓋上、再淡出退回來。
+    // 使用者看到的是「它去試了、然後不知道發生什麼事」，而正確的回饋是
+    // 「這串東西我一眼就知道不對」——後者要當場、在原地、不換頁。
+    if (!parseSpreadsheetId(url)) {
+      setError('這不像 Google 試算表的連結，請貼上試算表網址');
+      return;
+    }
+
     beginLoad(keepPlaying, ' Google 試算表');
     try {
       const { csvFiles, tables, spreadsheetId } = await loadGameFromSheet(url);

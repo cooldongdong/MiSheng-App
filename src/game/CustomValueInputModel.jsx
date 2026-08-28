@@ -35,14 +35,12 @@ const CustomValueInputModel = ({
   const [feedback, setFeedback] = useState('');
   const answerRef = useRef(null);
 
-  // 填入測試值並送出（跟手動打完按 Enter 是同一條路）。
-  // 這一頁沒有「正確答案」，填的是測試值——重點是讓 {{變數}} 有東西，
-  // 後面引用到它的對白才驗得出來；略過就沒有這個效果。
-  // 直接把值帶進 submit，不經過 state：setUserAnswer 要到下一次 render 才生效，
-  // 中間那個確認框拿掉之後，讀 state 會讀到上一輪的空字串。
+  // 填入測試值，**不送出**——跟作答頁的「自動作答」同一個意思，兩顆按鈕的行為要一致。
+  // 這一頁沒有「正確答案」，填的是測試值：重點是讓 {{變數}} 有東西，後面引用到它的
+  // 對白才驗得出來；略過就沒有這個效果。填完把游標放進去，按 Enter 就送得出去。
   const autoFillValue = () => {
     setUserAnswer('測試');
-    submit('測試');
+    answerRef.current?.focus();
   };
   const [isSubmit, setIsSubmit] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);

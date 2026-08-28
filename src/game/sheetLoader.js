@@ -30,8 +30,30 @@ const gvizUrl = (id, sheetName) =>
     sheetName
   )}`;
 
+// 每一支抓取都要有逾時。
+//
+// 七個分頁是 Promise.all 併發的，只要其中一支永遠不落地，整個 await 就永遠不回來——
+// 而「正在讀取試算表」那個畫面**沒有取消鈕、也沒有時間上限**，於是使用者就真的卡在
+// 那裡，除了重新整理沒有別條路（Dong 2026-08-28 回報卡住；他那個案例我重現不出來，
+// 但「沒有出口」這件事跟是哪個網址無關）。
+// 瀏覽器自己的逾時是好幾分鐘，對使用者而言跟當掉沒有差別。
+const FETCH_TIMEOUT_MS = 12000;
+
 const fetchSheetCsv = async (id, sheetName) => {
-  const res = await fetch(gvizUrl(id, sheetName));
+  let res;
+  try {
+    res = await fetch(gvizUrl(id, sheetName), {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch (err) {
+    // 逾時與斷線在這裡都是 fetch reject，但對使用者是兩件事，要分開講
+    if (err?.name === 'TimeoutError') {
+      throw new Error(
+        `讀取「${sheetName}」分頁超過 ${FETCH_TIMEOUT_MS / 1000} 秒沒有回應，請確認網路後再試一次`
+      );
+    }
+    throw new Error(`連不上 Google 試算表（讀取「${sheetName}」分頁時）`);
+  }
 
   if (!res.ok) {
     // 404＝找不到這個分頁名；其他多半是權限沒開（Google 會導去登入頁）

@@ -125,7 +125,16 @@ const MissionAnswerInputModel = ({
 
   // 滑鼠點按鈕與按 ⌘Enter 走的是同一個函式——按鈕上標著那個鍵位，
   // 兩者行為不一樣的話那個標示就是在說謊。
-  const autoAnswer = () => submitAnswer(answerArray[0]);
+  //
+  // **只填進去，不送出**（Dong 2026-08-28 回報）。原本直接呼叫 submitAnswer，於是
+  // 按一下就整關過了——你看不到答案長什麼樣，也**跳過了送出這條路本身**，而送出
+  // 正是作答頁最需要被驗的地方。想要「不作答直接往下」已經有旁邊那顆「略過」了，
+  // 兩顆按鈕各做一件事才分得清楚。
+  // 填完把游標放進去，接著按 Enter 就送得出去（輸入框不再自動 focus 了）。
+  const autoAnswer = () => {
+    setUserAnswer(answerArray[0]);
+    answerRef.current?.focus();
+  };
 
   useAnswerShortcuts({
     enabled: devTools && !isAnswerCorrect,

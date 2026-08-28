@@ -13,12 +13,24 @@ import useNextId from '../hook/useNextId';
 import usePrevId from '../hook/usePrevId';
 import useFlowKeys from '../hook/useFlowKeys';
 import useSwipeFlow from '../hook/useSwipeFlow';
+import PeekPanel from '../component/common/PeekPanel';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 
 // 「按一下就走」的三種 model
 const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart']);
 // 游標會自動落在輸入框裡的兩種——那時方向鍵是移動游標，得先按 Esc 才拿得回來
 const INPUT_MODELS = new Set(['MissionAnswerInput', 'CustomValueInput']);
+
+// 上下拉時預覽卡片上顯示的「型態」。只到這個顆粒度就停——再細就是劇透了
+// （見 PeekPanel 的檔頭）。
+const MODEL_LABEL = {
+  Talk: '對白',
+  Img: '圖片',
+  MissionStart: '關卡',
+  Quiz: '選擇',
+  MissionAnswerInput: '作答',
+  CustomValueInput: '填寫',
+};
 
 const GameController = ({
   characterCsvFile,
@@ -36,6 +48,7 @@ const GameController = ({
     setHintData,
     missionData,
     setMissionData,
+    getMissionById,
     setPropData,
     rundownData,
     setRundownData,
@@ -48,6 +61,7 @@ const GameController = ({
     goToId,
     goBack,
     canGoBack,
+    backId,
     setCurrentMissionId,
     updateMissionStatus,
     playerMissionData,
@@ -222,24 +236,79 @@ const GameController = ({
   //
   // 只在玩家端（devTools=false＝/demo 與各自部署的遊戲）。/create 是桌機三欄工具，
   // 那邊的前進後退是鍵盤（COO-134），再疊一套手勢只會跟拖曳分隔線打架。
+  // 「往下拉會去哪一列」。backId 是 goBack 真正會落到的那一列（provider 算的，
+  // 跟 goBack 同一條規則）；沒有走過的路時退到流程上的上一步——history 不寫
+  // localStorage，玩家一重整就沒有走過的路，沒有這條 fallback 的話下滑會變成
+  // 「有時候整個消失」的手勢，那比沒有還糟。
+  const backTargetId = backId || getPrevId();
+
   const handleSwipeBack = useCallback(() => {
-    // 走過的路優先。沒有就退到流程上的上一步——history 不寫 localStorage，
-    // 玩家一重整 canGoBack 就是 false，沒有這條 fallback 的話下滑會變成
-    // 「有時候整個消失」的手勢，那比沒有還糟。
-    if (canGoBack) {
+    if (backId) {
       handleBack();
       return;
     }
     handlePrev();
-  }, [canGoBack, handleBack, handlePrev]);
+  }, [backId, handleBack, handlePrev]);
 
   const swipe = useSwipeFlow({
     enabled: !devTools,
     canAdvance,
     onNext: handleNext,
-    canGoBack: canGoBack || canGoPrev(),
+    canGoBack: !!backTargetId,
     onBack: handleSwipeBack,
   });
+
+  // 拉開之後那塊空間要放什麼。走得過去＝下一頁是什麼型態；走不過去＝為什麼。
+  //
+  // 「為什麼」的判斷順序有講究：Quiz 這一列的物理下一列是它自己的第一個選項，所以
+  // canProceedToNext() 對 Quiz 是 true——先問 model 再問有沒有下一列，順序反過來
+  // 就會對著 Quiz 說「這是最後一頁」。
+  const peekContent = useMemo(() => {
+    if (!swipe.peek) return null;
+    const { dir, blocked } = swipe.peek;
+
+    if (!blocked) {
+      const targetId = dir === 'up' ? getNextId() : backTargetId;
+      const row = rundownData?.find?.((item) => item.id === targetId);
+      const label = MODEL_LABEL[row?.model] || '下一頁';
+      // 講者名算方位感不算內容（「等一下有人要說話」），台詞才是內容。
+      // 往回走的那一頁玩家已經看過了，所以連關卡名都可以講。
+      const detail =
+        row?.model === 'Talk'
+          ? row?.title || row?.speaker || null
+          : dir === 'down' && row?.model === 'MissionStart'
+            ? getMissionById(row?.missionId)?.title || null
+            : null;
+      return { dir, blocked: false, label, detail };
+    }
+
+    if (dir === 'down') {
+      return { dir, blocked: true, label: '這裡是起點', detail: '前面沒有了' };
+    }
+
+    const model = currentRow?.model;
+    if (model === 'Quiz') {
+      return { dir, blocked: true, label: '要先選一個選項', detail: '選了才知道故事往哪走' };
+    }
+    if (model === 'MissionAnswerInput') {
+      return { dir, blocked: true, label: '要先答對這一關', detail: '答案填在上面那格' };
+    }
+    if (model === 'CustomValueInput') {
+      return { dir, blocked: true, label: '要先填好上面那格', detail: null };
+    }
+    if (!canProceedToNext()) {
+      return { dir, blocked: true, label: '這裡是終點', detail: '後面沒有了' };
+    }
+    return { dir, blocked: true, label: '這一頁還不能往下', detail: null };
+  }, [
+    swipe.peek,
+    getNextId,
+    backTargetId,
+    rundownData,
+    getMissionById,
+    currentRow,
+    canProceedToNext,
+  ]);
 
   // 沒有流程圖就沒有地圖模式（/demo 就是這樣）——spatialNav 是 null 時整個關掉
   const mapNav = devTools && mapMode && !!spatialNav;
@@ -324,18 +393,50 @@ const GameController = ({
           transform 只在真的在動的時候才給（style 裡 undefined），因為有 transform
           的元素會變成底下所有 fixed 後代的定位基準——靜止時保持沒有，放大的圖
           在 /demo 的行為就跟以前一模一樣。 */}
+      {/* 滑動的舞台。外層是不動的視窗（把上下兩張預覽卡片裁在畫面外），內層才是
+          跟著手指走的那一層——一個 transform 同時帶著現在這一頁與兩張卡片，
+          卡片就不必自己算位置。
+          GameShell 那層本來就是 flex ＋ 垂直置中，內層要把同一組版面規則照抄一次——
+          不抄的話 ImgModel 的 m:'auto' 會失去垂直置中的依據，圖片整個貼到上緣。
+          transform 只在真的在動的時候才給（style 裡是 undefined），因為有 transform
+          的元素會變成底下所有 fixed 後代的定位基準，而外層又是 overflow:hidden——
+          靜止時保持沒有 transform，放大的圖才不會被裁掉。 */}
       <Box
         ref={swipe.containerRef}
         onPointerDown={swipe.onPointerDown}
-        style={swipe.style}
         sx={{
+          position: 'relative',
           width: '100%',
           height: '100%',
-          display: 'flex',
-          alignItems: 'center',
+          overflow: 'hidden',
         }}
       >
-        {renderContent()}
+        <Box
+          style={swipe.style}
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          {renderContent()}
+          {peekContent && (
+            <Box
+              sx={{
+                position: 'absolute',
+                left: 0,
+                width: '100%',
+                height: '100%',
+                ...(peekContent.dir === 'up'
+                  ? { top: '100%' }
+                  : { bottom: '100%' }),
+              }}
+            >
+              <PeekPanel {...peekContent} />
+            </Box>
+          )}
+        </Box>
       </Box>
     </>
   );

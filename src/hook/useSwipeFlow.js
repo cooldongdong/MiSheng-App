@@ -2,19 +2,25 @@
 // 玩家端的上下滑：上滑＝按 Next，下滑＝回上一頁。
 //
 // 定位是「按鈕的捷徑」（Dong 2026-08-28 拍板），不是取代按鈕。捷徑的意思是它做的事
-// 必須跟按鈕一模一樣，不多也不少，於是三件事跟著就定了：
+// 必須跟按鈕一模一樣，不多也不少：
 //   ① 能不能上滑，用的是跟鍵盤 ↓ 同一個 canAdvance——不另立第二套「這頁能不能走」
 //   ② 打字機還在打的時候上滑照樣前進：按 Next 本來就會，捷徑不該比按鈕聰明。
 //      「上滑＝跳完打字」會讓同一個手勢在同一頁有三個意思，那正是選捷徑要避開的
-//   ③ 不能滑的頁面**完全不動**。沒有橡皮筋、沒有提示——畫面不動本身就是
-//      「這頁不能滑」的回答，而且它不必先教就懂（issue COO-135 的原話：
-//      不能滑的頁面就不給提示）
+//
+// **不能前進的頁面照樣拉得動**（Dong 2026-08-28 二次回饋，推翻本檔第一版的「完全不動」）。
+// 第一版讓不能走的頁面一動也不動，理由是「畫面不動本身就是答案」。那是把判斷丟給玩家
+// 自己推論，而 COO-135 列的頭號風險正是「玩家不知道現在算哪一種，一直往上滑以為卡住了」——
+// 不動只是**沒有回答**，不是回答。改成拉得動，然後在露出來的空間裡直接講為什麼不能過去。
+//
+// 兩種手感刻意不同，這是整個設計的關鍵：
+//   - 走得過去：1:1 跟手（短影片的手感）
+//   - 走不過去：起手也是 1:1，但立刻愈拉愈重、拉不走、一定彈回（iOS 橡皮筋的老語彙）
+// 手指還沒放開就已經知道結果，不必先讀字。
 //
 // 為什麼用 pointer 而不是 touch：滑鼠／觸控／觸控筆同一條路，而且 pointercancel
 // 是唯一收得到「系統或原生捲動把這個手勢接手了」的訊號。
 //
 // 為什麼不吃滑鼠：桌機拖曳翻頁會跟選字打架，而桌機已經有鍵盤（COO-134）。
-// 同一件事給兩套手感沒有好處，少的那一套就不要做。
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -22,8 +28,11 @@ const LOCK = 8; // 判定方向前要先移動這麼多，否則點一下的微�
 const THRESHOLD = 64; // 放開時位移超過這個就算數
 const VELOCITY = 0.45; // px/ms。甩得夠快就不必滑滿——短影片的手感在這裡
 const MAX_DRAG = 150; // 跟手的上限，超過改成 1/4 阻尼，才有「拉到底了」的實感
+const RUBBER = 120; // 走不過去時的漸近上限：拉到死也只到這裡
+const CLICK_GUARD = 20; // 拉超過這麼多就不算點擊了
 const LEAVE_MS = 170;
 const ENTER_MS = 210;
+const SPRING_MS = 240;
 
 const REST = { y: 0, o: 1, ms: 0 };
 
@@ -51,8 +60,7 @@ const deferToScroller = (start, root, dir) => {
       el.scrollHeight > el.clientHeight + 1
     ) {
       const atTop = el.scrollTop <= 0;
-      const atBottom =
-        el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
       if (dir === 'up' && !atBottom) return true;
       if (dir === 'down' && !atTop) return true;
     }
@@ -62,11 +70,16 @@ const deferToScroller = (start, root, dir) => {
   return false;
 };
 
+// 走得過去：幾乎 1:1，只在很後面才收一點
 const damp = (d) => {
   const sign = Math.sign(d);
   const a = Math.abs(d);
   return sign * (a <= MAX_DRAG ? a : MAX_DRAG + (a - MAX_DRAG) * 0.25);
 };
+
+// 走不過去：起手斜率剛好是 1（所以一開始跟手，不會有「被黏住」的頓挫），
+// 之後指數收斂到 RUBBER。拉到死也過不去，手上就知道了。
+const rubber = (d) => Math.sign(d) * RUBBER * (1 - Math.exp(-Math.abs(d) / RUBBER));
 
 const useSwipeFlow = ({
   enabled = false,
@@ -77,6 +90,10 @@ const useSwipeFlow = ({
 }) => {
   const containerRef = useRef(null);
   const [t, setT] = useState(REST);
+  // 這一次手勢在看的是哪個方向、以及走不走得過去。外面用它決定露出來的那塊要放
+  // 「下一頁是什麼」還是「為什麼不能過去」。
+  // 它活得比手指久——要撐過彈回或翻頁的動畫，否則卡片會在頁面還沒回到位就先消失。
+  const [peek, setPeek] = useState(null);
 
   // 一次手勢的全部狀態。放 ref 不放 state：pointermove 每秒幾十次，
   // 每一次都重 render 只是為了記錄一個還沒生效的數字。
@@ -93,8 +110,8 @@ const useSwipeFlow = ({
   // 手勢走完之後緊接著會冒出來的那一下 click，要吞掉。
   //
   // 在 Quiz 的選項上往下滑回上一頁，手指離開時瀏覽器仍會補一個 click 給那顆選項，
-  // 於是「退回上一頁」跟「選了這個選項」會同時發生。這與 useCanvasGestures 當年
-  // 被 setPointerCapture 咬到的是同一類：手勢與點擊共用同一串事件。
+  // 於是「退回上一頁」跟「選了這個選項」會同時發生。走不過去的那種拉扯也要吞——
+  // 拉了 100px 又彈回來，那顯然不是在點東西。
   const swallowNextClick = useCallback(() => {
     const onClick = (e) => {
       e.preventDefault();
@@ -111,13 +128,13 @@ const useSwipeFlow = ({
     (dir) => {
       const go = dir === 'up' ? onNext : onBack;
       if (!go) return;
-      swallowNextClick();
 
       // 看不到的時候不做動畫：頁面在背景時 requestAnimationFrame 整個停擺，
       // 下面那段進場就永遠跑不完，畫面會卡在 opacity:0——實測（背景分頁）真的會。
       // 玩家在戶外滑一下就抬頭看路、或切去接電話，正是這個情境。
       if (prefersReducedMotion() || document.hidden) {
         setT(REST);
+        setPeek(null);
         go();
         return;
       }
@@ -131,6 +148,7 @@ const useSwipeFlow = ({
       timers.current.push(
         setTimeout(() => {
           go();
+          setPeek(null); // 預覽的那一頁已經變成現在這一頁了
           // 新的一頁從反方向進場。先用 ms:0 把起點放好，再等兩個 frame 才開
           // transition——同一個 frame 內改兩次，瀏覽器只會看到最後那次，動畫不會發生。
           setT({ y: dir === 'up' ? 28 : -28, o: 0, ms: 0 });
@@ -149,8 +167,14 @@ const useSwipeFlow = ({
         }, LEAVE_MS)
       );
     },
-    [onNext, onBack, swallowNextClick]
+    [onNext, onBack]
   );
+
+  const springBack = useCallback(() => {
+    setT({ y: 0, o: 1, ms: SPRING_MS });
+    // 卡片要陪著頁面一起回去，不能先消失
+    timers.current.push(setTimeout(() => setPeek(null), SPRING_MS));
+  }, []);
 
   const finish = useCallback(
     (cancelled) => {
@@ -158,8 +182,11 @@ const useSwipeFlow = ({
       drag.current = null;
       if (!d || !d.locked) return;
 
-      if (!cancelled) {
-        const dy = d.lastY - d.startY;
+      const dy = d.lastY - d.startY;
+      if (Math.abs(dy) > CLICK_GUARD) swallowNextClick();
+
+      // 走不過去的那一種，無論拉多遠都是彈回——這就是它要表達的事
+      if (!cancelled && !d.blocked) {
         const dt = Math.max(1, performance.now() - d.startTime);
         const far = Math.abs(dy) > THRESHOLD;
         const fast = Math.abs(dy) / dt > VELOCITY && Math.abs(dy) > LOCK * 2;
@@ -168,10 +195,9 @@ const useSwipeFlow = ({
           return;
         }
       }
-      // 沒過門檻（或被系統收走）就彈回去
-      setT({ y: 0, o: 1, ms: 220 });
+      springBack();
     },
-    [commit]
+    [commit, springBack, swallowNextClick]
   );
 
   useEffect(() => {
@@ -195,29 +221,28 @@ const useSwipeFlow = ({
 
         const dir = dy < 0 ? 'up' : 'down';
 
-        // 這一下該不該歸原生捲動（長對白還沒讀完）
+        // 這一下該不該歸原生捲動（長對白還沒讀完）。這條優先權最高：
+        // 讀不完就被翻頁，比不知道為什麼不能翻頁嚴重得多。
         if (deferToScroller(d.target, containerRef.current, dir)) {
           drag.current = null;
           return;
         }
-        // 這個方向這一頁能不能走。不能就整個放掉——不動，也不彈
-        const allowed = dir === 'up' ? canAdvance : canGoBack;
-        if (!allowed) {
-          drag.current = null;
-          return;
-        }
-        // 游標在輸入框裡時往下滑，多半是想捲畫面看清楚，不是要離開這一頁
+        // 游標在輸入框裡時往下滑，多半是想捲畫面看清楚（或收鍵盤），不是要離開這一頁
         if (dir === 'down' && isTypingTarget(document.activeElement)) {
           drag.current = null;
           return;
         }
+
         d.locked = true;
         d.dir = dir;
+        d.blocked = !(dir === 'up' ? canAdvance : canGoBack);
         d.startTime = performance.now();
         d.startY = e.clientY; // 從真正鎖定的那一刻起算，門檻才不會被前 8px 吃掉
+        setPeek({ dir, blocked: d.blocked });
       }
 
-      setT({ y: damp(e.clientY - d.startY), o: 1, ms: 0 });
+      const raw = e.clientY - d.startY;
+      setT({ y: d.blocked ? rubber(raw) : damp(raw), o: 1, ms: 0 });
     };
 
     const onUp = (e) => {
@@ -246,13 +271,14 @@ const useSwipeFlow = ({
       if (e.pointerType === 'mouse') return;
       if (drag.current) {
         drag.current = null;
-        setT({ y: 0, o: 1, ms: 220 });
+        springBack();
         return;
       }
       // 明確標了不吃手勢的地方（放大的圖、全螢幕道具）
       if (e.target instanceof Element && e.target.closest('[data-no-swipe]')) {
         return;
       }
+      clearTimers(); // 上一次的彈回還沒清完就又按下來，別讓舊的 timer 把卡片收掉
       drag.current = {
         id: e.pointerId,
         target: e.target,
@@ -261,10 +287,11 @@ const useSwipeFlow = ({
         lastY: e.clientY,
         startTime: performance.now(),
         locked: false,
+        blocked: false,
         dir: null,
       };
     },
-    [enabled]
+    [enabled, springBack]
   );
 
   const style = {
@@ -275,7 +302,7 @@ const useSwipeFlow = ({
       : 'none',
   };
 
-  return { containerRef, onPointerDown, style };
+  return { containerRef, onPointerDown, style, peek };
 };
 
 export default useSwipeFlow;

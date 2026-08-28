@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { GameContext } from './game-context';
 import { resolveExternalImg } from '../game/imgUrl';
@@ -225,6 +225,19 @@ export const GameProvider = ({
     return false;
   }, [history, rundownData]);
 
+  // 「現在退回去會落在哪一列」——跟 goBack 同一條規則（一路 pop 到還存在的那一列）。
+  //
+  // 抽出來是為了上下滑的預覽（COO-135）：往下拉時露出的那張卡片必須真的是待會會去的
+  // 那一頁。自己在外面重算一次「history 的最後一個」會在資料換過之後說謊——那一列可能
+  // 已經不存在了，goBack 會再往前跳，於是預覽的跟實際去的不是同一頁。
+  const backId = useMemo(() => {
+    const rows = Array.isArray(rundownData) ? rundownData : [];
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      if (rows.some((row) => row?.id === history[i])) return history[i];
+    }
+    return null;
+  }, [history, rundownData]);
+
   const clearGameData = (gameId) => {
     if (!gameId) {
       return;
@@ -315,6 +328,7 @@ export const GameProvider = ({
         goToId,
         goBack,
         canGoBack: history.length > 0,
+        backId,
         mapMode,
         setMapMode,
         spatialNav,

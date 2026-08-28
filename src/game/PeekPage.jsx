@@ -1,4 +1,5 @@
 import { useContext, useMemo } from 'react';
+import { Box } from '@mui/material';
 import PropTypes from 'prop-types';
 import { GameContext } from '../store/game-context';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
@@ -6,6 +7,7 @@ import Layer from '../component/layer/Layer';
 import BackgroundLayer from '../component/layer/BackgroundLayer';
 import CharacterLayer from '../component/layer/CharacterLayer';
 import GradientLayer from '../component/layer/GradientLayer';
+import FloatingLayer from '../component/layer/FloatingLayer';
 import { MODEL_COMPONENTS } from './models';
 
 // 上下拉時露出來的那一頁（COO-135）。
@@ -68,6 +70,28 @@ const PeekPage = ({ row, mode }) => {
     const speaker = row.speaker
       ? ctx.characterData?.find((char) => char.name === row.speaker)
       : null;
+
+    // Img 與 MissionStart 的底跟其他頁不一樣：前者根本沒有色層（透出 GameShell 的
+    // game.bg），後者是一張 MUI Paper 白卡。用 ThemeColorLayer 的深墨去畫它們，滑到
+    // 定位的那一刻底色會整個換掉——接縫比沒有預覽還明顯。
+    if (row.model === 'Img') {
+      // Img 的內容就是那張圖，連底圖都沒有可以給的東西。留白＝跟真正的那一頁同一個底。
+      return <Box sx={{ width: '100%', height: '100%' }} />;
+    }
+    if (row.model === 'MissionStart') {
+      // 白卡＋關卡底圖，就是沒有關卡名與說明——名字本身也是還沒發生的事。
+      return (
+        <FloatingLayer>
+          {src ? (
+            <Layer>
+              <BackgroundLayer src={ctx.getImg(src)} opacity="0.9" />
+            </Layer>
+          ) : (
+            <span />
+          )}
+        </FloatingLayer>
+      );
+    }
 
     return (
       <ThemeColorLayer>

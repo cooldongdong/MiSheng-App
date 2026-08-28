@@ -10,6 +10,7 @@ import {
   useTheme,
 } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import { nodeBodyText } from './flowLayout';
 
 // 大綱／搜尋：流程很長時用來快速定位，不必一路拖過去
 //   - 沒輸入關鍵字：列出 MissionStart（＝關卡起點），當章節目錄用
@@ -81,9 +82,14 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
                 variant="caption"
                 sx={{ color: 'text.disabled', display: 'block', lineHeight: 1.4 }}
               >
+                {/* model 一定要在。原本是「有關卡就只印關卡、沒關卡才印 model」，
+                    於是所有掛在關卡底下的列在搜尋結果裡都長成「關卡 3」，
+                    分不出哪個是作答頁哪個是對白（Dong 2026-08-28 回報）。
+                    格式跟節點上那一行對齊（nodeTitle），兩邊講的是同一件事。 */}
+                {n.model}
                 {n.missionId && n.missionId !== '0'
-                  ? `關卡 ${n.missionId}`
-                  : n.model}
+                  ? `\u3000·\u3000關卡 ${n.missionId}`
+                  : ''}
                 {'\u3000'}#{n.merged > 1 ? `${n.id}–${n.lastId}` : n.id}
               </Typography>
               <Typography
@@ -95,8 +101,7 @@ const FlowOutline = ({ nodes, activeId, onPick, missionTitles = null }) => {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {missionTitles?.[n.missionId] ||
-                  (n.speaker ? `${n.speaker}：` : '') + (n.text || `第 ${n.id} 列`)}
+                {nodeBodyText(n, missionTitles)}
               </Typography>
             </Box>
           </ListItemButton>

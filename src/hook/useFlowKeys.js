@@ -158,8 +158,9 @@ const useFlowKeys = ({
         return;
       }
 
-      // Esc 把游標從輸入框放出來。作答頁的輸入框會自動 focus，游標在裡面時
-      // 上下鍵是移動游標——沒有這個出口，作答頁就變成鍵盤的死路。
+      // Esc 把游標從輸入框放出來。輸入框不再自動 focus 了（2026-08-28），所以這不再是
+      // 「一進來就卡住」，但只要使用者點過那個框，上下鍵就變成移動游標——出口還是要留，
+      // 否則點過一次之後鍵盤就再也翻不了頁。
       if (code === KEY_ESC) {
         if (isTypingTarget(document.activeElement)) {
           event.preventDefault();

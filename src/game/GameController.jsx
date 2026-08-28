@@ -14,7 +14,8 @@ import PropTypes from 'prop-types'; // 引入 PropTypes
 
 // 「按一下就走」的三種 model
 const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart']);
-// 游標會自動落在輸入框裡的兩種——那時方向鍵是移動游標，得先按 Esc 才拿得回來
+// 要打字的兩種。游標落在框裡時方向鍵是移動游標，得先按 Esc 才拿得回來
+// （輸入框本身不再自動 focus，但使用者點過就會）
 const INPUT_MODELS = new Set(['MissionAnswerInput', 'CustomValueInput']);
 
 
@@ -396,10 +397,9 @@ const GameController = ({
           {renderContent()}
           {peekContent && (
             <Box
-              // inert：預覽的那一頁裡有真的輸入框與按鈕，而 AnswerInputForm 是
-              // autoFocus 的——不擋的話，玩家正在打答案時往下拉一下，游標就被
-              // 旁邊那張還沒到的頁面搶走了。inert 讓整棵子樹不可聚焦也不可互動，
-              // 比逐一給元件加 preview 參數乾淨。
+              // inert：預覽的那一頁裡有真的輸入框與按鈕。整棵子樹不可聚焦也不可互動，
+              // 所以 Tab 不會走進去、按鈕按不到，未來哪個元件又加了 autoFocus 也搶不走
+              // 玩家的游標——比逐一給元件加 preview 參數乾淨。
               // React 18 不認 inert 這個 prop（19 才支援布林），所以用空字串繞過
               // 型別檢查——瀏覽器看到屬性存在就生效。
               {...{ inert: '' }}

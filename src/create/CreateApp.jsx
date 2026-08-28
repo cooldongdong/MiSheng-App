@@ -379,10 +379,7 @@ const CreateApp = () => {
         const link = buildPlayLink(shareId);
         try {
           await navigator.clipboard.writeText(link);
-          setNotice(
-            '試玩連結已複製。收到的人只會看到遊戲，不會看到流程圖與檢查報告——' +
-              '但試算表本身仍然是公開的，別把它當成保密。'
-          );
+          setNotice('試玩連結已複製');
         } catch {
           // 沒有剪貼簿權限（http 或使用者拒絕）就把網址attach在提示裡讓他自己選取
           setNotice(`試玩連結：${link}`);
@@ -410,6 +407,10 @@ const CreateApp = () => {
           previewMode
           imgMap={imgMap}
           dataVersion={dataVersion}
+          // 深色開關要給——這一頁對收到連結的人來說就是「遊戲」，而 /demo 的遊戲
+          // 一直都有這顆。/create 自己那顆長在工具的殼上，而試玩模式沒有那個殼。
+          // （重啟鈕不會跟著出現：它需要 gameId，而試算表這條路沒有遊戲資料夾。）
+          headerActions={<ColorSchemeToggle />}
         />
         {veilEl}
       </>
@@ -444,6 +445,13 @@ const CreateApp = () => {
         exportSlot={
           <Stack spacing={1}>
             {playLinkEl}
+            {/* 這句話每一次都成立，所以它不該住在六秒後就消失的通知裡。
+                常駐在按鈕底下，才擋得住「以為它是保密的」。 */}
+            {playLinkEl && (
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                收到的人只會看到遊戲。但試算表本身仍是公開的，別當成保密。
+              </Typography>
+            )}
             {canExport ? (
               <ExportPackButton tables={tables} imgMap={imgMap} fullWidth size="small" />
             ) : null}
@@ -557,7 +565,21 @@ const CreateApp = () => {
           onClose={() => setNotice('')}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert severity="info" variant="filled" onClose={() => setNotice('')}>
+          {/* 全 app 只有這一顆曾經是 severity="info" ＋ variant="filled"，於是它吃到
+              MUI 預設的亮藍——正是 theme.js 當初特地換掉的那個色（「去掉亮藍紫的
+              AI 味」）。theme 沒有定義 palette.info，所以它不會被收編，只能在這裡指定。
+              改用 primary：淺色是藍灰墨配白字、深色翻成近白配深字，兩邊都跟其他畫面
+              同一種語言。ⓘ 圖示也拿掉——那個符號讓一句「複製好了」看起來像系統警告。 */}
+          <Alert
+            icon={false}
+            variant="filled"
+            onClose={() => setNotice('')}
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              '& .MuiAlert-action': { color: 'inherit' },
+            }}
+          >
             {notice}
           </Alert>
         </Snackbar>

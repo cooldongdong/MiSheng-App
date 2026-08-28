@@ -10,7 +10,7 @@ import CharacterLayer from '../component/layer/CharacterLayer';
 import TalkBox from '../component/feature/TalkBox';
 import { GameContext } from '../store/game-context';
 
-const Talk = ({ currentRow, onNext, canProceed }) => {
+const Talk = ({ currentRow, onNext, canProceed, preview = false }) => {
   const [speaker, setSpeaker] = useState(null);
   const [backgroundImg, setBackgroundImg] = useState(null);
   const {
@@ -59,7 +59,8 @@ const Talk = ({ currentRow, onNext, canProceed }) => {
 
   const displayText = useTypewriterEffect(
     processedText || '', // Pass the dialogue text to the hook
-    50 // Typing speed in milliseconds
+    50, // Typing speed in milliseconds
+    preview // 預覽的那一頁直接給完整文字
   );
 
   // 監聽滾動行為
@@ -134,6 +135,7 @@ const Talk = ({ currentRow, onNext, canProceed }) => {
 
 // 定義 propTypes
 Talk.propTypes = {
+  preview: PropTypes.bool,
   currentRow: PropTypes.object.isRequired,
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,

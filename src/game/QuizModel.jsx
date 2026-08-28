@@ -10,7 +10,7 @@ import BackgroundLayer from '../component/layer/BackgroundLayer';
 import CharacterLayer from '../component/layer/CharacterLayer';
 import QuestionBox from '../component/feature/QuestionBox';
 
-const QuizModel = ({ currentRow, devTools = false }) => {
+const QuizModel = ({ currentRow, devTools = false, preview = false }) => {
   const {
     getImg,
     characterData,
@@ -59,7 +59,8 @@ const QuizModel = ({ currentRow, devTools = false }) => {
 
   const displayText = useTypewriterEffect(
     processedText || '', // Pass the dialogue text to the hook
-    50 // Typing speed in milliseconds
+    50, // Typing speed in milliseconds
+    preview // 預覽的那一頁直接給完整文字
   );
 
   const handleOptionClick = (nextId) => {
@@ -112,6 +113,7 @@ const QuizModel = ({ currentRow, devTools = false }) => {
 QuizModel.propTypes = {
   currentRow: PropTypes.object,
   devTools: PropTypes.bool,
+  preview: PropTypes.bool,
 };
 
 export default QuizModel;

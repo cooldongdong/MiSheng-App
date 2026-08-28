@@ -2,18 +2,14 @@ import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { GameContext } from '../store/game-context';
 import { Box, Typography } from '@mui/material';
 import KeyHintBar from '../component/common/KeyHintBar';
-import TalkModel from './TalkModel';
-import QuizModel from './QuizModel';
-import MissionStartModel from './MissionStartModel';
-import MissionAnswerInputModel from './MissionAnswerInputModel';
-import CustomValueInputModel from './CustomValueInputModel';
-import ImgModel from './ImgModel';
 import { loadCSVData } from './csvLoader';
 import useNextId from '../hook/useNextId';
 import usePrevId from '../hook/usePrevId';
 import useFlowKeys from '../hook/useFlowKeys';
 import useSwipeFlow from '../hook/useSwipeFlow';
 import PeekPanel from '../component/common/PeekPanel';
+import PeekPage from './PeekPage';
+import { MODEL_COMPONENTS } from './models';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 
 // 「按一下就走」的三種 model
@@ -21,16 +17,6 @@ const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart']);
 // 游標會自動落在輸入框裡的兩種——那時方向鍵是移動游標，得先按 Esc 才拿得回來
 const INPUT_MODELS = new Set(['MissionAnswerInput', 'CustomValueInput']);
 
-// 上下拉時預覽卡片上顯示的「型態」。只到這個顆粒度就停——再細就是劇透了
-// （見 PeekPanel 的檔頭）。
-const MODEL_LABEL = {
-  Talk: '對白',
-  Img: '圖片',
-  MissionStart: '關卡',
-  Quiz: '選擇',
-  MissionAnswerInput: '作答',
-  CustomValueInput: '填寫',
-};
 
 const GameController = ({
   characterCsvFile,
@@ -48,7 +34,6 @@ const GameController = ({
     setHintData,
     missionData,
     setMissionData,
-    getMissionById,
     setPropData,
     rundownData,
     setRundownData,
@@ -258,7 +243,7 @@ const GameController = ({
     onBack: handleSwipeBack,
   });
 
-  // 拉開之後那塊空間要放什麼。走得過去＝下一頁是什麼型態；走不過去＝為什麼。
+  // 拉開之後那塊空間要放什麼。走得過去＝真的把那一頁畫出來；走不過去＝為什麼。
   //
   // 「為什麼」的判斷順序有講究：Quiz 這一列的物理下一列是它自己的第一個選項，所以
   // canProceedToNext() 對 Quiz 是 true——先問 model 再問有沒有下一列，順序反過來
@@ -270,42 +255,34 @@ const GameController = ({
     if (!blocked) {
       const targetId = dir === 'up' ? getNextId() : backTargetId;
       const row = rundownData?.find?.((item) => item.id === targetId);
-      const label = MODEL_LABEL[row?.model] || '下一頁';
-      // 講者名算方位感不算內容（「等一下有人要說話」），台詞才是內容。
-      // 往回走的那一頁玩家已經看過了，所以連關卡名都可以講。
-      const detail =
-        row?.model === 'Talk'
-          ? row?.title || row?.speaker || null
-          : dir === 'down' && row?.model === 'MissionStart'
-            ? getMissionById(row?.missionId)?.title || null
-            : null;
-      return { dir, blocked: false, label, detail };
+      if (!row) return null;
+      // 往回＝已經看過，整頁給；往前＝還沒發生，只給底圖（見 PeekPage 檔頭）
+      return { dir, kind: 'page', row, mode: dir === 'down' ? 'full' : 'background' };
     }
 
     if (dir === 'down') {
-      return { dir, blocked: true, label: '這裡是起點', detail: '前面沒有了' };
+      return { dir, kind: 'blocked', label: '這裡是起點', detail: '前面沒有了' };
     }
 
     const model = currentRow?.model;
     if (model === 'Quiz') {
-      return { dir, blocked: true, label: '要先選一個選項', detail: '選了才知道故事往哪走' };
+      return { dir, kind: 'blocked', label: '要先選一個選項', detail: '選了才知道故事往哪走' };
     }
     if (model === 'MissionAnswerInput') {
-      return { dir, blocked: true, label: '要先答對這一關', detail: '答案填在上面那格' };
+      return { dir, kind: 'blocked', label: '要先答對這一關', detail: '答案填在上面那格' };
     }
     if (model === 'CustomValueInput') {
-      return { dir, blocked: true, label: '要先填好上面那格', detail: null };
+      return { dir, kind: 'blocked', label: '要先填好上面那格', detail: null };
     }
     if (!canProceedToNext()) {
-      return { dir, blocked: true, label: '這裡是終點', detail: '後面沒有了' };
+      return { dir, kind: 'blocked', label: '這裡是終點', detail: '後面沒有了' };
     }
-    return { dir, blocked: true, label: '這一頁還不能往下', detail: null };
+    return { dir, kind: 'blocked', label: '這一頁還不能往下', detail: null };
   }, [
     swipe.peek,
     getNextId,
     backTargetId,
     rundownData,
-    getMissionById,
     currentRow,
     canProceedToNext,
   ]);
@@ -336,15 +313,6 @@ const GameController = ({
     return <Typography>Loading...</Typography>;
   }
 
-  const modelComponents = {
-    Talk: TalkModel,
-    Quiz: QuizModel,
-    MissionStart: MissionStartModel,
-    MissionAnswerInput: MissionAnswerInputModel,
-    Img: ImgModel,
-    CustomValueInput: CustomValueInputModel,
-  };
-
   // 遊戲欄頂端那一列的內容。回退後的但書優先——那一刻要講的是
   // 「狀態沒跟著倒回」，不是還有哪些鍵可以按。
   //
@@ -371,7 +339,7 @@ const GameController = ({
 
   // Render content based on the model type
   const renderContent = () => {
-    const ModelComponent = modelComponents[currentRow.model];
+    const ModelComponent = MODEL_COMPONENTS[currentRow.model];
     return ModelComponent ? (
       <ModelComponent
         currentRow={currentRow}
@@ -423,17 +391,36 @@ const GameController = ({
           {renderContent()}
           {peekContent && (
             <Box
+              // inert：預覽的那一頁裡有真的輸入框與按鈕，而 AnswerInputForm 是
+              // autoFocus 的——不擋的話，玩家正在打答案時往下拉一下，游標就被
+              // 旁邊那張還沒到的頁面搶走了。inert 讓整棵子樹不可聚焦也不可互動，
+              // 比逐一給元件加 preview 參數乾淨。
+              // React 18 不認 inert 這個 prop（19 才支援布林），所以用空字串繞過
+              // 型別檢查——瀏覽器看到屬性存在就生效。
+              {...{ inert: '' }}
               sx={{
                 position: 'absolute',
                 left: 0,
                 width: '100%',
                 height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'none',
                 ...(peekContent.dir === 'up'
                   ? { top: '100%' }
                   : { bottom: '100%' }),
               }}
             >
-              <PeekPanel {...peekContent} />
+              {peekContent.kind === 'page' ? (
+                <PeekPage row={peekContent.row} mode={peekContent.mode} />
+              ) : (
+                <PeekPanel
+                  dir={peekContent.dir}
+                  label={peekContent.label}
+                  detail={peekContent.detail}
+                  blocked
+                />
+              )}
             </Box>
           )}
         </Box>

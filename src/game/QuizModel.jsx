@@ -10,7 +10,12 @@ import BackgroundLayer from '../component/layer/BackgroundLayer';
 import CharacterLayer from '../component/layer/CharacterLayer';
 import QuestionBox from '../component/feature/QuestionBox';
 
-const QuizModel = ({ currentRow, devTools = false, textMode = 'type' }) => {
+const QuizModel = ({
+  currentRow,
+  devTools = false,
+  textMode = 'type',
+  hideContent = false,
+}) => {
   const {
     getImg,
     characterData,
@@ -82,16 +87,19 @@ const QuizModel = ({ currentRow, devTools = false, textMode = 'type' }) => {
       {/* Gradient after text */}
       <GradientLayer />
 
-      {/* Quiz */}
-      <Layer>
-        <QuestionBox
-          speaker={currentRow?.speaker || currentRow.title}
-          text={displayText}
-          options={options}
-          onOptionClick={handleOptionClick}
-          showKeys={devTools}
-        />
-      </Layer>
+      {/* Quiz。hideContent 見 TalkModel 檔頭——選項本身就是謎面的一部分，
+          往前拉的預覽不能露 */}
+      {!hideContent && (
+        <Layer>
+          <QuestionBox
+            speaker={currentRow?.speaker || currentRow.title}
+            text={displayText}
+            options={options}
+            onOptionClick={handleOptionClick}
+            showKeys={devTools}
+          />
+        </Layer>
+      )}
     </ThemeColorLayer>
   );
 };
@@ -101,6 +109,7 @@ QuizModel.propTypes = {
   currentRow: PropTypes.object,
   devTools: PropTypes.bool,
   textMode: PropTypes.oneOf(['type', 'instant', 'silent']),
+  hideContent: PropTypes.bool,
 };
 
 export default QuizModel;

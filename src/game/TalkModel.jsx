@@ -10,7 +10,21 @@ import CharacterLayer from '../component/layer/CharacterLayer';
 import TalkBox from '../component/feature/TalkBox';
 import { GameContext } from '../store/game-context';
 
-const Talk = ({ currentRow, onNext, canProceed, textMode = 'type' }) => {
+// hideContent：把這一頁的**內容**藏起來，底圖、立繪、漸層照留（COO-135）。
+// 給上下拉的預覽用——往前拉時只讓人看到「場景換了沒、誰要說話」，不給台詞。
+//
+// 為什麼是一個 prop 而不是在外面另外拼一棵樹：外面拼的樹跟這一頁**不是同一棵**，
+// 放手那一刻換過去就是整棵重新掛載，角色圖被砍掉重生，於是閃一下
+// （Dong 2026-08-28 回報：一頁有角色圖、一頁沒有時最明顯）。按 NEXT 不會閃，正是
+// 因為那條路上元件實例活著、React 只換 img 的 src。同一棵樹 ＋ 換 prop 才追得上它。
+
+const Talk = ({
+  currentRow,
+  onNext,
+  canProceed,
+  textMode = 'type',
+  hideContent = false,
+}) => {
   const {
     getImg,
     characterData,
@@ -102,17 +116,19 @@ const Talk = ({ currentRow, onNext, canProceed, textMode = 'type' }) => {
       <GradientLayer />
 
       {/* Talk */}
-      <Layer>
-        <TalkBox
-          title={currentRow?.title || currentRow.speaker}
-          text={displayText}
-          fullText={currentRow?.text}
-          textContainerRef={textContainerRef}
-          onNext={onNext}
-          canProceed={canProceed}
-          showIcon={showFullTextIcon}
-        />
-      </Layer>
+      {!hideContent && (
+        <Layer>
+          <TalkBox
+            title={currentRow?.title || currentRow.speaker}
+            text={displayText}
+            fullText={currentRow?.text}
+            textContainerRef={textContainerRef}
+            onNext={onNext}
+            canProceed={canProceed}
+            showIcon={showFullTextIcon}
+          />
+        </Layer>
+      )}
     </ThemeColorLayer>
   );
 };
@@ -120,6 +136,7 @@ const Talk = ({ currentRow, onNext, canProceed, textMode = 'type' }) => {
 // 定義 propTypes
 Talk.propTypes = {
   textMode: PropTypes.oneOf(['type', 'instant', 'silent']),
+  hideContent: PropTypes.bool,
   currentRow: PropTypes.object.isRequired,
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,

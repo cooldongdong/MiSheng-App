@@ -11,7 +11,7 @@ import TalkText from '../component/common/TalkText';
 import AssistantDirectionRoundedIcon from '@mui/icons-material/AssistantDirectionRounded';
 import EndIconButton from '../component/common/EndIconButton';
 
-const MissionStart = ({ onNext, canProceed }) => {
+const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
   const { getImg, getMissionById, currentMissionId } = useContext(GameContext);
   const currentMission = getMissionById(currentMissionId);
 
@@ -26,6 +26,8 @@ const MissionStart = ({ onNext, canProceed }) => {
         </Layer>
       )}
 
+      {/* hideContent 見 TalkModel 檔頭——關卡名本身也是還沒發生的事 */}
+      {!hideContent && (
       <Layer>
         <Box
           sx={{
@@ -80,12 +82,14 @@ const MissionStart = ({ onNext, canProceed }) => {
           </Stack>
         </Box>
       </Layer>
+      )}
     </FloatingLayer>
   );
 };
 
 // 定義 propTypes
 MissionStart.propTypes = {
+  hideContent: PropTypes.bool,
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
 };

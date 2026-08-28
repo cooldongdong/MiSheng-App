@@ -257,7 +257,7 @@ const GameController = ({
       const targetId = dir === 'up' ? getNextId() : backTargetId;
       const row = rundownData?.find?.((item) => item.id === targetId);
       if (!row) return null;
-      // 拉的途中：往回＝已經看過，整頁給；往前＝還沒發生，只給底圖。
+      // 拉的途中：往回＝已經看過，整頁給；往前＝還沒發生，內容先藏著。
       // 放手之後（committing）一律整頁給——他已經要過去了，這時還藏著只會讓
       // 「滑完才補上內容」變成一次閃爍。
       const committed = !!swipe.peek.committing;
@@ -265,7 +265,9 @@ const GameController = ({
         dir,
         kind: 'page',
         row,
-        mode: dir === 'down' || committed ? 'full' : 'background',
+        // 藏的只是「內容」，底圖與立繪照畫——而且藏與不藏是同一棵樹的同一個 prop，
+        // 放手那一刻不會重新掛載（見 PeekPage 檔頭）
+        hideContent: dir === 'up' && !committed,
         // 往回那一頁直接給全文（已經讀過了）；正在滑過來的那一頁先不要有字——
         // 它落地後會變成當前頁、從第一個字開始打，先放字反而會先消失再重打。
         textMode: dir === 'down' ? 'instant' : 'silent',
@@ -434,7 +436,7 @@ const GameController = ({
               {peekContent.kind === 'page' ? (
                 <PeekPage
                   row={peekContent.row}
-                  mode={peekContent.mode}
+                  hideContent={peekContent.hideContent}
                   textMode={peekContent.textMode}
                 />
               ) : (

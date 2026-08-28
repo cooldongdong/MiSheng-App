@@ -1,24 +1,22 @@
 import { useContext, useMemo } from 'react';
-import { Box } from '@mui/material';
 import PropTypes from 'prop-types';
 import { GameContext } from '../store/game-context';
-import ThemeColorLayer from '../component/layer/ThemeColorLayer';
-import Layer from '../component/layer/Layer';
-import BackgroundLayer from '../component/layer/BackgroundLayer';
-import CharacterLayer from '../component/layer/CharacterLayer';
-import GradientLayer from '../component/layer/GradientLayer';
-import FloatingLayer from '../component/layer/FloatingLayer';
 import { MODEL_COMPONENTS } from './models';
 
 // 上下拉時露出來的那一頁（COO-135）。
 //
 // 兩個方向給的東西不一樣，這是刻意的（Dong 2026-08-28）：
 //   - 往下拉看到的是**上一頁**，玩家已經看過了，所以整頁照實渲染
-//   - 往上拉看到的是**下一頁**，那是還沒發生的劇情，所以給的是「那一頁扣掉字」：
-//     底圖、講話的人的立繪、對白框的漸層底，就是沒有台詞本身
+//   - 往上拉看到的是**下一頁**，那是還沒發生的劇情，所以 hideContent——底圖、
+//     講話的人的立繪、對白框的漸層都在，就是沒有台詞／選項／謎面圖
 // 為什麼停在這裡：短影片預覽下一則是讓你決定要不要繼續看，解謎的下一頁是謎底，
-// 提前露出就沒得玩了。但場景換了沒、換誰在講話，那是方位感不是答案——而且**翻頁時
-// 這張預覽會滑到定位直接變成新頁**，它跟真的那一頁長得愈像，接縫就愈看不出來。
+// 提前露出就沒得玩了。場景換了沒、換誰在講話，那是方位感不是答案。
+//
+// **這裡畫的一定是那一頁自己的元件，不是外面拼一棵長得像它的樹。**
+// 曾經拼過，於是放手那一刻要從「拼的樹」換成「真的元件」——那是整棵重新掛載，
+// 角色圖被砍掉重生，畫面閃一下（Dong 回報：一頁有角色圖、一頁沒有時最明顯）。
+// 按 NEXT 之所以不閃，是因為那條路上元件實例活著、React 只換 img 的 src。
+// 同一棵樹只換 prop，才追得上按鈕的順。
 //
 // **預覽拿到的是一份唯讀的 context。** 兩個理由：
 //   ① 三個 model 根本不收 currentRow——MissionStart 與 MissionAnswerInput 讀
@@ -29,7 +27,7 @@ import { MODEL_COMPONENTS } from './models';
 //      一個畫在旁邊的預覽把玩家的關卡標成完成，是那種很久以後才會被發現的 bug。
 const noop = () => {};
 
-const PeekPage = ({ row, mode, textMode = 'instant' }) => {
+const PeekPage = ({ row, hideContent = false, textMode = 'instant' }) => {
   const ctx = useContext(GameContext);
 
   const scoped = useMemo(() => {
@@ -54,65 +52,6 @@ const PeekPage = ({ row, mode, textMode = 'instant' }) => {
 
   if (!row) return null;
 
-  if (mode === 'background') {
-    // Img 這一種的 backgroundImg 就是它要給玩家看的那張圖（ImgModel 把它畫在卡片裡，
-    // 而且根本沒有底圖層）——拿它當預覽的底圖等於直接把謎面攤開。退回關卡底圖。
-    const src =
-      row.model === 'Img'
-        ? ctx.getMissionById?.(row.missionId)?.backgroundImg
-        : row.backgroundImg || ctx.getMissionById?.(row.missionId)?.backgroundImg;
-
-    // 沒有底圖就只留 ThemeColorLayer 的底色，不畫 BackgroundLayer——它在 src 是空的
-    // 時候會鋪一層中性深灰漸層，而真正的頁面在同樣情況下是不畫這一層的。預覽要長得
-    // 像那一頁，不是長得像「一張沒載到圖的頁面」。
-    // 講話的人要出現。這一段跟 TalkModel 的圖層順序刻意一致——它就是那一頁扣掉
-    // TalkBox，順序不一樣的話立繪與漸層的疊法會不同，翻頁瞬間就會看到東西跳動。
-    const speaker = row.speaker
-      ? ctx.characterData?.find((char) => char.name === row.speaker)
-      : null;
-
-    // Img 與 MissionStart 的底跟其他頁不一樣：前者根本沒有色層（透出 GameShell 的
-    // game.bg），後者是一張 MUI Paper 白卡。用 ThemeColorLayer 的深墨去畫它們，滑到
-    // 定位的那一刻底色會整個換掉——接縫比沒有預覽還明顯。
-    if (row.model === 'Img') {
-      // Img 的內容就是那張圖，連底圖都沒有可以給的東西。留白＝跟真正的那一頁同一個底。
-      return <Box sx={{ width: '100%', height: '100%' }} />;
-    }
-    if (row.model === 'MissionStart') {
-      // 白卡＋關卡底圖，就是沒有關卡名與說明——名字本身也是還沒發生的事。
-      return (
-        <FloatingLayer>
-          {src ? (
-            <Layer>
-              <BackgroundLayer src={ctx.getImg(src)} opacity="0.9" />
-            </Layer>
-          ) : (
-            <span />
-          )}
-        </FloatingLayer>
-      );
-    }
-
-    return (
-      <ThemeColorLayer>
-        {/* 沒有底圖就只留 ThemeColorLayer 的底色：BackgroundLayer 在 src 空的時候會
-            鋪一層中性深灰漸層，而真正的頁面在同樣情況下不畫這一層。預覽要長得像那一頁，
-            不是長得像「一張沒載到圖的頁面」。 */}
-        {src && (
-          <Layer>
-            <BackgroundLayer src={ctx.getImg(src)} />
-          </Layer>
-        )}
-        {speaker?.straight && (
-          <Layer>
-            <CharacterLayer src={ctx.getImg(speaker.straight)} />
-          </Layer>
-        )}
-        <GradientLayer />
-      </ThemeColorLayer>
-    );
-  }
-
   const ModelComponent = MODEL_COMPONENTS[row.model];
   if (!ModelComponent) return null;
 
@@ -125,6 +64,7 @@ const PeekPage = ({ row, mode, textMode = 'instant' }) => {
         onNext={noop}
         canProceed
         textMode={textMode}
+        hideContent={hideContent}
       />
     </GameContext.Provider>
   );
@@ -132,7 +72,7 @@ const PeekPage = ({ row, mode, textMode = 'instant' }) => {
 
 PeekPage.propTypes = {
   row: PropTypes.object,
-  mode: PropTypes.oneOf(['full', 'background']).isRequired,
+  hideContent: PropTypes.bool,
   textMode: PropTypes.oneOf(['type', 'instant', 'silent']),
 };
 

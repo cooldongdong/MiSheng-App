@@ -15,7 +15,12 @@ import useAnswerShortcuts from '../hook/useAnswerShortcuts';
 import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import PropTypes from 'prop-types';
 
-const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
+const MissionAnswerInputModel = ({
+  onNext,
+  canProceed,
+  devTools = false,
+  hideContent = false,
+}) => {
   const {
     getImg,
     currentMissionId,
@@ -161,8 +166,9 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
         </Layer>
       )}
 
-      {/* AnswerInput */}
-      <Layer>
+      {/* AnswerInput。hideContent 見 TalkModel 檔頭 */}
+      {!hideContent && (
+        <Layer>
         <BottomBox>
           <MissionSubtitleText subtitle={currentMission.subtitle} />
           <MissionTitleText title={currentMission.title} />
@@ -207,6 +213,7 @@ const MissionAnswerInputModel = ({ onNext, canProceed, devTools = false }) => {
           />
         </BottomBox>
       </Layer>
+      )}
     </ThemeColorLayer>
   );
 };
@@ -216,6 +223,7 @@ MissionAnswerInputModel.propTypes = {
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
   devTools: PropTypes.bool,
+  hideContent: PropTypes.bool,
 };
 
 export default MissionAnswerInputModel;

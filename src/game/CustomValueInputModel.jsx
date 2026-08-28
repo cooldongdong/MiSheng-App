@@ -16,7 +16,13 @@ import SpeakerText from '../component/common/SpeakerText';
 import TalkText from '../component/common/TalkText';
 import PropTypes from 'prop-types';
 
-const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = false }) => {
+const CustomValueInputModel = ({
+  currentRow,
+  onNext,
+  canProceed,
+  devTools = false,
+  hideContent = false,
+}) => {
   const {
     getImg,
     currentMissionId,
@@ -112,8 +118,9 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = fals
       {/* Gradient after text */}
       <GradientLayer />
 
-      {/* AnswerInput */}
-      <Layer>
+      {/* AnswerInput。hideContent 見 TalkModel 檔頭 */}
+      {!hideContent && (
+        <Layer>
         <BottomBox>
           <Stack spacing={2}>
             <SpeakerText speaker={currentRow?.title || currentRow.speaker} />
@@ -150,6 +157,7 @@ const CustomValueInputModel = ({ currentRow, onNext, canProceed, devTools = fals
 
         </BottomBox>
       </Layer>
+      )}
     </ThemeColorLayer>
   );
 };
@@ -160,6 +168,7 @@ CustomValueInputModel.propTypes = {
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
   devTools: PropTypes.bool,
+  hideContent: PropTypes.bool,
 };
 
 export default CustomValueInputModel;

@@ -10,45 +10,29 @@ import CharacterLayer from '../component/layer/CharacterLayer';
 import TalkBox from '../component/feature/TalkBox';
 import { GameContext } from '../store/game-context';
 
-const Talk = ({ currentRow, onNext, canProceed, preview = false }) => {
-  const [speaker, setSpeaker] = useState(null);
-  const [backgroundImg, setBackgroundImg] = useState(null);
+const Talk = ({ currentRow, onNext, canProceed, textMode = 'type' }) => {
   const {
     getImg,
     characterData,
     getMissionById,
-    rundownData,
     currentMissionId,
     customPairs,
   } = useContext(GameContext);
   const currentMission = getMissionById(currentMissionId);
   const textContainerRef = useRef(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
-  const [showFullTextIcon, setShowFullTextIcon] = useState(false);
 
-  useEffect(() => {
-    if (rundownData.length < 0) {
-      return;
-    }
-
-    setShowFullTextIcon(currentRow.text?.length > 130);
-
-    // 如果有 speaker，從 characterData 中找到對應的角色
-    if (currentRow?.speaker) {
-      const character = characterData.find(
-        (char) => char.name === currentRow.speaker
-      );
-      setSpeaker(character || null); // 儲存角色資訊
-    } else {
-      setSpeaker(null); // 沒有 speaker 時清空
-    }
-  }, [currentRow]);
-
-  useEffect(() => {
-    setBackgroundImg(
-      currentRow?.backgroundImg || currentMission?.backgroundImg
-    );
-  }, [currentRow, currentMission]);
+  // 講者、底圖、「要不要給全文鈕」三個都是從 currentRow 推導出來的，**推導值就用推導的**。
+  //
+  // 原本它們是 useState ＋ useEffect 回填，於是每次換頁都會有一個 render 是
+  // 「新的一頁、舊的（或空的）底圖」——按 NEXT 時就會閃一下，上下滑翻頁因為交接點
+  // 更明顯而被 Dong 抓到（2026-08-28）。這與 GameController 當初把 currentRow 從
+  // state 改成 useMemo 是同一個病：**存起來的推導值永遠慢真相一個 render。**
+  const speaker = currentRow?.speaker
+    ? characterData?.find((char) => char.name === currentRow.speaker) || null
+    : null;
+  const backgroundImg = currentRow?.backgroundImg || currentMission?.backgroundImg;
+  const showFullTextIcon = (currentRow?.text?.length || 0) > 130;
 
   const processedText = (currentRow?.text || '').replace(
     /\{\{(.*?)\}\}/g,
@@ -60,7 +44,7 @@ const Talk = ({ currentRow, onNext, canProceed, preview = false }) => {
   const displayText = useTypewriterEffect(
     processedText || '', // Pass the dialogue text to the hook
     50, // Typing speed in milliseconds
-    preview // 預覽的那一頁直接給完整文字
+    textMode // 見 useTypewriterEffect：往回走給全文、正在滑過來的先不給字
   );
 
   // 監聽滾動行為
@@ -135,7 +119,7 @@ const Talk = ({ currentRow, onNext, canProceed, preview = false }) => {
 
 // 定義 propTypes
 Talk.propTypes = {
-  preview: PropTypes.bool,
+  textMode: PropTypes.oneOf(['type', 'instant', 'silent']),
   currentRow: PropTypes.object.isRequired,
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,

@@ -147,6 +147,10 @@ const useSwipeFlow = ({
       }
 
       busy.current = true;
+      // 從這一刻起，那張預覽不再是「預覽」——玩家已經決定要過去了，所以它要換成
+      // 完整的那一頁再滑進來。不換的話，滑完之後才把內容補上，看起來就是閃一下
+      // （Dong 2026-08-28 回報）。防劇透的理由到這裡也結束了：他就是要去那裡。
+      setPeek((p) => (p ? { ...p, committing: true } : p));
       setT({ y: dir === 'up' ? -h : h, ms: TURN_MS });
       timers.current.push(
         setTimeout(() => {

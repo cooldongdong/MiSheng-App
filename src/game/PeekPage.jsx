@@ -29,7 +29,7 @@ import { MODEL_COMPONENTS } from './models';
 //      一個畫在旁邊的預覽把玩家的關卡標成完成，是那種很久以後才會被發現的 bug。
 const noop = () => {};
 
-const PeekPage = ({ row, mode }) => {
+const PeekPage = ({ row, mode, textMode = 'instant' }) => {
   const ctx = useContext(GameContext);
 
   const scoped = useMemo(() => {
@@ -120,7 +120,12 @@ const PeekPage = ({ row, mode }) => {
     <GameContext.Provider value={scoped}>
       {/* canProceed 給 true：那一頁玩家離開的時候 NEXT 是亮著的，預覽要長得跟記憶
           一樣。反正整棵樹是 inert ＋ pointerEvents:none，按不到。 */}
-      <ModelComponent currentRow={row} onNext={noop} canProceed preview />
+      <ModelComponent
+        currentRow={row}
+        onNext={noop}
+        canProceed
+        textMode={textMode}
+      />
     </GameContext.Provider>
   );
 };
@@ -128,6 +133,7 @@ const PeekPage = ({ row, mode }) => {
 PeekPage.propTypes = {
   row: PropTypes.object,
   mode: PropTypes.oneOf(['full', 'background']).isRequired,
+  textMode: PropTypes.oneOf(['type', 'instant', 'silent']),
 };
 
 export default PeekPage;

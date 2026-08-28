@@ -257,8 +257,19 @@ const GameController = ({
       const targetId = dir === 'up' ? getNextId() : backTargetId;
       const row = rundownData?.find?.((item) => item.id === targetId);
       if (!row) return null;
-      // 往回＝已經看過，整頁給；往前＝還沒發生，只給底圖（見 PeekPage 檔頭）
-      return { dir, kind: 'page', row, mode: dir === 'down' ? 'full' : 'background' };
+      // 拉的途中：往回＝已經看過，整頁給；往前＝還沒發生，只給底圖。
+      // 放手之後（committing）一律整頁給——他已經要過去了，這時還藏著只會讓
+      // 「滑完才補上內容」變成一次閃爍。
+      const committed = !!swipe.peek.committing;
+      return {
+        dir,
+        kind: 'page',
+        row,
+        mode: dir === 'down' || committed ? 'full' : 'background',
+        // 往回那一頁直接給全文（已經讀過了）；正在滑過來的那一頁先不要有字——
+        // 它落地後會變成當前頁、從第一個字開始打，先放字反而會先消失再重打。
+        textMode: dir === 'down' ? 'instant' : 'silent',
+      };
     }
 
     if (dir === 'down') {
@@ -347,6 +358,9 @@ const GameController = ({
         onNext={handleNext}
         canProceed={canProceedToNext()}
         devTools={devTools}
+        // 往回走到的那一頁直接給全文。它剛剛在預覽裡就是全文，落地再從頭打一次
+        // 等於字先消失再重來；而且那一頁玩家本來就讀過了，重打是倒帶不是回顧。
+        textMode={wentBack ? 'instant' : 'type'}
       />
     ) : (
       <Typography>Unknown model type: {currentRow.model}</Typography>
@@ -418,7 +432,11 @@ const GameController = ({
               }}
             >
               {peekContent.kind === 'page' ? (
-                <PeekPage row={peekContent.row} mode={peekContent.mode} />
+                <PeekPage
+                  row={peekContent.row}
+                  mode={peekContent.mode}
+                  textMode={peekContent.textMode}
+                />
               ) : (
                 <PeekPanel
                   dir={peekContent.dir}

@@ -43,6 +43,7 @@ const GameController = ({
     loadedVersion,
     setLoadedVersion,
     currentId,
+    setCurrentId,
     goToId,
     goBack,
     canGoBack,
@@ -232,8 +233,16 @@ const GameController = ({
       handleBack();
       return;
     }
-    handlePrev();
-  }, [backId, handleBack, handlePrev]);
+    // 走過的路用完了，就退到流程上的上一步。**這一步不進歷史**——往回走不該在路徑上
+    // 留下新的一格，否則下一次往回只是把它撤銷，畫面就在兩頁之間來回彈
+    // （Dong 2026-08-28 回報繞圈問題時一起浮出來的：15 ↔ 12 跳個不停）。
+    // 這裡不能借 handlePrev：那是 /create 的鍵盤 ↑，它刻意要進歷史，
+    // 好讓 ⌫ 在按過頭之後還回得來。同一個動作在工具與玩家端要的東西不一樣。
+    const prevId = getPrevId();
+    if (!prevId) return;
+    setWentBack(true);
+    setCurrentId(prevId);
+  }, [backId, handleBack, getPrevId, setCurrentId]);
 
   const swipe = useSwipeFlow({
     enabled: !devTools,

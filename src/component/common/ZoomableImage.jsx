@@ -103,8 +103,11 @@ const ZoomableImage = ({
       {/* 當圖片放大時 */}
       {isFullScreen && (
         <>
-          {/* 半透明背景，點擊可縮小 */}
+          {/* 半透明背景，點擊可縮小。
+              data-no-swipe：放大的圖蓋滿整個遊戲區，這時上下滑該是「看圖」而不是
+              翻頁——玩家端的滑動手勢（useSwipeFlow）看到這個標記就整個不接手。 */}
           <Box
+            data-no-swipe
             onClick={onToggle}
             sx={{
               position: 'fixed',
@@ -122,6 +125,7 @@ const ZoomableImage = ({
 
           {/* 放大的圖片 */}
           <img
+            data-no-swipe
             src={src}
             alt={alt}
             style={{
@@ -140,6 +144,7 @@ const ZoomableImage = ({
 
           {/* 縮小按鈕 */}
           <Fab
+            data-no-swipe
             onClick={onToggle}
             sx={{
               position: 'fixed',

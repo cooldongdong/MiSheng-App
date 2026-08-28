@@ -10,7 +10,7 @@ import CharacterLayer from '../component/layer/CharacterLayer';
 import TalkBox from '../component/feature/TalkBox';
 import { GameContext } from '../store/game-context';
 
-// hideContent：把這一頁的**內容**藏起來，底圖、立繪、漸層照留（COO-135）。
+// hideContent：把這一頁的**內容**藏起來，底圖、立繪、漸層照留（上下滑翻頁）。
 // 給上下拉的預覽用——往前拉時只讓人看到「場景換了沒、誰要說話」，不給台詞。
 //
 // 為什麼是一個 prop 而不是在外面另外拼一棵樹：外面拼的樹跟這一頁**不是同一棵**，

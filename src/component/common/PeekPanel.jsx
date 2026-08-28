@@ -3,7 +3,7 @@ import KeyboardArrowUpRounded from '@mui/icons-material/KeyboardArrowUpRounded';
 import KeyboardArrowDownRounded from '@mui/icons-material/KeyboardArrowDownRounded';
 import PropTypes from 'prop-types';
 
-// 上下拉的時候露出來的那一塊（COO-135）。
+// 上下拉的時候露出來的那一塊（上下滑翻頁）。
 //
 // 兩種內容、同一塊地方：走得過去就講「下一頁是什麼」，走不過去就講「為什麼不能過去」。
 // 不必是兩套機制——玩家拉開的動作只有一個，答案就該出現在同一個位置。

@@ -216,12 +216,12 @@ const GameController = ({
     [spatialNav, currentId, goToId]
   );
 
-  // 上下滑＝按鈕的捷徑（COO-135，Dong 2026-08-28 拍板）。上滑等同按 Next、
+  // 上下滑＝按鈕的捷徑（Dong 2026-08-28 拍板）。上滑等同按 Next、
   // 下滑等同 ⌫，判準與鍵盤共用同一個 canAdvance——同一件事只能有一條規則，
   // 否則「按鈕會走、滑不動」這種前後矛盾會被當成壞掉。
   //
   // 只在玩家端（devTools=false＝/demo 與各自部署的遊戲）。/create 是桌機三欄工具，
-  // 那邊的前進後退是鍵盤（COO-134），再疊一套手勢只會跟拖曳分隔線打架。
+  // 那邊的前進後退是鍵盤（鍵盤翻頁），再疊一套手勢只會跟拖曳分隔線打架。
   // 「往下拉會去哪一列」。backId 是 goBack 真正會落到的那一列（provider 算的，
   // 跟 goBack 同一條規則）；沒有走過的路時退到流程上的上一步——history 不寫
   // localStorage，玩家一重整就沒有走過的路，沒有這條 fallback 的話下滑會變成

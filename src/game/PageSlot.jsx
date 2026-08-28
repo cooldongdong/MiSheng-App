@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { GameContext } from '../store/game-context';
 import { MODEL_COMPONENTS } from './models';
 
-// 畫「某一列」的那一頁——現在這一頁與上下相鄰的預覽都走這裡（COO-135）。
+// 畫「某一列」的那一頁——現在這一頁與上下相鄰的預覽都走這裡（上下滑翻頁）。
 //
 // **同一個元件畫全部三種，是這個檔案存在的理由。** GameController 用 row.id 當 key
 // 把它們排成一列，於是玩家滑過去、currentId 換人的時候，原本那張預覽**還是同一個

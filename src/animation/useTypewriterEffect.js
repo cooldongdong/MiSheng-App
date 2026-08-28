@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
  * Custom hook for typewriter effect.
  * @param {string} text - The text to display with typewriter effect.
  * @param {number} speed - Typing speed in milliseconds per character.
- * @param {'type'|'instant'|'silent'} mode - 文字怎麼出現（COO-135）：
+ * @param {'type'|'instant'|'silent'} mode - 文字怎麼出現（上下滑翻頁）：
  *   - 'type'    正常打字
  *   - 'instant' 直接給完整文字。用在「往回走的那一頁」——玩家已經讀過了，
  *               從頭再打一次看起來像倒帶而不像回顧

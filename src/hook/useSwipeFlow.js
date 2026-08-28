@@ -30,6 +30,9 @@ const VELOCITY = 0.45; // px/ms。甩得夠快就不必滑滿——短影片的�
 const MAX_DRAG = 150; // 跟手的上限，超過改成 1/4 阻尼，才有「拉到底了」的實感
 const RUBBER = 120; // 走不過去時的漸近上限：拉到死也只到這裡
 const CLICK_GUARD = 20; // 拉超過這麼多就不算點擊了
+// 手勢結束後，屬於這一次手勢的那一下 click 會在幾毫秒內到。開這麼窄的窗是刻意的：
+// 窗開太久會吃掉使用者「看到提示、馬上去點按鈕」的那一下真點擊（見 swallowNextClick）
+const CLICK_TAIL_MS = 120;
 const TURN_MS = 200;
 const SPRING_MS = 240;
 
@@ -111,16 +114,30 @@ const useSwipeFlow = ({
   // 在 Quiz 的選項上往下滑回上一頁，手指離開時瀏覽器仍會補一個 click 給那顆選項，
   // 於是「退回上一頁」跟「選了這個選項」會同時發生。走不過去的那種拉扯也要吞——
   // 拉了 100px 又彈回來，那顯然不是在點東西。
-  const swallowNextClick = useCallback(() => {
+  //
+  // **改成一個常駐的監聽器 ＋ 一個時間戳（Dong 2026-08-28 回報的 bug）。** 原本是
+  // 每次手勢結束就掛一個一次性的 click 監聽器、再用 setTimeout 在 500ms 後拆掉它。
+  // 兩個錯疊在一起：
+  //   ① 500ms 太長——屬於這次手勢的 click 幾毫秒內就到了，剩下的窗口全在吃使用者
+  //      「拉一下看到提示、馬上去點選項」的那一下真點擊。實測就是這樣：Quiz 頁上拉
+  //      一次之後，第一下點選項沒反應，第二下才行。
+  //   ② 那個 setTimeout 被丟進 timers，而 onPointerDown 會 clearTimers()——於是只要
+  //      使用者在 500ms 內又按下去，拆監聽器的那個 timer 就被清掉了，監聽器**永遠留著**，
+  //      直到吃掉某一次點擊為止。
+  // 現在沒有任何 timer：窗口靠時間戳自己過期，關不掉也漏不掉。
+  const swallowUntil = useRef(0);
+  useEffect(() => {
     const onClick = (e) => {
+      if (performance.now() > swallowUntil.current) return;
+      swallowUntil.current = 0; // 只吃一下
       e.preventDefault();
       e.stopPropagation();
-      window.removeEventListener('click', onClick, true);
     };
     window.addEventListener('click', onClick, true);
-    timers.current.push(
-      setTimeout(() => window.removeEventListener('click', onClick, true), 500)
-    );
+    return () => window.removeEventListener('click', onClick, true);
+  }, []);
+  const swallowNextClick = useCallback(() => {
+    swallowUntil.current = performance.now() + CLICK_TAIL_MS;
   }, []);
 
   // 翻頁＝整頁滑滿一個容器高度，讓底下那張預覽剛好就位，然後把位移歸零、換頁。

@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { GameContext } from '../store/game-context';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, useMediaQuery } from '@mui/material';
 import KeyHintBar from '../component/common/KeyHintBar';
 import { loadCSVData } from './csvLoader';
 import useNextId from '../hook/useNextId';
@@ -216,6 +216,12 @@ const GameController = ({
     [spatialNav, currentId, goToId]
   );
 
+  // 主要輸入是不是觸控。**判準是裝置，不是入口**（Dong 2026-08-28）：
+  // 在手機上打開 /create 試玩時，那裡既沒有鍵盤、也沒有三欄可以拖——鍵盤提示是純雜訊，
+  // 而滑動才是唯一自然的翻頁方式。原本這兩件事都綁在 devTools 上，等於拿
+  // 「你從哪個網址進來」去回答「你手上有什麼」。
+  const coarsePointer = useMediaQuery('(pointer: coarse)');
+
   // 上下滑＝按鈕的捷徑（Dong 2026-08-28 拍板）。上滑等同按 Next、
   // 下滑等同 ⌫，判準與鍵盤共用同一個 canAdvance——同一件事只能有一條規則，
   // 否則「按鈕會走、滑不動」這種前後矛盾會被當成壞掉。
@@ -245,7 +251,7 @@ const GameController = ({
   }, [backId, handleBack, getPrevId, setCurrentId]);
 
   const swipe = useSwipeFlow({
-    enabled: !devTools,
+    enabled: !devTools || coarsePointer,
     canAdvance,
     onNext: handleNext,
     canGoBack: !!backTargetId,
@@ -345,7 +351,8 @@ const GameController = ({
   //
   // 沒有流程圖就不出這一列：/demo 本來就沒有，/create 收起右欄時也一樣——
   // 那時使用者是想專心看遊戲，一行鍵盤提示只是雜訊（鍵盤功能本身還在）。
-  const hintKind = !devTools || !spatialNav
+  // 觸控裝置上也不出：那裡根本按不到那些鍵。
+  const hintKind = !devTools || coarsePointer || !spatialNav
     ? null
     : mapNav
       ? 'map'

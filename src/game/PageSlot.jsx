@@ -3,7 +3,18 @@ import PropTypes from 'prop-types';
 import { GameContext } from '../store/game-context';
 import { MODEL_COMPONENTS } from './models';
 
-// 上下拉時露出來的那一頁（COO-135）。
+// 畫「某一列」的那一頁——現在這一頁與上下相鄰的預覽都走這裡（COO-135）。
+//
+// **同一個元件畫全部三種，是這個檔案存在的理由。** GameController 用 row.id 當 key
+// 把它們排成一列，於是玩家滑過去、currentId 換人的時候，原本那張預覽**還是同一個
+// React 元素**——只是 live 從 false 變 true。DOM 不重建、圖片不重新解碼、打字機的
+// 進度不歸零。
+//
+// 之前是「當前頁走一條路、預覽走另一條路」，落地時等於把預覽拆掉、再叫當前頁去換
+// img 的 src。而瀏覽器換 src 時**會繼續畫舊圖直到新圖解碼完**（實測），所以那一格
+// 畫面是「預覽的 B → 當前頁還在畫的 A → B」——閃的就是上一頁的背景回來一下
+// （Dong 2026-08-28 兩次回報，一頁有角色圖、一頁沒有時最明顯，因為立繪是整個新建的
+// 元素、連舊圖都沒得畫）。
 //
 // 兩個方向給的東西不一樣，這是刻意的（Dong 2026-08-28）：
 //   - 往下拉看到的是**上一頁**，玩家已經看過了，所以整頁照實渲染
@@ -27,7 +38,15 @@ import { MODEL_COMPONENTS } from './models';
 //      一個畫在旁邊的預覽把玩家的關卡標成完成，是那種很久以後才會被發現的 bug。
 const noop = () => {};
 
-const PeekPage = ({ row, hideContent = false, textMode = 'instant' }) => {
+const PageSlot = ({
+  row,
+  live = false,
+  hideContent = false,
+  textMode = 'type',
+  onNext,
+  canProceed = false,
+  devTools = false,
+}) => {
   const ctx = useContext(GameContext);
 
   const scoped = useMemo(() => {
@@ -56,13 +75,17 @@ const PeekPage = ({ row, hideContent = false, textMode = 'instant' }) => {
   if (!ModelComponent) return null;
 
   return (
-    <GameContext.Provider value={scoped}>
-      {/* canProceed 給 true：那一頁玩家離開的時候 NEXT 是亮著的，預覽要長得跟記憶
-          一樣。反正整棵樹是 inert ＋ pointerEvents:none，按不到。 */}
+    // live 的那一格拿真的 context；預覽拿唯讀的那份。**兩種都包一層 Provider**——
+    // 只在預覽時才包的話，切成 live 會讓樹的形狀變了，React 就會整棵重掛，
+    // 那正是這個檔案要避免的事。
+    <GameContext.Provider value={live ? ctx : scoped}>
+      {/* 預覽的 canProceed 給 true：那一頁玩家離開的時候 NEXT 是亮著的，預覽要長得
+          跟記憶一樣。反正預覽那一格是 inert ＋ pointerEvents:none，按不到。 */}
       <ModelComponent
         currentRow={row}
-        onNext={noop}
-        canProceed
+        onNext={live ? onNext : noop}
+        canProceed={live ? canProceed : true}
+        devTools={live ? devTools : false}
         textMode={textMode}
         hideContent={hideContent}
       />
@@ -70,10 +93,14 @@ const PeekPage = ({ row, hideContent = false, textMode = 'instant' }) => {
   );
 };
 
-PeekPage.propTypes = {
+PageSlot.propTypes = {
   row: PropTypes.object,
+  live: PropTypes.bool,
   hideContent: PropTypes.bool,
   textMode: PropTypes.oneOf(['type', 'instant', 'silent']),
+  onNext: PropTypes.func,
+  canProceed: PropTypes.bool,
+  devTools: PropTypes.bool,
 };
 
-export default PeekPage;
+export default PageSlot;

@@ -8,8 +8,7 @@ import usePrevId from '../hook/usePrevId';
 import useFlowKeys from '../hook/useFlowKeys';
 import useSwipeFlow from '../hook/useSwipeFlow';
 import PeekPanel from '../component/common/PeekPanel';
-import PeekPage from './PeekPage';
-import { MODEL_COMPONENTS } from './models';
+import PageSlot from './PageSlot';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 
 // 「按一下就走」的三種 model
@@ -352,36 +351,31 @@ const GameController = ({
               : 'back';
 
   // Render content based on the model type
-  const renderContent = () => {
-    const ModelComponent = MODEL_COMPONENTS[currentRow.model];
-    return ModelComponent ? (
-      <ModelComponent
-        currentRow={currentRow}
-        onNext={handleNext}
-        canProceed={canProceedToNext()}
-        devTools={devTools}
-        // 往回走到的那一頁直接給全文。它剛剛在預覽裡就是全文，落地再從頭打一次
-        // 等於字先消失再重來；而且那一頁玩家本來就讀過了，重打是倒帶不是回顧。
-        textMode={wentBack ? 'instant' : 'type'}
-      />
-    ) : (
-      <Typography>Unknown model type: {currentRow.model}</Typography>
-    );
-  };
+  // 現在這一頁 ＋ 上／下相鄰的那一頁，排成一列，**用 row.id 當 key**。
+  //
+  // key 是這整段的重點：滑過去的時候 currentId 換人，但原本那張預覽的 key 沒變，
+  // 所以 React 認得它是同一個元素——只是 live 從 false 變 true、位置從 +100% 回到 0。
+  // 沒有卸載、沒有重掛，圖片與打字機的狀態原封不動。
+  // 交接過一次就會閃一下，成因見 PageSlot 檔頭。
+  // 不用 useMemo：它坐在「資料還沒好就先 return」那幾道守門之後，而 hook 不能有
+  // 條件地呼叫。這裡只是組兩筆物件，本來也不值得記憶化——真正省事的是 key。
+  const slots = [{ row: currentRow, pos: 0, live: true }];
+  if (peekContent?.kind === 'page') {
+    slots.push({
+      row: peekContent.row,
+      pos: peekContent.dir === 'up' ? 1 : -1,
+      live: false,
+      hideContent: peekContent.hideContent,
+      textMode: peekContent.textMode,
+    });
+  }
 
   return (
     <>
       <KeyHintBar kind={hintKind} />
-      {/* 滑動的舞台。GameShell 那層本來就是 flex ＋ 垂直置中，這個 Box 是插進
-          中間的，所以要把同一組版面規則照抄一次——不抄的話 ImgModel 的 m:'auto'
-          會失去垂直置中的依據，圖片整個貼到上緣。
-          transform 只在真的在動的時候才給（style 裡 undefined），因為有 transform
-          的元素會變成底下所有 fixed 後代的定位基準——靜止時保持沒有，放大的圖
-          在 /demo 的行為就跟以前一模一樣。 */}
-      {/* 滑動的舞台。外層是不動的視窗（把上下兩張預覽卡片裁在畫面外），內層才是
-          跟著手指走的那一層——一個 transform 同時帶著現在這一頁與兩張卡片，
-          卡片就不必自己算位置。
-          GameShell 那層本來就是 flex ＋ 垂直置中，內層要把同一組版面規則照抄一次——
+      {/* 滑動的舞台。外層是不動的視窗（把上下相鄰的那兩頁裁在畫面外），內層是跟著
+          手指走的那一層——一個 transform 同時帶著三頁，各頁就不必自己算位置。
+          GameShell 那層本來就是 flex ＋ 垂直置中，每一格要把同一組版面規則照抄一次——
           不抄的話 ImgModel 的 m:'auto' 會失去垂直置中的依據，圖片整個貼到上緣。
           transform 只在真的在動的時候才給（style 裡是 undefined），因為有 transform
           的元素會變成底下所有 fixed 後代的定位基準，而外層又是 overflow:hidden——
@@ -398,55 +392,67 @@ const GameController = ({
           // 但那反而製造了真正的 bug：Img 沒有色層、MissionStart 是一張 MUI Paper 白卡，
           // 這兩種頁面的底本來就是 GameShell 的 game.bg（淺色下近白），鋪深色等於把它們
           // 的底整個換掉（Dong 2026-08-28 回報）。
-          // 保險也不需要了——換頁改成整頁滑一個容器高度之後，位移 t 落在 [-h, 0]，
-          // 現在這頁與底下那張預覽合起來一定蓋滿視窗，沒有露縫的那一格。
+          // 保險也不需要了——換頁滑滿一個容器高度，位移落在 [-h, 0]，兩頁合起來一定
+          // 蓋滿視窗，沒有露縫的那一格。
         }}
       >
-        <Box
-          style={swipe.style}
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          {renderContent()}
-          {peekContent && (
+        <Box style={swipe.style} sx={{ position: 'absolute', inset: 0 }}>
+          {slots.map((slot) => (
             <Box
-              // inert：預覽的那一頁裡有真的輸入框與按鈕。整棵子樹不可聚焦也不可互動，
+              key={slot.row.id}
+              // inert：預覽那一頁裡有真的輸入框與按鈕。整棵子樹不可聚焦也不可互動，
               // 所以 Tab 不會走進去、按鈕按不到，未來哪個元件又加了 autoFocus 也搶不走
-              // 玩家的游標——比逐一給元件加 preview 參數乾淨。
-              // React 18 不認 inert 這個 prop（19 才支援布林），所以用空字串繞過
-              // 型別檢查——瀏覽器看到屬性存在就生效。
+              // 玩家的游標。它是 attribute，切換不會讓 React 重掛這棵樹。
+              // React 18 不認 inert 這個 prop（19 才支援布林），用空字串繞過型別檢查——
+              // 瀏覽器看到屬性存在就生效。
+              {...(slot.live ? {} : { inert: '' })}
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: slot.live ? undefined : 'none',
+                // 當前頁不給 transform（理由同上：fixed 後代的定位基準）
+                transform: slot.pos ? `translateY(${slot.pos * 100}%)` : undefined,
+              }}
+            >
+              <PageSlot
+                row={slot.row}
+                live={slot.live}
+                hideContent={!slot.live && !!slot.hideContent}
+                // 往回走到的那一頁直接給全文。它剛剛在預覽裡就是全文，落地再從頭打
+                // 一次等於字先消失再重來；而且那一頁玩家本來就讀過了，重打是倒帶
+                // 不是回顧。
+                textMode={
+                  slot.live ? (wentBack ? 'instant' : 'type') : slot.textMode
+                }
+                onNext={handleNext}
+                canProceed={canProceedToNext()}
+                devTools={devTools}
+              />
+            </Box>
+          ))}
+
+          {peekContent?.kind === 'blocked' && (
+            <Box
               {...{ inert: '' }}
               sx={{
                 position: 'absolute',
                 left: 0,
                 width: '100%',
                 height: '100%',
-                display: 'flex',
-                alignItems: 'center',
                 pointerEvents: 'none',
                 ...(peekContent.dir === 'up'
                   ? { top: '100%' }
                   : { bottom: '100%' }),
               }}
             >
-              {peekContent.kind === 'page' ? (
-                <PeekPage
-                  row={peekContent.row}
-                  hideContent={peekContent.hideContent}
-                  textMode={peekContent.textMode}
-                />
-              ) : (
-                <PeekPanel
-                  dir={peekContent.dir}
-                  label={peekContent.label}
-                  detail={peekContent.detail}
-                  blocked
-                />
-              )}
+              <PeekPanel
+                dir={peekContent.dir}
+                label={peekContent.label}
+                detail={peekContent.detail}
+                blocked
+              />
             </Box>
           )}
         </Box>

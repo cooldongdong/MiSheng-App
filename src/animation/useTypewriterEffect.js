@@ -26,6 +26,9 @@ export const useTypewriterEffect = (text, speed = 50, mode = 'type') => {
 
   // Typewriter effect logic
   useEffect(() => {
+    // silent 是「還沒開始」，不是「打了但不顯示」。讓計時器在背後跑完的話，
+    // 這一頁被滑成當前頁、模式換回 type 的那一刻，字會直接從中間冒出來。
+    if (mode !== 'type') return;
     if (text && charIndex < text.length) {
       const timeout = setTimeout(() => {
         setDisplayText((prev) => prev + text[charIndex]);
@@ -33,7 +36,7 @@ export const useTypewriterEffect = (text, speed = 50, mode = 'type') => {
       }, speed);
       return () => clearTimeout(timeout);
     }
-  }, [charIndex, text, speed]);
+  }, [charIndex, text, speed, mode]);
 
   if (mode === 'instant') return text;
   if (mode === 'silent') return '';

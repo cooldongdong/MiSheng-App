@@ -4,16 +4,19 @@ import { GameContext } from '../store/game-context';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
 import Layer from '../component/layer/Layer';
 import BackgroundLayer from '../component/layer/BackgroundLayer';
+import CharacterLayer from '../component/layer/CharacterLayer';
+import GradientLayer from '../component/layer/GradientLayer';
 import { MODEL_COMPONENTS } from './models';
 
 // 上下拉時露出來的那一頁（COO-135）。
 //
 // 兩個方向給的東西不一樣，這是刻意的（Dong 2026-08-28）：
 //   - 往下拉看到的是**上一頁**，玩家已經看過了，所以整頁照實渲染
-//   - 往上拉看到的是**下一頁**，那是還沒發生的劇情，所以只給底圖
-// 「只給底圖」不是技術上的偷懶，是這個產品的體裁決定的：短影片預覽下一則是讓你決定
-// 要不要繼續看，解謎的下一頁是謎底，提前露出就沒得玩了。底圖給的是場景換沒換——
-// 那是方位感，不是答案。
+//   - 往上拉看到的是**下一頁**，那是還沒發生的劇情，所以給的是「那一頁扣掉字」：
+//     底圖、講話的人的立繪、對白框的漸層底，就是沒有台詞本身
+// 為什麼停在這裡：短影片預覽下一則是讓你決定要不要繼續看，解謎的下一頁是謎底，
+// 提前露出就沒得玩了。但場景換了沒、換誰在講話，那是方位感不是答案——而且**翻頁時
+// 這張預覽會滑到定位直接變成新頁**，它跟真的那一頁長得愈像，接縫就愈看不出來。
 //
 // **預覽拿到的是一份唯讀的 context。** 兩個理由：
 //   ① 三個 model 根本不收 currentRow——MissionStart 與 MissionAnswerInput 讀
@@ -60,15 +63,28 @@ const PeekPage = ({ row, mode }) => {
     // 沒有底圖就只留 ThemeColorLayer 的底色，不畫 BackgroundLayer——它在 src 是空的
     // 時候會鋪一層中性深灰漸層，而真正的頁面在同樣情況下是不畫這一層的。預覽要長得
     // 像那一頁，不是長得像「一張沒載到圖的頁面」。
+    // 講話的人要出現。這一段跟 TalkModel 的圖層順序刻意一致——它就是那一頁扣掉
+    // TalkBox，順序不一樣的話立繪與漸層的疊法會不同，翻頁瞬間就會看到東西跳動。
+    const speaker = row.speaker
+      ? ctx.characterData?.find((char) => char.name === row.speaker)
+      : null;
+
     return (
       <ThemeColorLayer>
-        {src ? (
+        {/* 沒有底圖就只留 ThemeColorLayer 的底色：BackgroundLayer 在 src 空的時候會
+            鋪一層中性深灰漸層，而真正的頁面在同樣情況下不畫這一層。預覽要長得像那一頁，
+            不是長得像「一張沒載到圖的頁面」。 */}
+        {src && (
           <Layer>
             <BackgroundLayer src={ctx.getImg(src)} />
           </Layer>
-        ) : (
-          <span />
         )}
+        {speaker?.straight && (
+          <Layer>
+            <CharacterLayer src={ctx.getImg(speaker.straight)} />
+          </Layer>
+        )}
+        <GradientLayer />
       </ThemeColorLayer>
     );
   }

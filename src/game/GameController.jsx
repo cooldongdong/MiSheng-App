@@ -377,6 +377,11 @@ const GameController = ({
           width: '100%',
           height: '100%',
           overflow: 'hidden',
+          // 這一層的底色是最後一道保險。翻頁時整頁滑走一個高度，正常情況下底下那張
+          // 預覽剛好補位、不會露出任何縫；但只要有一格沒補上（預覽那一列剛好找不到、
+          // 或動畫被打斷），透出來的就是 GameShell 的 game.bg——淺色模式下那是 #eee，
+          // 也就是 Dong 看到的那一下白閃。鋪成故事畫面的底色，最壞情況也只是深底。
+          bgcolor: 'dialogue.surface',
         }}
       >
         <Box

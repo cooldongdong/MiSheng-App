@@ -30,11 +30,10 @@ const VELOCITY = 0.45; // px/ms。甩得夠快就不必滑滿——短影片的�
 const MAX_DRAG = 150; // 跟手的上限，超過改成 1/4 阻尼，才有「拉到底了」的實感
 const RUBBER = 120; // 走不過去時的漸近上限：拉到死也只到這裡
 const CLICK_GUARD = 20; // 拉超過這麼多就不算點擊了
-const LEAVE_MS = 170;
-const ENTER_MS = 210;
+const TURN_MS = 200;
 const SPRING_MS = 240;
 
-const REST = { y: 0, o: 1, ms: 0 };
+const REST = { y: 0, ms: 0 };
 
 const isTypingTarget = (el) =>
   !!el &&
@@ -124,15 +123,23 @@ const useSwipeFlow = ({
     );
   }, []);
 
+  // 翻頁＝整頁滑滿一個容器高度，讓底下那張預覽剛好就位，然後把位移歸零、換頁。
+  //
+  // 第一版是「舊頁淡出 → 換頁 → 新頁淡入」，那會在中間閃一下白（Dong 2026-08-28 回報）：
+  // opacity 掉到 0 的時候，透出來的是 GameShell 的 game.bg，淺色模式下那是 #eee。
+  // 但下面本來就已經有真正的下一頁了——**要換的東西已經在畫面上，沒有任何理由先把它
+  // 藏起來再拿出來**。滑滿一頁之後預覽所在的位置就是新頁該在的位置，於是歸零與換頁
+  // 可以在同一個 render 裡發生，中間不存在「兩張頁面都不在」的那一刻。
+  //
+  // 順帶收掉了進場那段的 rAF ——沒有第二段動畫，也就沒有「分頁在背景時 rAF 停擺、
+  // 畫面卡在透明」那個 bug（本檔前一版靠一條 setTimeout 保險絲擋著）。
   const commit = useCallback(
     (dir) => {
       const go = dir === 'up' ? onNext : onBack;
       if (!go) return;
 
-      // 看不到的時候不做動畫：頁面在背景時 requestAnimationFrame 整個停擺，
-      // 下面那段進場就永遠跑不完，畫面會卡在 opacity:0——實測（背景分頁）真的會。
-      // 玩家在戶外滑一下就抬頭看路、或切去接電話，正是這個情境。
-      if (prefersReducedMotion() || document.hidden) {
+      const h = containerRef.current?.clientHeight || 0;
+      if (!h || prefersReducedMotion() || document.hidden) {
         setT(REST);
         setPeek(null);
         go();
@@ -140,38 +147,23 @@ const useSwipeFlow = ({
       }
 
       busy.current = true;
-      const h = containerRef.current?.clientHeight || 600;
-      const away = Math.max(120, h * 0.35) * (dir === 'up' ? -1 : 1);
-
-      // 舊的那一頁往手指的方向離場
-      setT({ y: away, o: 0, ms: LEAVE_MS });
+      setT({ y: dir === 'up' ? -h : h, ms: TURN_MS });
       timers.current.push(
         setTimeout(() => {
+          // 這兩件事必須同一批：位移歸零的同時換頁。React 會一起 commit，
+          // 所以畫面上不會出現「已經歸零、但還是舊頁」的那一格。
           go();
-          setPeek(null); // 預覽的那一頁已經變成現在這一頁了
-          // 新的一頁從反方向進場。先用 ms:0 把起點放好，再等兩個 frame 才開
-          // transition——同一個 frame 內改兩次，瀏覽器只會看到最後那次，動畫不會發生。
-          setT({ y: dir === 'up' ? 28 : -28, o: 0, ms: 0 });
-          requestAnimationFrame(() =>
-            requestAnimationFrame(() => setT({ y: 0, o: 1, ms: ENTER_MS }))
-          );
-          timers.current.push(
-            setTimeout(() => {
-              busy.current = false;
-              // 保險絲：上面那兩層 rAF 沒跑到（分頁被切到背景、瀏覽器省電模式）
-              // 就直接把畫面歸位。動畫沒了沒關係，畫面留在透明才是壞掉——
-              // 而且那是使用者回來以後才會看到的壞掉，最難查。
-              setT((prev) => (prev.o === 1 && prev.y === 0 ? prev : REST));
-            }, ENTER_MS + 300)
-          );
-        }, LEAVE_MS)
+          setPeek(null);
+          setT(REST);
+          busy.current = false;
+        }, TURN_MS)
       );
     },
     [onNext, onBack]
   );
 
   const springBack = useCallback(() => {
-    setT({ y: 0, o: 1, ms: SPRING_MS });
+    setT({ y: 0, ms: SPRING_MS });
     // 卡片要陪著頁面一起回去，不能先消失
     timers.current.push(setTimeout(() => setPeek(null), SPRING_MS));
   }, []);
@@ -242,7 +234,7 @@ const useSwipeFlow = ({
       }
 
       const raw = e.clientY - d.startY;
-      setT({ y: d.blocked ? rubber(raw) : damp(raw), o: 1, ms: 0 });
+      setT({ y: d.blocked ? rubber(raw) : damp(raw), ms: 0 });
     };
 
     const onUp = (e) => {
@@ -294,11 +286,12 @@ const useSwipeFlow = ({
     [enabled, springBack]
   );
 
+  // 不動的時候不給 transform：有 transform 的元素會成為底下所有 fixed 後代的定位
+  // 基準，而外面那層是 overflow:hidden——靜止時保持沒有，放大的圖才不會被裁掉。
   const style = {
     transform: t.y === 0 && t.ms === 0 ? undefined : `translateY(${t.y}px)`,
-    opacity: t.o,
     transition: t.ms
-      ? `transform ${t.ms}ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity ${t.ms}ms ease`
+      ? `transform ${t.ms}ms cubic-bezier(0.22, 0.61, 0.36, 1)`
       : 'none',
   };
 

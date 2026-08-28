@@ -37,6 +37,7 @@ const SourcePicker = ({
   pendingSheet = '',
   onAcceptPending,
   onDismissPending,
+  playMode = false,
 }) => {
   const [url, setUrl] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -99,8 +100,13 @@ const SourcePicker = ({
               bgcolor: 'background.paper',
             }}
           >
+            {/* 同一個提示，兩種身分：作者是「要載入一份資料」，
+                被分享來的人是「有人請你玩一個遊戲」。措辭不換的話，
+                玩家會被要求對一句工具的話點頭。 */}
             <Typography variant="body2">
-              這個連結要載入一份 Google 試算表
+              {playMode
+                ? '有人分享了一個遊戲給你'
+                : '這個連結要載入一份 Google 試算表'}
             </Typography>
             <Typography
               variant="caption"
@@ -122,10 +128,10 @@ const SourcePicker = ({
                 onClick={onAcceptPending}
                 disabled={loading}
               >
-                載入並檢查
+                {playMode ? '開始試玩' : '載入並檢查'}
               </Button>
               <Button size="small" onClick={onDismissPending} disabled={loading}>
-                不用，我自己選
+                {playMode ? '先不要' : '不用，我自己選'}
               </Button>
             </Stack>
           </Box>
@@ -356,6 +362,7 @@ SourcePicker.propTypes = {
   recent: PropTypes.array,
   onForget: PropTypes.func,
   pendingSheet: PropTypes.string,
+  playMode: PropTypes.bool,
   onAcceptPending: PropTypes.func,
   onDismissPending: PropTypes.func,
   error: PropTypes.string,

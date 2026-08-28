@@ -130,11 +130,10 @@ const MissionAnswerInputModel = ({
   // 按一下就整關過了——你看不到答案長什麼樣，也**跳過了送出這條路本身**，而送出
   // 正是作答頁最需要被驗的地方。想要「不作答直接往下」已經有旁邊那顆「略過」了，
   // 兩顆按鈕各做一件事才分得清楚。
-  // 填完把游標放進去，接著按 Enter 就送得出去（輸入框不再自動 focus 了）。
-  const autoAnswer = () => {
-    setUserAnswer(answerArray[0]);
-    answerRef.current?.focus();
-  };
+  // **只填，連游標都不放進去。** 一度加了 focus()，讓桌機可以填完直接按 Enter——
+  // 但那在手機上就是把鍵盤整個叫出來，跟剛拿掉的 autoFocus 是同一件事
+  // （Dong 2026-08-28）。送出鈕就在旁邊，為了省桌機一次點擊而嚇到手機使用者不划算。
+  const autoAnswer = () => setUserAnswer(answerArray[0]);
 
   useAnswerShortcuts({
     enabled: devTools && !isAnswerCorrect,

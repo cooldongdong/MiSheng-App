@@ -37,11 +37,10 @@ const CustomValueInputModel = ({
 
   // 填入測試值，**不送出**——跟作答頁的「自動作答」同一個意思，兩顆按鈕的行為要一致。
   // 這一頁沒有「正確答案」，填的是測試值：重點是讓 {{變數}} 有東西，後面引用到它的
-  // 對白才驗得出來；略過就沒有這個效果。填完把游標放進去，按 Enter 就送得出去。
-  const autoFillValue = () => {
-    setUserAnswer('測試');
-    answerRef.current?.focus();
-  };
+  // 對白才驗得出來；略過就沒有這個效果。
+  // **只填，不 focus**——理由見 MissionAnswerInputModel 的 autoAnswer：手機上一 focus
+  // 鍵盤就跳出來。
+  const autoFillValue = () => setUserAnswer('測試');
   const [isSubmit, setIsSubmit] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const currentMission = getMissionById(currentMissionId);

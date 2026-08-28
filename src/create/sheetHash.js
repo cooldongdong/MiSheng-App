@@ -13,6 +13,7 @@
 // 所以直接餵給它就好。slice(1) 是因為 location.hash 含開頭的 # 而它不吃這個字元。
 
 const KEY = 'sheet';
+const MODE = 'mode';
 
 export const readSheetFromHash = () => {
   try {
@@ -36,6 +37,33 @@ export const writeSheetToHash = (id) => {
   } catch {
     // 網址列沒更新不影響功能，不值得讓它中斷流程
   }
+};
+
+// 試玩連結：同一個 hash 多帶一個 mode=play。
+//
+// 為什麼不另開一條路徑（/play 之類）：`play` 在網址設計裡是保留字，未來要給
+// `/@user/game/play` 用；現在先佔一個裸字，等於替還沒設計完的東西先做決定。
+// 而且多一條路徑就要動 Vercel 的設定——這個專案被自己的部署假設咬過兩次。
+//
+// **這條連結藏得掉工具介面，藏不掉答案。** 它帶的就是試算表 id，而這條路的前提是
+// 試算表「共用給知道連結的任何人」——收到的人把 id 貼進 docs.google.com 就看得到
+// 全部答案。要真的藏住，得走快照（匯出遊戲包那條路），不是換一個網址模式。
+export const readPlayFromHash = () => {
+  try {
+    return (
+      new URLSearchParams(window.location.hash.slice(1)).get(MODE) === 'play'
+    );
+  } catch {
+    return false;
+  }
+};
+
+export const buildPlayLink = (id) => {
+  if (!id) return '';
+  const params = new URLSearchParams();
+  params.set(KEY, id);
+  params.set(MODE, 'play');
+  return `${window.location.origin}${window.location.pathname}#${params.toString()}`;
 };
 
 // 換一份＝重來，網址列不該還指著上一份——否則複製出去的連結會說謊

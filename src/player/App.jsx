@@ -1,7 +1,7 @@
 import './App.css';
 import { useState, useEffect } from 'react';
 import GameShell from './component/GameShell';
-import ColorSchemeToggle from './component/ColorSchemeToggle';
+import ColorSchemeToggle from '../shared/ColorSchemeToggle';
 import { getGameFolders, loadGameData } from './game/gameLoader';
 
 function App() {

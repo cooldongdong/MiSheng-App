@@ -1,10 +1,12 @@
 /* 官網首頁專用全域樣式。
-   跟 /create 一樣不沿用 index.css（那份是給固定一屏的遊戲畫面、html/body overflow:hidden），
-   首頁是會往下捲的內容頁，需要正常的捲動與白底。 */
+   跟 /create 一樣不沿用遊戲的 index.css（那份是給固定一屏的遊戲畫面、html/body
+   overflow:hidden），首頁是會往下捲的內容頁，需要正常的捲動。
+
+   底色刻意不寫在這裡：交給 CssBaseline 畫 theme 的 background.default，
+   否則深色模式下會被這份 CSS 的白底蓋掉——首頁沒有深色模式的成因之一就是這行。 */
 html,
 body {
   margin: 0;
-  background: #fff;
 }
 
 body {

@@ -17,6 +17,7 @@
 // 唯一的品牌訊號在深色下消失。
 
 import { createTheme } from '@mui/material';
+import { GROUND } from './ground.js';
 import {
   MODEL_COLOR,
   MODEL_TINT,
@@ -86,13 +87,13 @@ const light = {
     secondary: { main: '#b2591f', contrastText: '#fff' },
     divider: BG[100],
     background: {
-      default: '#fff',
+      default: GROUND.app.light,
       paper: '#fafafa',
       // 浮在流程圖畫布上的工具列。半透明是刻意的——底下的節點要能透出來當空間線索
       overlay: 'rgba(255,255,255,0.94)',
     },
     ...flow(FLOW_PALETTE, MODEL_COLOR, MODEL_TINT, EDGE_COLOR),
-    game: { frame: '#d9d9d9', bg: '#eee', nav: '#f8f9fa' },
+    game: { frame: GROUND.game.light, bg: '#eee', nav: '#f8f9fa' },
     dialogue: DIALOGUE,
   },
 };
@@ -107,7 +108,7 @@ const light = {
 // 這正是多數 SaaS 深色介面的做法：底安靜到你不會注意它，顏色只出現在有意義的地方。
 // 淺色模式維持藍灰不動：白底上那抹冷色本來就成立，那不是需要修的東西。
 const NEUTRAL = {
-  abyss: '#0e0f11', // 最底層
+  abyss: GROUND.app.dark, // 最底層——值住在 ground.js，見那個檔的檔頭
   raised: '#17191c', // 面板、卡片
   line: '#2a2d31', // 分隔線
   ink: '#e8eaed',
@@ -129,12 +130,21 @@ const dark = {
     // 遊戲外殼。frame 是桌機上遊戲兩側的襯底、bg 是遊戲頁面底、nav 是底部導覽。
     // 關卡卡片（MissionItem 的 #37474F）刻意兩種模式都不動：它在淺色是「深卡片浮在淺頁」，
     // 在深色剛好變成「亮一階的卡片浮在更深的頁」，同一個值兩邊都成立。
-    game: { frame: '#08090a', bg: NEUTRAL.abyss, nav: NEUTRAL.raised },
+    game: { frame: GROUND.game.dark, bg: NEUTRAL.abyss, nav: NEUTRAL.raised },
     dialogue: DIALOGUE, // 與淺色同一份，見上方註解
   },
 };
 
-const theme = createTheme({
+// 工廠，不是成品。
+//
+// 有兩種需求：三個入口共用 palette，但官網首頁要自己的襯線字體。
+// 直覺的做法是 `createTheme(theme, { typography })`——**那會壞**：MUI 的 cssVariables
+// 主題帶著一個私有的 `vars` 欄位，把建好的 theme 再餵回 createTheme 會直接丟
+// 「`vars` is a private field」而讓整頁空白（2026-08-29 實測，畫面只剩底色）。
+//
+// 所以差異要在**建之前**就併進去，不能建完再疊。
+export const createAppTheme = (extra = {}) =>
+  createTheme({
   // colorSchemeSelector: 'data' → 產出 [data-mui-color-scheme="dark"] 選擇器，
   // 值走 CSS 變數。SVG 的 fill/stroke 吃不到 MUI 的 sx token，但吃得到 var(--mui-palette-*)，
   // 這是流程圖那 7 處 SVG 顏色不用在 JS 裡判斷 mode 的關鍵。
@@ -164,6 +174,10 @@ const theme = createTheme({
       },
     },
   },
+  ...extra,
 });
+
+// 預設成品：/create 與遊戲用這個
+const theme = createAppTheme();
 
 export default theme;

@@ -5,6 +5,12 @@ import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
 import BrightnessAutoRoundedIcon from '@mui/icons-material/BrightnessAutoRounded';
 
+// 外觀開關。三個入口都有它，所以它住在 shared。
+//
+// 它原本在 player/component/ 底下，是因為當初只有遊戲畫面在用。2026-08-29 要把它
+// 加到官網首頁時，**新的依賴方向規則直接把它擋下來了**（site 不得 import player）——
+// 而那個攔截是對的：這顆鈕跟遊戲一點關係都沒有，它只是被放錯地方了。
+//
 // 三態循環：跟隨系統 → 淺色 → 深色 → 跟隨系統
 //
 // 為什麼不是「亮／暗」兩態：兩態的話，使用者一旦碰過開關就再也回不到「跟隨系統」，

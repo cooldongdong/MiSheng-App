@@ -23,6 +23,13 @@ const root = dirname(fileURLToPath(import.meta.url));
 // demo 的淺色停在 #363636、theme 是 #d9d9d9）。兩支檔案裡都寫著「改 theme.js 時這裡
 // 要一起改」——**註解沒有攔住它，因為註解不是執行機制**。
 // 現在值只有 src/shared/ground.js 一份，theme 與這裡都是它的消費者。
+//
+// 為什麼是 head-prepend 而不是接在 head 後面：
+// 這幾個入口的 <head> 有一條連到 fonts.googleapis.com 的 <link rel=stylesheet>，而
+// **classic <script> 必須等所有在它前面的樣式表載完才會執行**（規範如此，因為 script
+// 可能會去讀 computed style）。原本這段接在字型 link 後面，等於「決定深色模式」這件事
+// 被一個外部主機的往返擋住——熱快取時看不出來，冷啟動（第一次到訪、換網路）就是幾百毫秒。
+// 放到 head 最前面，它就在解析到字型 link 之前跑完。
 const firstPaintGround = () => ({
   name: 'misheng-first-paint-ground',
   transformIndexHtml: {
@@ -35,7 +42,7 @@ const firstPaintGround = () => ({
         tags: [
           {
             tag: 'style',
-            injectTo: 'head',
+            injectTo: 'head-prepend',
             children: [
               `html{background:${light}}`,
               // 兜底：無痕視窗或封鎖 storage 時底下的 script 會走 catch，什麼屬性都沒設。
@@ -47,7 +54,7 @@ const firstPaintGround = () => ({
           },
           {
             tag: 'script',
-            injectTo: 'head',
+            injectTo: 'head-prepend',
             // 與 MUI 的 useColorScheme 共用同一個 localStorage key 與同一組屬性名
             // （colorSchemeSelector: 'data' ⇒ data-light / data-dark）。
             // 這裡只搶先算一次，算完 MUI 接手，兩邊結論一致所以不會打架。

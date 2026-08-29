@@ -24,5 +24,6 @@ export const GROUND = {
 export const GROUND_BY_ENTRY = {
   'index.html': 'app', // 官網首頁
   'create.html': 'app', // 即時轉化
-  'demo.html': 'game', // 播放器
+  'demo.html': 'game', // 播放器（build-time 的 demo 遊戲）
+  'player.html': 'game', // 獨立播放器（使用者自己部署的那一份）
 };

@@ -31,3 +31,6 @@ src/gameFile/*
 
 # 個人本機指示（含指向私有知識庫的 import）
 CLAUDE.local.md
+
+# 獨立播放器的 build 產出（產線 2）
+dist-player

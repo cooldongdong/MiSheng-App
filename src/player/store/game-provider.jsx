@@ -4,12 +4,6 @@ import { GameContext } from './game-context';
 import { resolveExternalImg } from '../game/imgUrl';
 
 
-// 在模組頂層把所有 img 檔一次攔進來（打包時會生成真實 URL）
-const IMAGE_MAP = import.meta.glob(
-  '/src/gameFile/**/img/**/*.{png,jpg,jpeg,webp,svg,gif}',
-  { eager: true, as: 'url' }
-);
-
 // previewMode：即時轉化（/create）的一次性試玩——不讀也不寫 localStorage，重整即消失
 // imgMap：本機圖片資料夾的「檔名 → blob: 網址」對照表（只有 /create 會給）
 // onPositionLost：就地換資料後，原本停留的那一列不見了、只好退回開頭時通知外面
@@ -18,6 +12,11 @@ export const GameProvider = ({
   gameFolder,
   previewMode = false,
   imgMap = null,
+  imgBase = null,
+  // build-time 遊戲的圖片查表。由 /demo 的入口從 buildTimeGame.js 拿來傳進來——
+  // provider 自己不 import 那個檔，否則每一條路（含獨立播放器）都會被迫
+  // 把 src/gameFile/ 的圖整包打進 bundle。
+  imgLookup = null,
   onPositionLost = null,
 }) => {
   // 只需匯入一次的遊戲資料
@@ -52,19 +51,16 @@ export const GameProvider = ({
       const external = resolveExternalImg(relPath);
       if (external) return external;
 
+      // ④ 獨立播放器：圖片就在同目錄的 game/img/ 底下。
+      // 排在 build-time 之前，因為這條路根本沒有 gameFolder——那一層會直接回 null。
+      if (imgBase) {
+        return new URL(String(relPath).trim().replace(/^\/+/, ''), imgBase).href;
+      }
+
       // ③ build-time 打包進來的 src/gameFile/{遊戲}/img/
-      if (!gameFolder) return null;
-
-      // 支援子資料夾：relPath 可傳 'bg2.png' 或 'character/a.png'
-      const keyA = `/src/gameFile/${gameFolder}/img/${relPath}`;
-      const keyB = `/src/gameFile/${gameFolder}/img/${relPath.replace(
-        /^\/+/,
-        ''
-      )}`;
-
-      return IMAGE_MAP[keyA] ?? IMAGE_MAP[keyB] ?? null; // 找不到就回 null
+      return imgLookup ? imgLookup(gameFolder, relPath) : null; // 找不到就回 null
     },
-    [gameFolder, imgMap]
+    [gameFolder, imgMap, imgBase, imgLookup]
   );
 
   // 用 id 查 mission（靠 id 不靠陣列位置，mission 的 row 順序／是否連號都無所謂）
@@ -375,5 +371,7 @@ GameProvider.propTypes = {
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
   imgMap: PropTypes.instanceOf(Map),
+  imgBase: PropTypes.string,
+  imgLookup: PropTypes.func,
   onPositionLost: PropTypes.func,
 };

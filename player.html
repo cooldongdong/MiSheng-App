@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./MiSheng-logo-w.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200..900&display=swap" rel="stylesheet">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 標題會在 config.csv 讀進來之後由 GameController 換掉。這裡放的是它還沒讀到之前的樣子 -->
+    <title>實境解謎</title>
+
+    <!-- first-paint 的底色與 theme-color 由 vite plugin 注入，
+         值的單一來源是 src/shared/ground.js（見 vite/firstPaintGround.js）。 -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/player/runtime.jsx"></script>
+  </body>
+</html>

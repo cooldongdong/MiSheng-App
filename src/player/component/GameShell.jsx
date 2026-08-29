@@ -50,6 +50,8 @@ const GameShell = ({
   gameFolder,
   previewMode = false,
   imgMap = null,
+  imgBase = null, // 獨立播放器：圖片的相對根目錄（game/img/）
+  imgLookup = null, // build-time 遊戲的圖片查表（只有 /demo 會給）
   dataVersion = 0,
   onPositionLost = null,
   devTools = false,
@@ -162,6 +164,8 @@ const GameShell = ({
       gameFolder={gameFolder}
       previewMode={previewMode}
       imgMap={imgMap}
+      imgBase={imgBase}
+      imgLookup={imgLookup}
       onPositionLost={onPositionLost}
     >
       <Box
@@ -293,6 +297,8 @@ GameShell.propTypes = {
   gameFolder: PropTypes.string,
   previewMode: PropTypes.bool,
   imgMap: PropTypes.instanceOf(Map),
+  imgBase: PropTypes.string,
+  imgLookup: PropTypes.func,
   dataVersion: PropTypes.number,
   onPositionLost: PropTypes.func,
   devTools: PropTypes.bool,

@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "validate": "node scripts/validate.js"
+    "validate": "node scripts/validate.js",
+    "build:player": "vite build --config vite.player.config.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

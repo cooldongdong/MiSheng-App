@@ -2,7 +2,7 @@ import './App.css';
 import { useState, useEffect } from 'react';
 import GameShell from './component/GameShell';
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
-import { getGameFolders, loadGameData } from './game/gameLoader';
+import { getGameFolders, loadGameData, buildTimeImg } from './game/buildTimeGame';
 
 function App() {
   const [gameData, setGameData] = useState(null);
@@ -29,6 +29,7 @@ function App() {
       <GameShell
         gameData={gameData}
         gameFolder={gameFolder}
+        imgLookup={buildTimeImg}
         headerActions={<ColorSchemeToggle />}
       />
     </>

@@ -59,7 +59,7 @@ export default [
   // .vercel/output/ 被當成專案的一部分在 lint——233 個 error 全來自那裡。
   // 這件事讓 `npm run lint` 長期是紅的，而**一條紅了很久的 lint 等於沒有 lint**：
   // 真正該擋下來的新錯誤會淹沒在噪音裡（本檔底下那組依賴方向規則正是靠它把關）。
-  { ignores: ['dist', 'dist-ssr', '.vercel', 'src/gameFile'] },
+  { ignores: ['dist', 'dist-player', 'dist-ssr', '.vercel', 'src/gameFile'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {

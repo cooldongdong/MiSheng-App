@@ -40,6 +40,27 @@ const firstPaintGround = () => ({
       return {
         html,
         tags: [
+          // ── 瀏覽器自己的視窗底色 ──────────────────────────────────
+          //
+          // 上面那段管的是「頁面畫什麼」，這兩行管的是「瀏覽器在頁面外面畫什麼」。
+          //
+          // 2026-08-30 Dong 回報：換頁時會閃一下，**而且只有 Arc 會，Chrome 與 Safari
+          // 不會**。Arc 跟 Chrome 是同一個引擎，頁面的繪製結果不可能不同——所以閃的
+          // 不是頁面，是瀏覽器的視窗／側邊欄。Arc 會拿 theme-color 幫自己的介面上色，
+          // 而這三個入口一個都沒有這個 meta，於是它用自己的預設（偏亮），換頁的空檔
+          // 就露出來了。桌機版 Chrome 與 Safari 不拿它畫視窗，所以看不到。
+          //
+          // 順帶也修好手機：iOS Safari 與 Android Chrome 的網址列本來就吃這個值。
+          {
+            tag: 'meta',
+            injectTo: 'head-prepend',
+            attrs: { name: 'theme-color', content: light, media: '(prefers-color-scheme: light)' },
+          },
+          {
+            tag: 'meta',
+            injectTo: 'head-prepend',
+            attrs: { name: 'theme-color', content: dark, media: '(prefers-color-scheme: dark)' },
+          },
           {
             tag: 'style',
             injectTo: 'head-prepend',
@@ -60,9 +81,14 @@ const firstPaintGround = () => ({
             // 這裡只搶先算一次，算完 MUI 接手，兩邊結論一致所以不會打架。
             children:
               `try{var m=localStorage.getItem('mui-mode')||'system';` +
-              `document.documentElement.setAttribute(` +
-              `m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme:dark)').matches)` +
-              `?'data-dark':'data-light','')}catch(e){}`,
+              `var d=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme:dark)').matches);` +
+              `document.documentElement.setAttribute(d?'data-dark':'data-light','');` +
+              // media 版的 theme-color 只答得出「作業系統是什麼」。手動選過深／淺的人
+              // 那個答案是錯的，所以這裡把兩個都覆寫成真正的結論——哪一個 media 命中
+              // 都會拿到同一個值。mode 是 system 時本來就一致，覆寫不改變任何事。
+              `if(m!=='system'){var c=d?${JSON.stringify(dark)}:${JSON.stringify(light)};` +
+              `document.querySelectorAll('meta[name=theme-color]').forEach(function(e){e.content=c})}` +
+              `}catch(e){}`,
           },
         ],
       };

@@ -10,6 +10,31 @@ import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
 
+// 中間那一欄預設就是「一支手機」。
+//
+// 原本寫死 420。那個值在 900px 高的視窗剛好對（420×900 ＝ 2.14，幾乎就是 iPhone 的
+// 19.5:9），但它是常數而高度會跟著視窗走——**視窗愈高，那一欄看起來愈瘦**：
+// 16 吋全螢幕（1117）會變成 2.66，外接螢幕（1300）會變成 3.10，那已經不是手機是燈條。
+// 2026-08-29 Dong 回報「有點太瘦」就是這個。
+//
+// 所以寬度改成從高度推回來。900px 高時算出 415，跟原本的 420 差 5px——
+// 也就是說常見情況幾乎沒變，只有原本算錯的那一段才會動。
+//
+// 為什麼用 innerHeight 而不是扣掉 56 的導覽列高度：那條導覽列是**遊戲自己的分頁列**，
+// 玩家在手機上看到的就是它，所以它算在「手機」裡面。
+const PHONE_RATIO = 19.5 / 9;
+const PANE_MIN = 300; // 再窄下去對白就開始折行折得很醜
+const PANE_MAX = 600; // 遊戲內容本身就 maxWidth: 600，再寬只是兩側留白
+const phonePaneWidth = () => {
+  try {
+    return Math.round(
+      Math.min(PANE_MAX, Math.max(PANE_MIN, window.innerHeight / PHONE_RATIO))
+    );
+  } catch {
+    return 420; // 拿不到視窗高度時退回原本那個值
+  }
+};
+
 // 遊戲外殼：底部分頁切換 ＋ 版面，資料從哪來由外面決定
 //   - App.jsx：build-time 的 src/gameFile/（gameFolder 有值，圖片走 IMAGE_MAP）
 //   - CreateApp.jsx：即時轉化（gameFolder 為空，圖片走本機資料夾或外連網址）
@@ -37,7 +62,7 @@ const GameShell = ({
   const [value, setValue] = useState(2);
   // 兩條分隔線：左面板寬度、遊戲那欄的寬度
   const [leftW, setLeftW] = useState(268);
-  const [paneW, setPaneW] = useState(420);
+  const [paneW, setPaneW] = useState(phonePaneWidth);
   const dragging = useRef(null); // 'left' | 'right' | null
   const gameRef = useRef(null);
 

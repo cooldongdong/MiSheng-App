@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Papa from 'papaparse';
-import { validateGame, REQUIRED_TABLES } from '../src/validator/validateGame.js';
+import { validateGame, REQUIRED_TABLES } from '../src/shared/validator/validateGame.js';
 
 const gameDir = process.argv[2];
 if (!gameDir) {

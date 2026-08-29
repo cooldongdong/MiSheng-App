@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { Alert, Box, Chip, Divider, Typography } from '@mui/material';
-import { REQUIRED_TABLES } from '../validator/validateGame';
+import { REQUIRED_TABLES } from '../shared/validator/validateGame';
 
 // 把 issues 依「表」分組印出來（跟 CLI 版 scripts/validate.js 同一套排版邏輯）
 const IssueGroup = ({ list }) => {

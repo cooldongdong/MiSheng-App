@@ -11,7 +11,7 @@
 // 前提：試算表要「共用給知道連結的任何人」，且 7 個分頁名固定為 REQUIRED_TABLES。
 
 import Papa from 'papaparse';
-import { REQUIRED_TABLES } from '../validator/validateGame';
+import { REQUIRED_TABLES } from '../shared/validator/validateGame';
 
 // 從各種 Google 試算表網址挖出 spreadsheet id
 export const parseSpreadsheetId = (input) => {

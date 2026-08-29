@@ -6,7 +6,7 @@
 // 圖片轉成 blob: 網址，重整就失效——正好對上 /create「一次性預覽」的定位。
 
 import Papa from 'papaparse';
-import { REQUIRED_TABLES } from '../validator/validateGame';
+import { REQUIRED_TABLES } from '../shared/validator/validateGame';
 
 const IMG_EXT = /\.(png|jpe?g|webp|svg|gif|avif)$/i;
 

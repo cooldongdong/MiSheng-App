@@ -16,9 +16,9 @@ import {
 import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
-import GameShell from '../component/GameShell';
-import { loadGameFromSheet, parseSpreadsheetId } from '../game/sheetLoader';
-import { validateGame } from '../validator/validateGame';
+import GameShell from '../player/component/GameShell';
+import { loadGameFromSheet, parseSpreadsheetId } from './sheetLoader';
+import { validateGame } from '../shared/validator/validateGame';
 import { checkSheetImages } from './checkSheetImages';
 import { readLocalGameFolder, buildLocalImageMap } from './localFiles';
 import ValidationReport from './ValidationReport';
@@ -35,7 +35,7 @@ import {
 } from './sheetHash';
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
-import ColorSchemeToggle from '../component/ColorSchemeToggle';
+import ColorSchemeToggle from '../player/component/ColorSchemeToggle';
 
 // 開始畫面與檢查結果沒有右上角那組面板按鈕，外觀開關得自己帶定位。
 // 放在同一個座標（top 6 / right 10），三個畫面之間切換時開關才不會跳位置。

@@ -1,4 +1,4 @@
-const fileModules = import.meta.glob('../gameFile/*/*.csv', {
+const fileModules = import.meta.glob('../../gameFile/*/*.csv', {
   eager: false,
   as: 'raw',
 });

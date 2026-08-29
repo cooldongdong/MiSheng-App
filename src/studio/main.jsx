@@ -1,9 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline, ThemeProvider } from '@mui/material';
-import './create/create.css';
-import theme from './theme.js';
-import CreateApp from './create/CreateApp.jsx';
+import './create.css';
+import theme from '../shared/theme.js';
+import CreateApp from './CreateApp.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

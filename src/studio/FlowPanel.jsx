@@ -1,7 +1,7 @@
 import { useContext, useMemo, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Box } from '@mui/material';
-import { GameContext } from '../store/game-context';
+import { GameContext } from '../player/store/game-context';
 import FlowMap from './FlowMap';
 import { buildSpatialNav } from './spatialNav';
 

@@ -31,7 +31,7 @@
 import Papa from 'papaparse';
 import { zip } from 'fflate';
 import { IMG_FIELDS } from './checkSheetImages';
-import { extractDriveId } from '../game/imgUrl';
+import { extractDriveId } from '../player/game/imgUrl';
 
 // 一次最多幾條連線。Drive 對同時大量請求會變慢甚至擋，慢慢來比較快。
 const CONCURRENCY = 4;

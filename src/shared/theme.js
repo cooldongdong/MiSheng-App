@@ -26,7 +26,7 @@ import {
   EDGE_COLOR_DARK,
   FLOW_PALETTE,
   FLOW_PALETTE_DARK,
-} from './create/flowLayout';
+} from './flowPalette';
 
 // MUI Blue Grey，標階數是為了讓「哪兩階被合併了」看得見
 const BG = {

@@ -91,4 +91,4 @@ After editing in Google Sheets:
 - Place them in your game folder (follow the example folder structure).
 
 # License
-© Dong 2025. Released as free software under the [GNU GPL 3.0 Public License](https://github.com/rr37/MiSheng-App/blob/main/LICENSE).
+© Dong 2025. Released as free software under the [GNU Affero General Public License v3.0](LICENSE).

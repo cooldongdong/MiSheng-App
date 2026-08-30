@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { keyframes } from '@emotion/react';
 import { Box, Typography } from '@mui/material';
-import BrandMark from './BrandMark.jsx';
+import BrandMark from '../shared/BrandMark.jsx';
 
 // 檢查通過之後不再停在檢查頁，而是直接進三欄——中間就少了一個「有東西在動」的畫面。
 // 讀 7 張 CSV 要幾秒，沒有這一頁的話會是一段白畫面，看起來像當掉了。

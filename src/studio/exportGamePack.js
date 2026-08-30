@@ -115,9 +115,11 @@ https://github.com/cooldongdong/MiSheng-App/blob/main/docs/自己部署遊戲.md
 ${playable ? '  index.html      播放器。不用改它\n  assets/         播放器的程式碼\n' : ''}
 【授權】
 
-播放器的原始碼是 GPL-3.0，公開在
+播放器的原始碼是 AGPL-3.0，公開在
 https://github.com/cooldongdong/MiSheng-App
-你的遊戲內容是你自己的。
+
+你的遊戲內容是你自己的——CSV、圖片、謎題都不受這個授權影響。
+只有「你改了播放器的程式碼、又讓別人透過網路用」時，才要一併公開你改過的版本。
 `;
 
 // CSV 是給人看的第 2 列開始＝資料第 1 列（第 1 列是表頭）

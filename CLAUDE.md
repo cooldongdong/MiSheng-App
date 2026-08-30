@@ -66,7 +66,7 @@ git clone --recurse-submodules https://github.com/rr37/MiSheng-App.git
 git submodule update --init
 ```
 
-分兩個 repo 不是為了好玩，是**授權邊界**：App 是 GPL-3.0，demo 遊戲的圖與
+分兩個 repo 不是為了好玩，是**授權邊界**：App 是 AGPL-3.0，demo 遊戲的圖與
 CSV 是 CC BY-NC 4.0。混進同一個 repo 會把兩套條款攪在一起。
 
 **demo 遊戲改了之後**，要回到這個 repo 更新指標，否則線上還是舊版：
@@ -85,7 +85,7 @@ git commit -am "chore: bump demo game submodule"
 
 | 位置 | 語言 | 為什麼 |
 |---|---|---|
-| commit 標題 | **英文**，帶 conventional prefix（`feat:` / `fix:` / `refactor:` / `chore:` / `docs:`） | 這是 GPL-3.0 的公開 repo，而標題是**唯一會被外人掃到的那一行**——`git log --oneline`、GitHub commit 列表、blame 提示都只顯示它。標題是索引，索引要讓最多人讀得懂 |
+| commit 標題 | **英文**，帶 conventional prefix（`feat:` / `fix:` / `refactor:` / `chore:` / `docs:`） | 這是 AGPL-3.0 的公開 repo，而標題是**唯一會被外人掃到的那一行**——`git log --oneline`、GitHub commit 列表、blame 提示都只顯示它。標題是索引，索引要讓最多人讀得懂 |
 | commit 正文 | **維護者寫中文**；外部貢獻者用自己想得最清楚的語言 | 正文裝的是「為什麼這樣選、當時排除了什麼、哪個假設被推翻」。**用第二語言寫的推理會變薄**，而那正是三個月後唯一值錢的東西。所以這一格不強制語言，強制的是**別為了遷就語言而把判斷寫淺**。真有人要深挖，翻譯一段正文的成本遠低於少寫的那些判斷 |
 | PR 標題 | **中文**，一樣帶 conventional prefix | PR 是跟自己的 review 對話（#1–#4、#6 曾用英文，#7 起改中文） |
 | 程式碼註解 | 同 commit 正文 | 註解記的是前提與取捨，理由一樣 |
@@ -101,4 +101,4 @@ git commit -am "chore: bump demo game submodule"
 
 ## 授權
 
-GPL-3.0。
+AGPL-3.0。

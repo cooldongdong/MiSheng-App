@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import GameShell from './component/GameShell';
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
+import BrandBadge from '../shared/BrandBadge';
 import { loadRuntimeGameData, runtimeImgBase } from './game/runtimeGame';
 
 // 獨立播放器：使用者自己部署的那一份。
@@ -65,6 +66,7 @@ const RuntimeApp = () => {
     <GameShell
       gameData={gameData}
       imgBase={runtimeImgBase()}
+      brand={<BrandBadge />}
       headerActions={<ColorSchemeToggle />}
     />
   );

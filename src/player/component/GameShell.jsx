@@ -56,6 +56,7 @@ const GameShell = ({
   onPositionLost = null,
   devTools = false,
   headerActions = null,
+  brand = null, // 左上角：這是誰做的（右上角是這一頁的控制項）
   leftPanel = null,
   sidePanel = null,
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
@@ -237,6 +238,15 @@ const GameShell = ({
             </Box>
           </Box>
 
+          {/* 左上角＝身分與出口，右上角＝這一頁的控制項。
+              兩邊都只在 !devTools 時出現：/create 的三欄有自己的導覽列（左欄頂端），
+              不需要在遊戲畫面上再疊一顆。 */}
+          {!devTools && brand && (
+            <Box sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
+              {brand}
+            </Box>
+          )}
+
           {/* 右上角那組控制項。掛在這裡（Provider 內）而不是 App.jsx，是因為重啟鈕
               要拿 gameId 與 clearGameData；順帶讓外觀開關跟它排在一起，不必各自
               算座標。/create 不給——那邊右上角已經有面板按鈕，而且重啟鈕在
@@ -303,6 +313,7 @@ GameShell.propTypes = {
   onPositionLost: PropTypes.func,
   devTools: PropTypes.bool,
   headerActions: PropTypes.node,
+  brand: PropTypes.node,
   leftPanel: PropTypes.node,
   sidePanel: PropTypes.node,
   sideFlex: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),

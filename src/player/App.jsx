@@ -2,6 +2,7 @@ import './App.css';
 import { useState, useEffect } from 'react';
 import GameShell from './component/GameShell';
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
+import BrandBadge from '../shared/BrandBadge';
 import { getGameFolders, loadGameData, buildTimeImg } from './game/buildTimeGame';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
         gameData={gameData}
         gameFolder={gameFolder}
         imgLookup={buildTimeImg}
+        brand={<BrandBadge />}
         headerActions={<ColorSchemeToggle />}
       />
     </>

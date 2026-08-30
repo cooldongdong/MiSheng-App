@@ -16,7 +16,9 @@ import {
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded';
 import ImageRoundedIcon from '@mui/icons-material/ImageRounded';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ValidationReport from './ValidationReport';
+import BrandBadge from '../shared/BrandBadge';
 
 // 試玩時的左側面板：這份遊戲從哪來、驗證結果如何、要換資料就地換。
 // 就是原本 /create 那頁的資訊，收進側邊欄——載入完之後它不該再佔著主畫面。
@@ -60,11 +62,6 @@ const SourcePanel = ({
     '&:hover': { background: 'none', textDecoration: 'underline' },
   };
   const rowSx = { pl: '28px', mt: 0.25, alignItems: 'center' }; // 對齊狀態行的文字
-  const dot = (
-    <Typography component="span" sx={{ color: 'divider', fontSize: 13 }}>
-      ·
-    </Typography>
-  );
 
   return (
     <Box
@@ -76,10 +73,46 @@ const SourcePanel = ({
         bgcolor: 'background.default',
         display: 'flex',
         flexDirection: 'column',
-        pt: '44px', // 讓開右上角固定按鈕那一列
+        pt: '4px',
       }}
     >
-      <Box sx={{ px: 2, pb: 1.5 }}>
+      {/* 導覽列。左上＝你在哪、怎麼出去；右上（浮在畫面上的那組）＝這一頁的控制項。
+          放在左欄頂端而不是浮在遊戲上，是 Dong 2026-08-29 的決定——三欄模式下
+          遊戲那一欄是要拿來看的，不該再疊東西上去。
+          代價講清楚：左欄收起來時這一列會跟著不見。可以接受，因為右上角的左欄
+          開關永遠在，兩步找得回來。 */}
+      <Stack
+        direction="row"
+        spacing={0.5}
+        alignItems="center"
+        sx={{ px: 1, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}
+      >
+        <BrandBadge tone="plain" size={18} />
+        {/* 「回到 /create」與底下那排動作是同一個 onReset。
+            它原本只長在「遊戲資料」那組底下、叫「換一份」——13px 的文字連結、
+            跟「重新讀取」用一個「·」串在一起。Dong 找不到它、要求做一顆新的，
+            **那件事本身就是回饋**：功能存在不等於功能被看見。
+            所以這裡不是加功能，是把既有的動作搬到導覽的位置、換一個講得清楚的名字；
+            舊的那顆同時拿掉——同一個動作出現兩次，人會以為它們不一樣。 */}
+        <Button
+          size="small"
+          startIcon={<ArrowBackRoundedIcon sx={{ fontSize: 16 }} />}
+          onClick={onReset}
+          disabled={reloading}
+          sx={{
+            minWidth: 0,
+            px: 0.75,
+            fontSize: 13,
+            fontWeight: 400,
+            color: 'text.secondary',
+            textTransform: 'none',
+          }}
+        >
+          回到 /create
+        </Button>
+      </Stack>
+
+      <Box sx={{ px: 2, pt: 1.5, pb: 1.5 }}>
         {/* ---- 遊戲資料 ---- */}
         <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: 1 }}>
           遊戲資料
@@ -127,18 +160,6 @@ const SourcePanel = ({
               />
             </Button>
           )}
-          {dot}
-          {/* 換一份＝重來，回開始畫面。跟上面那顆不同：上面那顆是就地換資料，
-              遊戲不卸載、停在哪一列不會被歸零 */}
-          <Button
-            size="small"
-            variant="text"
-            onClick={onReset}
-            disabled={reloading}
-            sx={actionSx}
-          >
-            換一份
-          </Button>
         </Stack>
 
         {/* ---- 圖片 ---- */}

@@ -36,6 +36,7 @@ import {
 import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
+import BrandBadge from '../shared/BrandBadge';
 
 // 開始畫面與檢查結果沒有右上角那組面板按鈕，外觀開關得自己帶定位。
 // 放在同一個座標（top 6 / right 10），三個畫面之間切換時開關才不會跳位置。
@@ -411,6 +412,7 @@ const CreateApp = () => {
           // 一直都有這顆。/create 自己那顆長在工具的殼上，而試玩模式沒有那個殼。
           // （重啟鈕不會跟著出現：它需要 gameId，而試算表這條路沒有遊戲資料夾。）
           headerActions={<ColorSchemeToggle />}
+          brand={<BrandBadge />}
         />
         {veilEl}
       </>

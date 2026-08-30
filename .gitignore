@@ -34,3 +34,6 @@ CLAUDE.local.md
 
 # 獨立播放器的 build 產出（產線 2）
 dist-player
+
+# 播放器的 zip（由 npm run build:player 產生，給 /create 抓）
+public/player.zip

@@ -29,7 +29,7 @@
 // 匯出是要留著自架的檔案，所以不帶參數，拿最大的那一份。
 
 import Papa from 'papaparse';
-import { zip } from 'fflate';
+import { zip, unzip } from 'fflate';
 import { IMG_FIELDS } from './checkSheetImages';
 import { extractDriveId } from '../player/game/imgUrl';
 
@@ -52,6 +52,70 @@ const EXT_BY_MIME = {
   'image/avif': 'avif',
   'image/bmp': 'bmp',
 };
+
+// 遊戲資料在包裡的位置。播放器開機後就是去讀這個資料夾——
+// 名字改了播放器就找不到，所以它與 runtimeGame.js 的 RUNTIME_GAME_DIR 必須一致。
+const GAME_DIR = 'game';
+const PLAYER_ZIP = 'player.zip';
+const README_NAME = '怎麼把這個遊戲放上網.txt';
+
+// build 時產生的播放器（見 vite.player.config.js）。
+// 用 new URL 而不是寫死 '/player.zip'：/create 現在住在網站根目錄，但這條路徑
+// 不該預設它永遠在那裡。
+const fetchPlayer = async () => {
+  try {
+    const res = await fetch(new URL(PLAYER_ZIP, window.location.origin).href);
+    if (!res.ok) throw new Error(`伺服器回 ${res.status}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const files = await new Promise((resolve, reject) =>
+      unzip(bytes, (err, out) => (err ? reject(err) : resolve(out)))
+    );
+    return { ok: true, files, error: '' };
+  } catch (e) {
+    // 播放器拿不到不該讓整包匯出失敗——使用者的資料是他的，一定要給他
+    return { ok: false, files: {}, error: e.message || String(e) };
+  }
+};
+
+// 寫給「把資料夾丟上去的那個人」，不是寫給工程師。
+// 純文字不是 markdown：這個檔案會被雙擊打開，而 .md 在多數人的電腦上會跳出
+// 一個問「要用什麼開」的對話框。
+const readme = (folder, playable) => `這是「${folder}」的遊戲包。
+
+${
+  playable
+    ? `【怎麼放上網】
+
+1. 把這個資料夾整個解壓縮
+2. 上傳到任何一個免費的靜態網站空間，三個都可以：
+     GitHub Pages   把資料夾傳成一個 repo，到 Settings → Pages 打開
+     Cloudflare Pages  直接把資料夾拖進去
+     Vercel         直接把資料夾拖進去
+3. 它給你的網址就可以玩了，手機打開也可以
+
+不需要安裝任何軟體，也不用會寫程式。
+
+【注意】不能直接用瀏覽器打開 index.html（網址開頭是 file:// 的那種）。
+瀏覽器不允許網頁那樣讀資料，畫面會告訴你讀不到遊戲。一定要放上網站空間。
+`
+    : `【這一包只有資料，沒有播放器】
+
+匯出的時候抓不到播放器，所以裡面只有你的 ${GAME_DIR}/ 資料夾。
+資料是完整的，重新匯出一次通常就會有播放器了。
+`
+}
+【裡面有什麼】
+
+  ${GAME_DIR}/            你的遊戲。7 張 CSV ＋ img/ 圖片
+                    改完直接重新上傳就生效，不用重新匯出
+  圖片對照.csv       哪個檔名對應原本哪一條連結、用在哪一格
+${playable ? '  index.html      播放器。不用改它\n  assets/         播放器的程式碼\n' : ''}
+【授權】
+
+播放器的原始碼是 GPL-3.0，公開在
+https://github.com/cooldongdong/MiSheng-App
+你的遊戲內容是你自己的。
+`;
 
 // CSV 是給人看的第 2 列開始＝資料第 1 列（第 1 列是表頭）
 const sheetRow = (i) => i + 2;
@@ -308,13 +372,13 @@ export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) 
     });
 
     const csv = Papa.unparse({ fields: fields || [], data: nextRows });
-    files[`${folder}/${table}.csv`] = [utf8(csv), { level: 6 }];
+    files[`${folder}/${GAME_DIR}/${table}.csv`] = [utf8(csv), { level: 6 }];
   }
 
   results.forEach((item) => {
     if (!item.bytes) return;
     // 圖片本來就是壓縮格式了，再壓一次只是白花時間
-    files[`${folder}/${item.packPath}`] = [item.bytes, { level: 0 }];
+    files[`${folder}/${GAME_DIR}/${item.packPath}`] = [item.bytes, { level: 0 }];
   });
 
   const whereOf = (ref) =>
@@ -339,6 +403,16 @@ export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) 
   // BOM：這張表是給人用 Excel 開的，沒有 BOM 中文會變亂碼
   files[`${folder}/圖片對照.csv`] = [utf8(`\uFEFF${receipt}`), { level: 6 }];
 
+  // 播放器：抓 build 時產生的 player.zip、解開、拌進來。
+  // 抓不到就退回「只有資料」的包，並在回報裡說清楚——**這一步失敗不該讓整個匯出失敗**，
+  // 使用者至少要拿得到自己的東西。
+  const player = await fetchPlayer();
+  for (const [path, bytes] of Object.entries(player.files)) {
+    files[`${folder}/${path}`] = [bytes, { level: 6 }];
+  }
+
+  files[`${folder}/${README_NAME}`] = [utf8(readme(folder, player.ok)), { level: 6 }];
+
   const zipped = await zipAsync(files);
 
   const counted = (kind) => results.filter((r) => r.ref.kind === kind);
@@ -347,6 +421,8 @@ export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) 
     blob: new Blob([zipped], { type: 'application/zip' }),
     folder,
     report: {
+      playable: player.ok,
+      playerError: player.error,
       total,
       ok: results.filter((r) => r.bytes).length,
       downloaded: counted('remote').filter((r) => r.bytes).length,

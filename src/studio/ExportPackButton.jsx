@@ -14,7 +14,14 @@ const breakdown = ({ downloaded, fromFolder }) => {
   return parts.length ? `：${parts.join('、')}` : '';
 };
 
-// 「匯出遊戲包」：把外連圖片抓下來、改寫表格、打包成可自架的資料夾。
+// 「匯出可上架的遊戲」：把外連圖片抓下來、改寫表格，連同播放器一起打包。
+//
+// 2026-08-30 之前這裡只吐資料（7 張 CSV ＋ img/），使用者拿到之後還得自己 clone
+// repo、裝 node、build 一次才玩得到——對「寫解謎的人」這個客群，那條路多數人走不完。
+// 現在包裡直接附一份 build 好的播放器，解壓丟上任何靜態主機就能玩。
+//
+// 名字從「遊戲包」改成「可上架的遊戲」，是因為前者沒有回答使用者真正在問的問題：
+// 拿到這包之後我能幹嘛。
 //
 // 只在資料來自 Google 試算表時出現——本機資料夾那條路的圖本來就在使用者手上，
 // 表格填的也已經是檔名，沒有東西需要被換掉。
@@ -57,7 +64,7 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
         disabled={busy}
         onClick={handleExport}
       >
-        {busy ? '正在抓圖片…' : '匯出遊戲包'}
+        {busy ? '正在抓圖片…' : '匯出可上架的遊戲'}
         {/* 標 beta：這條路吃的是 Google 的限速與權限設定，不是我們能保證的東西。
             使用者知道它可能中途失敗，跟事後才發現包裡缺圖，是兩種心情。 */}
         {!busy && (
@@ -103,6 +110,14 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             已下載 {result.folder}.zip
+          </Typography>
+          {/* 這一句比圖片張數重要——它回答「我現在能幹嘛」。
+              播放器抓不到時要講清楚，否則使用者會以為解壓就能玩，然後對著
+              一個沒有 index.html 的資料夾發呆。 */}
+          <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
+            {result.report.playable
+              ? '解壓縮之後丟到 GitHub Pages／Cloudflare／Vercel 就能玩，不用安裝任何東西。包裡有一份說明。'
+              : `這一包只有資料，沒有播放器（${result.report.playerError}）。重新匯出一次通常就會有。`}
           </Typography>
           <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
             {result.report.total === 0

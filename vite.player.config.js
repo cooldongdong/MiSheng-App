@@ -33,14 +33,13 @@ const tidyPlayerDist = (outDir) => ({
   closeBundle() {
     const from = resolve(outDir, 'player.html');
     if (existsSync(from)) renameSync(from, resolve(outDir, 'index.html'));
-    const junk = resolve(outDir, '.DS_Store');
-    if (existsSync(junk)) rmSync(junk);
-    // player.zip 住在 public/，而 Vite 會把 public/ 整包複製到輸出——
-    // 於是上一次產生的 zip 會被這一次包進去，**每 build 一次就翻倍**
-    //（實測 505 kB → 1011 kB）。而且使用者的遊戲資料夾裡本來也不該有一份播放器的
-    // 壓縮檔。先刪掉再壓。
-    const stale = resolve(outDir, 'player.zip');
-    if (existsSync(stale)) rmSync(stale);
+    // publicDir:false 之後這兩樣本來就不會進來了，但清理留著當保險——
+    // 它們曾經真的跑進去過：.DS_Store 是 macOS 的雜物，player.zip 則是
+    // 上一次 build 的產物被這一次包進自己裡面（505 kB → 1011 kB，每次翻倍）。
+    for (const name of ['.DS_Store', 'player.zip']) {
+      const stale = resolve(outDir, name);
+      if (existsSync(stale)) rmSync(stale);
+    }
     writePlayerZip(outDir);
   },
 });
@@ -83,6 +82,15 @@ const writePlayerZip = (outDir) => {
 export default defineConfig({
   plugins: [react(), firstPaintGround(), tidyPlayerDist(OUT_DIR)],
   base: './',
+  // 不複製 public/。
+  //
+  // Vite 預設會把 public/ 整個資料夾原封不動搬進輸出，而這一份輸出是要交到使用者
+  // 手上的——**進去的東西不該由「誰往 public/ 丟了什麼」決定**。實際發生過的兩件：
+  // 謎生的 logo（他的遊戲分頁上不該有我們的品牌）與一個 macOS 的 .DS_Store。
+  //
+  // 這與 buildTimeGame.js 分家是同一種病的兩個位置：一個是 import 把資產拖進 bundle，
+  // 一個是設定把資產拖進資料夾。兩邊都要明確地說「只放需要的」。
+  publicDir: false,
   build: {
     outDir: OUT_DIR,
     emptyOutDir: true,

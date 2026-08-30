@@ -84,16 +84,19 @@ const readme = (folder, playable) => `這是「${folder}」的遊戲包。
 
 ${
   playable
-    ? `【怎麼放上網】
+    ? `1. 把這個資料夾整個解壓縮
+【最快的一條路：Cloudflare】
 
-1. 把這個資料夾整個解壓縮
-2. 上傳到任何一個免費的靜態網站空間，三個都可以：
-     GitHub Pages   把資料夾傳成一個 repo，到 Settings → Pages 打開
-     Cloudflare Pages  直接把資料夾拖進去
-     Vercel         直接把資料夾拖進去
-3. 它給你的網址就可以玩了，手機打開也可以
+1. 登入 https://dash.cloudflare.com
+2. 找到 Workers & Pages
+3. Create application → Upload your static files
+4. 把這個 zip 直接拖上去（不用解壓縮）
+5. 點 Visit，就可以玩了
 
 不需要安裝任何軟體，也不用會寫程式。
+
+其他選擇與注意事項（GitHub Pages 有一個對解謎很要命的限制）看這裡：
+https://github.com/cooldongdong/MiSheng-App/blob/main/docs/自己部署遊戲.md
 
 【注意】不能直接用瀏覽器打開 index.html（網址開頭是 file:// 的那種）。
 瀏覽器不允許網頁那樣讀資料，畫面會告訴你讀不到遊戲。一定要放上網站空間。

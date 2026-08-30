@@ -35,6 +35,12 @@ const tidyPlayerDist = (outDir) => ({
     if (existsSync(from)) renameSync(from, resolve(outDir, 'index.html'));
     const junk = resolve(outDir, '.DS_Store');
     if (existsSync(junk)) rmSync(junk);
+    // player.zip 住在 public/，而 Vite 會把 public/ 整包複製到輸出——
+    // 於是上一次產生的 zip 會被這一次包進去，**每 build 一次就翻倍**
+    //（實測 505 kB → 1011 kB）。而且使用者的遊戲資料夾裡本來也不該有一份播放器的
+    // 壓縮檔。先刪掉再壓。
+    const stale = resolve(outDir, 'player.zip');
+    if (existsSync(stale)) rmSync(stale);
     writePlayerZip(outDir);
   },
 });

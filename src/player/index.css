@@ -1,13 +1,31 @@
+/* 遊戲畫面的全域樣式：固定一屏、不捲動。/demo 與獨立播放器共用。 */
+
 html,
 body {
   overflow: hidden;
 }
 
 body {
-  display: flex;
-  place-items: center;
   margin: 0;
 }
 
-/* html 的底色不寫在這裡——它必須在第一次繪製之前就決定，而這個檔案是被 main.jsx
-   import 的（dev 模式由 JS 注入，太晚）。見 demo.html <head> 裡的行內樣式。 */
+/* #root 必須撐滿視窗。
+   在它裡面的 GameShell 會畫 `game.frame`（遊戲兩側的襯底），而 #root 只要沒撐滿，
+   露出來的就是 body——CssBaseline 給 body 的是 `background.default`，跟 game.frame
+   是兩個不同的值，於是畫面邊緣會出現一條顏色不對的帶子。
+
+   2026-08-30 在 Cloudflare 上實測到：獨立播放器的 #root 只有 48px 寬，整個視窗
+   幾乎都是 body 在上色。成因是這裡原本寫 `body { display:flex; place-items:center }`
+   （Vite 樣板留下來的），#root 變成 flex item 之後就縮成內容寬——而遊戲的內容
+   幾乎都是 position:fixed，撐不出寬度。
+
+   /demo 之所以沒事，是因為 App.css 有一行 `#root { width: 100% }` 在撐著。
+   那是一個沒有人知道它在承重的地方，而獨立播放器沒有 import 那個檔。
+   所以規則搬到這裡：**誰用這份 CSS，誰的 #root 就撐滿。** */
+#root {
+  width: 100%;
+  height: 100dvh;
+}
+
+/* html 的底色不寫在這裡——它必須在第一次繪製之前就決定，而這個檔案是被
+   入口 import 的（dev 模式由 JS 注入，太晚）。見 vite/firstPaintGround.js。 */

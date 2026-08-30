@@ -31,7 +31,7 @@ function App() {
         gameData={gameData}
         gameFolder={gameFolder}
         imgLookup={buildTimeImg}
-        brand={<BrandBadge />}
+        brand={<BrandBadge qrUrl={window.location.href} />}
         headerActions={<ColorSchemeToggle />}
       />
     </>

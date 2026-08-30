@@ -37,6 +37,8 @@ import SourcePanel from './SourcePanel';
 import FlowPanel from './FlowPanel';
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
 import BrandBadge from '../shared/BrandBadge';
+import QrCode from '../shared/QrCode';
+import QrCodeRoundedIcon from '@mui/icons-material/QrCodeRounded';
 
 // 開始畫面與檢查結果沒有右上角那組面板按鈕，外觀開關得自己帶定位。
 // 放在同一個座標（top 6 / right 10），三個畫面之間切換時開關才不會跳位置。
@@ -123,6 +125,9 @@ const CreateApp = () => {
   // 再轉個螢幕方向就會被自動關掉，那比爆版更煩。
   const [showSource, setShowSource] = useState(() => !isNarrowViewport()); // 左側面板
   const [showFlow, setShowFlow] = useState(() => !isNarrowViewport()); // 右側流程圖
+  // 試玩連結的 QR。預設收著——它只在「手邊有另一支手機」的時候有用，
+  // 而那不是每一次都成立，常駐會讓左欄一直被一塊圖佔掉。
+  const [showQr, setShowQr] = useState(false);
 
   // 這個要跟著視窗變（轉螢幕方向就該換版面），與 showSource/showFlow 的
   // 「只在掛載時判斷一次」不同——那兩個是使用者的意圖，這個是版面能力。
@@ -391,6 +396,31 @@ const CreateApp = () => {
     </Button>
   ) : null;
 
+  // 桌機做遊戲、手機驗收。這件事以前得手抄網址，或起一台綁 0.0.0.0 的 dev server。
+  //
+  // 連結內容就是 buildPlayLink()，所以它帶的是 window.location.origin——
+  // **從 localhost 掃出來的 QR，手機是打不開的**（那是這台電腦的 localhost）。
+  // 要在開發時真的用它測，得走 misheng-lan 那個綁 0.0.0.0 的設定。
+  const qrEl = shareId ? (
+    <>
+      <Button
+        fullWidth
+        size="small"
+        variant="text"
+        startIcon={<QrCodeRoundedIcon />}
+        onClick={() => setShowQr((v) => !v)}
+        sx={{ textTransform: 'none' }}
+      >
+        {showQr ? '收起 QR' : '顯示 QR（用手機掃）'}
+      </Button>
+      {showQr && (
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <QrCode value={buildPlayLink(shareId)} />
+        </Box>
+      )}
+    </>
+  ) : null;
+
   // ---- 試玩中：三欄 ----
   // 三個畫面分支都要蓋同一塊遮罩——它跨越的正是分支切換的那一刻
   const veilEl =
@@ -412,7 +442,7 @@ const CreateApp = () => {
           // 一直都有這顆。/create 自己那顆長在工具的殼上，而試玩模式沒有那個殼。
           // （重啟鈕不會跟著出現：它需要 gameId，而試算表這條路沒有遊戲資料夾。）
           headerActions={<ColorSchemeToggle />}
-          brand={<BrandBadge />}
+          brand={<BrandBadge qrUrl={window.location.href} />}
         />
         {veilEl}
       </>
@@ -447,8 +477,11 @@ const CreateApp = () => {
         exportSlot={
           <Stack spacing={1}>
             {playLinkEl}
+            {qrEl}
             {/* 這句話每一次都成立，所以它不該住在六秒後就消失的通知裡。
-                常駐在按鈕底下，才擋得住「以為它是保密的」。 */}
+                常駐在按鈕底下，才擋得住「以為它是保密的」。
+                位置在 QR 底下而不是複製鈕底下——**QR 更容易被貼到牆上**，
+                而貼上去的人正是最需要先讀到這句的人。 */}
             {playLinkEl && (
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 收到的人只會看到遊戲。但試算表本身仍是公開的，別當成保密。

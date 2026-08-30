@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import {
   Box,
   Button,
+  Divider,
   IconButton,
   Popover,
   Stack,
@@ -11,6 +12,7 @@ import {
 } from '@mui/material';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import BrandMark from './BrandMark.jsx';
+import QrCode from './QrCode.jsx';
 
 const HOME = 'https://misheng.app';
 
@@ -33,7 +35,15 @@ const HOME = 'https://misheng.app';
 // 2026-08-27 曾經把左上角的 logo 拿掉，理由是「沒有人會從一個品牌標誌看出
 // 這會開關左邊的面板」。那次的問題是 logo 被拿去當**面板開關**；
 // logo ＝ 這是誰做的／回到它的家，是網頁的通用慣例，不是同一件事。
-const BrandBadge = ({ show = true, size = 20, tone = 'overlay' }) => {
+// qrUrl：把「這一頁」變成一張可以掃的碼。
+//
+// 它跟卡片上半部講的不是同一件事——上面是「這個工具是誰做的」，這裡是「怎麼把
+// 這一頁弄到手機上」。放在同一張卡而不是再長一顆按鈕，是因為遊戲畫面上每多一個
+// 東西，就多一分擋住創作者美術的機會；而這兩件事至少共用「關於這一頁」這個框。
+//
+// 誰會用：①學員部署完，在桌機上掃碼確認手機真的打得開（那是部署文件的最後一步）
+//         ②帶團的人現場打開遊戲，給玩家掃
+const BrandBadge = ({ show = true, size = 20, tone = 'overlay', qrUrl = '' }) => {
   const [anchor, setAnchor] = useState(null);
   if (!show) return null;
 
@@ -88,6 +98,18 @@ const BrandBadge = ({ show = true, size = 20, tone = 'overlay' }) => {
               做一個自己的
             </Button>
           </Box>
+
+          {qrUrl && (
+            <>
+              <Divider sx={{ mt: 0.5 }} />
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                用手機掃這個碼，就能在手機上打開這一頁
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <QrCode value={qrUrl} size={132} />
+              </Box>
+            </>
+          )}
         </Stack>
       </Popover>
     </>
@@ -100,6 +122,8 @@ BrandBadge.propTypes = {
   size: PropTypes.number,
   // overlay ＝ 疊在遊戲畫面上，要自帶底；plain ＝ 放在面板裡，不用
   tone: PropTypes.oneOf(['overlay', 'plain']),
+  // 有值才出現 QR 那一段。傳 window.location.href 就是「這一頁」
+  qrUrl: PropTypes.string,
 };
 
 export default BrandBadge;

@@ -66,7 +66,7 @@ const RuntimeApp = () => {
     <GameShell
       gameData={gameData}
       imgBase={runtimeImgBase()}
-      brand={<BrandBadge />}
+      brand={<BrandBadge qrUrl={window.location.href} />}
       headerActions={<ColorSchemeToggle />}
     />
   );

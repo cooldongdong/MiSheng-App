@@ -17,7 +17,7 @@
 Take your spreadsheet to [misheng.app/create](https://misheng.app/create), press
 *匯出可上架的遊戲*, and drop the zip on a static host. No git, no node, nothing to
 install. Step by step, in Chinese, with the caveats that actually bite:
-**[docs/自己部署遊戲.md](docs/自己部署遊戲.md)**.
+**[docs/如何自己部署遊戲？.md](docs/如何自己部署遊戲？.md)**.
 
 The instructions below are the other route: running the whole project locally,
 which is what you want if you intend to change the player itself.

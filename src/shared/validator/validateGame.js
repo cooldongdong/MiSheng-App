@@ -13,8 +13,21 @@
 
 export const REQUIRED_TABLES = ['character', 'config', 'hint', 'mission', 'prop', 'rundown', 'story'];
 
-// 每張表的預期表頭（順序不論，只驗有沒有）
-export const EXPECTED_FIELDS = {
+// 表頭欄位分兩級（順序不論，只驗有沒有）。
+//
+// REQUIRED：缺這一欄就發 error 擋生成。
+// OPTIONAL：認得，但可以沒有——缺了就是「這份遊戲沒用到那個功能」，不吭聲。
+//
+// 為什麼需要分級：**遊戲資料在創作者自己的雲端硬碟裡，不在我們的資料庫裡。**
+// 一般服務要改 schema，寫一支 migration 半夜跑一遍就把舊資料升級完了；
+// 這裡沒有那個權力——舊試算表只會停在它被做出來的那一天。
+// 所以新增欄位如果進 REQUIRED，等於讓每一份既有遊戲在下一次驗證時集體變紅。
+//
+// ⇒ **以後任何新欄位一律先進 OPTIONAL_FIELDS，永遠不直接進 REQUIRED_FIELDS。**
+//
+// 既有欄位這次原封不動留在 REQUIRED：它們本來就在每一份現存試算表裡，
+// 重新分級等於在改「什麼算錯」，那是另一個判斷，不該搭這班車。
+export const REQUIRED_FIELDS = {
   character: ['id', 'name', 'avatar', 'straight'],
   config: ['id', 'title', 'description', 'duration', 'backgroundImg', 'developer', 'creator', 'designer', 'version', 'type', 'releaseDate', 'languagesSupported', 'contactInformation'],
   hint: ['id', 'missionId', 'speaker', 'text', 'img'],
@@ -23,6 +36,19 @@ export const EXPECTED_FIELDS = {
   rundown: ['id', 'nextId', 'model', 'parentId', 'missionId', 'speaker', 'title', 'text', 'textAnimation', 'url', 'backgroundImg', 'customKey'],
   story: ['id', 'missionId', 'title', 'img'],
 };
+
+// 選填欄位：有就吃、沒有就當空字串，不報錯也不提醒。
+// prop.backImg＝Wheel 最底層的固定背景圖（見 Wheel.jsx 的圖層說明）。
+export const OPTIONAL_FIELDS = {
+  prop: ['backImg'],
+};
+
+// 表頭上「兩級都不認得」的欄位。這種欄位的資料永遠不會被讀到，
+// 而最常見的來源是打錯字（backImgg、rotateimg1）——填了沒反應，
+// 又完全沒有回饋，只能自己盯著試算表找。
+// 不擋生成：創作者在自己的表上加註記欄（「誰負責」「備註」）是很正常的事。
+const knownFieldsOf = (type) =>
+  new Set([...(REQUIRED_FIELDS[type] || []), ...(OPTIONAL_FIELDS[type] || [])]);
 
 // rundown.model 合法值（見 GameController modelComponents）
 export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'MissionAnswerInput', 'Img', 'CustomValueInput'];
@@ -60,8 +86,17 @@ export function validateGame(tables) {
       continue;
     }
     const fields = tables[type].fields || [];
-    for (const f of EXPECTED_FIELDS[type]) {
+    for (const f of REQUIRED_FIELDS[type]) {
       if (!fields.includes(f)) add(type, 1, f, `表頭缺少欄位「${f}」`);
+    }
+    // 選填欄位缺了不吭聲，但不認得的欄位要講——那格資料不會被讀到
+    const known = knownFieldsOf(type);
+    for (const f of fields) {
+      // papaparse 遇到行尾多逗號會給出空字串欄名，那不是創作者打的欄位
+      if (isEmpty(f)) continue;
+      if (!known.has(f)) {
+        warn(type, 1, f, `表頭有不認得的欄位「${f}」，這一欄的資料不會被讀取（是不是打錯字了？）`);
+      }
     }
   }
   for (const type of MUST_HAVE_ROWS) {

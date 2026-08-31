@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useState } from 'react';
 import { GameContext } from '../../store/game-context';
 import { Box, Fab, Paper, Slider } from '@mui/material';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
@@ -25,7 +25,6 @@ const Wheel = ({
   onToggle,
 }) => {
   const { getImg } = useContext(GameContext);
-  const [hasRotateImg2, setHasRotateImg2] = useState(null);
   const [angle, setAngle] = useState(180);
   const [angle2, setAngle2] = useState(180);
   const handleSliderChange = (event, newValue) => {
@@ -36,12 +35,11 @@ const Wheel = ({
     setAngle2(newValue);
   };
 
-  useEffect(() => {
-    if (!prop.rotateImg2) {
-      return;
-    }
-    setHasRotateImg2(true);
-  }, [prop.rotateImg2]);
+  // 直接從 prop 推導，不要 state ＋ useEffect。原本是 useState(null) 加一支
+  // 只寫 true、永遠不寫回 false 的 effect，所以這個值只能單向。在 /create 裡
+  // 改試算表拿掉 rotateImg2 時元件不會重新掛載，第二根滑桿會留在畫面上，
+  // 拖它也不會有任何東西轉。
+  const hasRotateImg2 = Boolean(prop.rotateImg2);
 
   // 版面高度由這張看不見的「量尺」決定，跟填了哪幾個圖層無關。
   // 以前是靠 frontImg 撐——三層圖只有它是 relative（在文件流裡），另外兩張是
@@ -49,8 +47,15 @@ const Wheel = ({
   // 另外兩張的 maxHeight 也跟著變成 0，整個轉盤縮成一點點。
   // 那讓一個選填欄位實際上變成必填，而且得放一張尺寸剛好的透明圖才會正常——
   // 尺寸填錯不會報錯，只會默默歪掉。
+  //
+  // 順序＝「誰最可能是整個轉盤的外框」。backImg 排在旋轉層前面：它是不轉的
+  // 底圖，通常畫的就是整個盤面，而會轉的那幾層常常只是中間一小片。
   const sizerSrc =
-    prop.frontImg || prop.rotateImg1 || prop.rotateImg2 || prop.img;
+    prop.frontImg ||
+    prop.backImg ||
+    prop.rotateImg1 ||
+    prop.rotateImg2 ||
+    prop.img;
 
   return (
     <>
@@ -203,6 +208,26 @@ const Wheel = ({
                       display: 'block',
                       visibility: 'hidden',
                       pointerEvents: 'none',
+                    }}
+                  />
+                )}
+
+                {/* 不能旋轉的底圖，疊在所有旋轉層下面。
+                    在它出現之前，想做「固定背景＋只轉前面」唯一的辦法是把背景
+                    塞進 rotateImg2——但那會長出第二根滑桿，而那根滑桿沒有用途，
+                    拖它只會把背景轉歪。所以缺的不是介面，是這一層 */}
+                {prop.backImg && (
+                  <img
+                    src={getImg(prop.backImg)}
+                    alt={prop.backImg}
+                    style={{
+                      width: '100%',
+                      maxWidth: '600px',
+                      maxHeight: '100%',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      objectFit: 'scale-down',
                     }}
                   />
                 )}

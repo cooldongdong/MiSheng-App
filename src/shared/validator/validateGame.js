@@ -150,12 +150,12 @@ export function validateGame(tables) {
       if (norm(row.type) === 'Camera' && isEmpty(row.img)) {
         warn('prop', sheetRow(i), 'img', 'Camera 道具沒有填 img，打開相機後不會有東西疊上去');
       }
-      // Wheel 是疊起來的多層圖：rotateImg1／rotateImg2 會轉，frontImg 蓋在最上面不轉。
-      // frontImg 是選填的（沒有它版面也不會塌，見 Wheel.jsx 的量尺），
+      // Wheel 是疊起來的多層圖，由下往上：backImg（不轉）→ rotateImg2 → rotateImg1
+      // → frontImg（不轉）。四層都是選填的（沒有它們版面也不會塌，見 Wheel.jsx 的量尺），
       // 但一張圖都沒有就沒東西可看，沒有 rotateImg1 就沒東西可轉。
       if (norm(row.type) === 'Wheel') {
-        if (isEmpty(row.frontImg) && isEmpty(row.rotateImg1) && isEmpty(row.rotateImg2)) {
-          warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填任何圖（frontImg／rotateImg1／rotateImg2 全空），打開後會是空白');
+        if (isEmpty(row.backImg) && isEmpty(row.frontImg) && isEmpty(row.rotateImg1) && isEmpty(row.rotateImg2)) {
+          warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填任何圖（backImg／frontImg／rotateImg1／rotateImg2 全空），打開後會是空白');
         } else if (isEmpty(row.rotateImg1)) {
           warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填 rotateImg1，轉盤上沒有可以轉的圖');
         }

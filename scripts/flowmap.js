@@ -7,20 +7,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Papa from 'papaparse';
-import { buildFlowGraph } from '../src/create/flowGraph.js';
+import { buildFlowGraph } from '../src/studio/flowGraph.js';
 import {
   layoutFlow,
   nodeTitle,
   nodeSubtitle,
   edgeLabel,
   labelBoxWidth,
+  NODE_W,
+  NODE_H,
+} from '../src/studio/flowLayout.js';
+// 色票住在 shared/，它零 import——所以這支 CLI 不會被拖進 MUI
+import {
   MODEL_COLOR,
   MODEL_TINT,
   EDGE_COLOR,
   FLOW_PALETTE as P,
-  NODE_W,
-  NODE_H,
-} from '../src/create/flowLayout.js';
+} from '../src/shared/flowPalette.js';
 
 const gameDir = process.argv[2];
 const outPath = process.argv[3] || 'flow.svg';

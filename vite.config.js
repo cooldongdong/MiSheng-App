@@ -2,12 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { firstPaintGround } from './vite/firstPaintGround.js'
 
 const root = dirname(fileURLToPath(import.meta.url));
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), firstPaintGround()],
   assetsInclude: ['**/*.csv'], // 允許讀取 .csv 文件
   build: {
     rollupOptions: {

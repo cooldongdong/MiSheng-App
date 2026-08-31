@@ -11,6 +11,19 @@
 </div>
 
 
+## Publishing a game — two routes
+
+**If you just want your game on the web, you do not need any of what follows.**
+Take your spreadsheet to [misheng.app/create](https://misheng.app/create), press
+*匯出可上架的遊戲*, and drop the zip on a static host. No git, no node, nothing to
+install. Step by step, in Chinese, with the caveats that actually bite:
+**[docs/如何自己部署遊戲？.md](docs/如何自己部署遊戲？.md)**.
+
+The instructions below are the other route: running the whole project locally,
+which is what you want if you intend to change the player itself.
+
+---
+
 # Installation
 ```
 # Clone the repository (--recurse-submodules pulls in the demo game)
@@ -78,4 +91,4 @@ After editing in Google Sheets:
 - Place them in your game folder (follow the example folder structure).
 
 # License
-© Dong 2025. Released as free software under the [GNU GPL 3.0 Public License](https://github.com/rr37/MiSheng-App/blob/main/LICENSE).
+© Dong 2025. Released as free software under the [GNU Affero General Public License v3.0](LICENSE).

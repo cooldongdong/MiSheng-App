@@ -1,0 +1,14 @@
+/* /demo 專用。#root 的寬高交給 index.css，這裡只留真的屬於這一頁的東西。
+ *
+ * 拿掉的兩行與理由：
+ *   background-color: rgb(217,217,217)
+ *     那是寫死的淺色 game.frame。上色已經在 2026-08-27 移到 GameShell（它拿得到
+ *     theme，會跟著深淺色換），這行只是留下來沒刪的舊值——深色模式下它是錯的。
+ *   max-width: 1280px
+ *     它讓 #root 在寬螢幕上被切到 1280 置中，於是兩側露出 body 的
+ *     background.default，跟 html 的 game.frame 對不上，畫面邊緣會有一條異色。
+ *     那正是 2026-08-30 在獨立播放器上看到的同一個 bug，只是要更寬的螢幕才會現形。
+ */
+#root {
+  text-align: center;
+}

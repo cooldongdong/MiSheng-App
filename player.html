@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200..900&display=swap" rel="stylesheet">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 刻意沒有 favicon。這一份是交到使用者手上、掛在他自己網域下的遊戲，
+         分頁上不該出現謎生的 logo——那是他的遊戲。「made with 謎生」的標記有它自己
+         設計好的位置（頁面裡的品牌小卡），不是這裡。 -->
+
+    <!-- 標題會在 config.csv 讀進來之後由 GameController 換掉。這裡放的是它還沒讀到之前的樣子 -->
+    <title>實境解謎</title>
+
+    <!-- first-paint 的底色與 theme-color 由 vite plugin 注入，
+         值的單一來源是 src/shared/ground.js（見 vite/firstPaintGround.js）。 -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/player/runtime.jsx"></script>
+  </body>
+</html>

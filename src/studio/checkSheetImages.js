@@ -19,7 +19,7 @@ export const IMG_FIELDS = {
   mission: ['backgroundImg'],
   rundown: ['backgroundImg'],
   hint: ['img'],
-  prop: ['img', 'frontImg', 'rotateImg1', 'rotateImg2'],
+  prop: ['img', 'backImg', 'frontImg', 'rotateImg1', 'rotateImg2'],
   story: ['img'],
 };
 

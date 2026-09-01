@@ -13,6 +13,9 @@ const ContentList = ({
       spacing={spacing}
       sx={{
         overflowY: 'auto',
+        // 外層 swipe 容器是 touch-action:none（垂直拖曳被翻頁接管），
+        // 可捲區要自己把垂直捲動要回來，否則觸控裝置上捲不動
+        touchAction: 'pan-y',
         maxHeight: '100%',
         flex: 1,
         p: '8%',

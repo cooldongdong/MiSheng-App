@@ -13,6 +13,8 @@ const TalkText = forwardRef(({ text, height = '120px', textShadow }, ref) => (
       color: '#fff',
       height: height,
       overflowY: 'auto',
+      // 同 ContentList：外層是 touch-action:none，這裡要把垂直捲動要回來
+      touchAction: 'pan-y',
       textShadow: textShadow,
     }}
   >

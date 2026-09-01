@@ -404,6 +404,23 @@ const GameController = ({
           width: '100%',
           height: '100%',
           overflow: 'hidden',
+          // 垂直拖曳是翻頁，不是捲動——**這一行不加，Android 上根本翻不了頁。**
+          //
+          // touch-action 沒宣告時，瀏覽器一超過判定門檻就把觸控收去當捲動並發
+          // pointercancel，即使畫面上根本沒東西可捲。useSwipeFlow 檔頭那句
+          // 「瀏覽器自己會在原生捲動開始的瞬間發 pointercancel 把手勢收走」講的就是它。
+          // iOS Safari 收得晚、Android Chrome 收得早，所以只有 Android 壞掉。
+          //
+          // 在 Dong 的 Android 9 上實測過三種情況（診斷頁）：
+          //   沒有 touch-action → 被 cancel（重現）
+          //   touch-action: none → 手勢完整走完
+          //   none 的容器裡放一個自己宣告 pan-y 的可捲清單 → 清單照樣捲得動
+          // 第三項是重點：**後代宣告 pan-y 加得回來**，所以下面那三個可捲區
+          // （ContentList／TalkText／QuestionText）各自宣告就行，不必為它們放棄這一行。
+          //
+          // ⇒ **在這底下新增任何 overflow 可捲的區塊，記得給它 touchAction: 'pan-y'**，
+          // 否則它在觸控裝置上會捲不動，而且畫面上看不出原因。
+          touchAction: 'none',
           // **這一層不要上底色。** 一度鋪過 dialogue.surface 當「露縫時不要白閃」的保險，
           // 但那反而製造了真正的 bug：Img 沒有色層、MissionStart 是一張 MUI Paper 白卡，
           // 這兩種頁面的底本來就是 GameShell 的 game.bg（淺色下近白），鋪深色等於把它們

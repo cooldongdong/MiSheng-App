@@ -274,6 +274,12 @@ const useSwipeFlow = ({
           // 手指往上（clientY 變小）＝內容往後捲＝scrollTop 變大
           const delta = d.scrollLastY - e.clientY;
           d.scrollLastY = e.clientY;
+          // **沒有位移就不能拿來判斷到底了沒。**
+          // 剛認出這個可捲元素的那一格，scrollLastY 才剛被設成同一個 clientY，
+          // delta 必定是 0——沒有這道防線的話「捲了但 scrollTop 沒變」會被當成
+          // 「已經到底」，於是第一次移動就直接交棒給翻頁，捲動整個沒有機會發生。
+          // （實測症狀：文字區可以翻頁了，但長對白完全捲不動，兩個平台都一樣。）
+          if (delta === 0) return;
           const before = el.scrollTop;
           el.scrollTop = before + delta;
           // 真的捲動了 → 這一下就是捲動，翻頁不介入

@@ -418,8 +418,12 @@ const GameController = ({
           // 第三項是重點：**後代宣告 pan-y 加得回來**，所以下面那三個可捲區
           // （ContentList／TalkText／QuestionText）各自宣告就行，不必為它們放棄這一行。
           //
-          // ⇒ **在這底下新增任何 overflow 可捲的區塊，記得給它 touchAction: 'pan-y'**，
-          // 否則它在觸控裝置上會捲不動，而且畫面上看不出原因。
+          // ⇒ **在這底下新增任何 overflow 可捲的區塊，都要明講它的 touch-action**，
+          // 否則它在觸控裝置上會捲不動，而且畫面上看不出原因。二選一：
+          //   pan-y — 瀏覽器管它的捲動（有慣性）。代價是**手勢整段歸瀏覽器、
+          //           不會中途交還**，所以在那塊區域上永遠翻不了頁。長清單適合。
+          //   none  — 由 useSwipeFlow 自己捲，捲到底再把剩下的位移轉成翻頁。
+          //           沒有慣性，適合只溢出一點的小框（對白框走這條）。
           touchAction: 'none',
           // **這一層不要上底色。** 一度鋪過 dialogue.surface 當「露縫時不要白閃」的保險，
           // 但那反而製造了真正的 bug：Img 沒有色層、MissionStart 是一張 MUI Paper 白卡，

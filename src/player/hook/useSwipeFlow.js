@@ -46,14 +46,15 @@ const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
-// 起點所在的那個可捲容器，往這個方向還捲得動嗎——捲得動就把這一下整個讓給它。
+// 起點所在的那個可捲容器，往這個方向還捲得動嗎——回傳它本人，讓呼叫端決定怎麼辦。
 //
-// 觸控時瀏覽器自己會在原生捲動開始的瞬間發 pointercancel 把手勢收走，但兩種情況
-// 收不到：桌機的拖曳，以及「已經捲到底」的邊界（那時根本不會發生捲動）。
-// 所以這裡自己判一次，兩條路才會給出同一個答案。
+// 為什麼回傳元素而不是布林值：**「讓給誰」有兩個答案，不是一個。**
+// 由那個元素自己的 touch-action 決定（見 onMove）：
+//   pan-y  → 瀏覽器在管它的捲動（有慣性、有回彈），我們整個讓開
+//   none   → 瀏覽器不會碰它，得由我們自己捲，捲到底再接手翻頁
 //
-// dir='up'（手指往上）＝內容要往後捲 → scrollTop 變大 → 還沒到底就讓行。
-const deferToScroller = (start, root, dir) => {
+// dir='up'（手指往上）＝內容要往後捲 → scrollTop 變大 → 還沒到底就算「還捲得動」。
+const findScroller = (start, root, dir) => {
   let el = start;
   while (el && el instanceof Element) {
     const oy = getComputedStyle(el).overflowY;
@@ -63,13 +64,13 @@ const deferToScroller = (start, root, dir) => {
     ) {
       const atTop = el.scrollTop <= 0;
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-      if (dir === 'up' && !atBottom) return true;
-      if (dir === 'down' && !atTop) return true;
+      if (dir === 'up' && !atBottom) return el;
+      if (dir === 'down' && !atTop) return el;
     }
     if (el === root) break;
     el = el.parentElement;
   }
-  return false;
+  return null;
 };
 
 // 走得過去：幾乎 1:1，只在很後面才收一點
@@ -193,10 +194,15 @@ const useSwipeFlow = ({
     (cancelled) => {
       const d = drag.current;
       drag.current = null;
-      if (!d || !d.locked) return;
+      if (!d) return;
+
+      // 拉得夠遠就不是點擊——**用 downY 不用 startY**，而且要在 locked 的早退之前。
+      // 只捲了對白框、沒翻頁的那種手勢也算：原生捲動會自己壓掉尾隨的 click，
+      // 但我們是自己捲的，不壓就會在放開時點到底下的東西。
+      if (Math.abs(d.lastY - d.downY) > CLICK_GUARD) swallowNextClick();
+      if (!d.locked) return;
 
       const dy = d.lastY - d.startY;
-      if (Math.abs(dy) > CLICK_GUARD) swallowNextClick();
 
       // 走不過去的那一種，無論拉多遠都是彈回——這就是它要表達的事
       if (!cancelled && !d.blocked) {
@@ -234,10 +240,54 @@ const useSwipeFlow = ({
 
         const dir = dy < 0 ? 'up' : 'down';
 
-        // 這一下該不該歸原生捲動（長對白還沒讀完）。這條優先權最高：
+        // 這一下該不該歸捲動（長對白還沒讀完）。這條優先權最高：
         // 讀不完就被翻頁，比不知道為什麼不能翻頁嚴重得多。
-        if (deferToScroller(d.target, containerRef.current, dir)) {
-          drag.current = null;
+        //
+        // 但「歸捲動」有兩種，由那個可捲元素自己的 touch-action 宣告：
+        //
+        //   pan-y（ContentList 這種長清單）——瀏覽器在管，讓開就對了。
+        //     原生捲動有慣性與回彈，自己重做只會更差。
+        //
+        //   none（對白框 TalkText／QuestionText）——**瀏覽器不會碰它**，
+        //     讓開等於誰都不動。得自己把位移換成 scrollTop，捲到底之後
+        //     再把剩下的位移交給翻頁。
+        //
+        // 為什麼對白框要走第二條：宣告 pan-y 的話，瀏覽器會在手指按下那一刻
+        // 就取得整段手勢的所有權，而且**不會中途交還**——於是「捲到底就能翻頁」
+        // 在 Chrome 上永遠不會發生（Dong 的 Android 9 實測：捲到底往上滑仍然
+        // 翻不了頁）。iOS Safari 交還得比較鬆，所以同一份 code 在 iPhone 上
+        // 看起來是好的，這正是兩邊行為不同的根本原因。
+        if (!d.scroller) {
+          const el = findScroller(d.target, containerRef.current, dir);
+          if (el) {
+            if (getComputedStyle(el).touchAction !== 'none') {
+              drag.current = null; // 瀏覽器在管它，整個讓開
+              return;
+            }
+            d.scroller = el;
+            d.scrollLastY = e.clientY;
+          }
+        }
+
+        if (d.scroller) {
+          const el = d.scroller;
+          // 手指往上（clientY 變小）＝內容往後捲＝scrollTop 變大
+          const delta = d.scrollLastY - e.clientY;
+          d.scrollLastY = e.clientY;
+          // **沒有位移就不能拿來判斷到底了沒。**
+          // 剛認出這個可捲元素的那一格，scrollLastY 才剛被設成同一個 clientY，
+          // delta 必定是 0——沒有這道防線的話「捲了但 scrollTop 沒變」會被當成
+          // 「已經到底」，於是第一次移動就直接交棒給翻頁，捲動整個沒有機會發生。
+          // （實測症狀：文字區可以翻頁了，但長對白完全捲不動，兩個平台都一樣。）
+          if (delta === 0) return;
+          const before = el.scrollTop;
+          el.scrollTop = before + delta;
+          // 真的捲動了 → 這一下就是捲動，翻頁不介入
+          if (el.scrollTop !== before) return;
+          // 捲不動了＝到底了。把剩下的位移交給翻頁，並從這一刻重新起算——
+          // 於是還要再拉一個 LOCK 才會開始翻，不會在到底的瞬間突然跳一下。
+          d.scroller = null;
+          d.startY = e.clientY;
           return;
         }
         // 游標在輸入框裡時往下滑，多半是想捲畫面看清楚（或收鍵盤），不是要離開這一頁
@@ -297,7 +347,12 @@ const useSwipeFlow = ({
         target: e.target,
         startX: e.clientX,
         startY: e.clientY,
+        // downY 是「手指最初按下的位置」，startY 會在鎖定與捲動交棒時被改寫。
+        // 判斷「這一下算不算點擊」要用前者，否則捲了半天放開會補一個 click 出去
+        downY: e.clientY,
         lastY: e.clientY,
+        scroller: null,
+        scrollLastY: e.clientY,
         startTime: performance.now(),
         locked: false,
         blocked: false,

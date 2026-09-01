@@ -3,6 +3,20 @@
 html,
 body {
   overflow: hidden;
+  /* 擋掉 Android Chrome 的「下拉重新整理」。
+   *
+   * 遊戲的上下滑是翻頁（useSwipeFlow），而 Android 把畫面頂端的下拉留給自己——
+   * 它會在判定成 PTR 的瞬間發 pointercancel 把手勢收走，於是「往下滑回上一頁」
+   * 在 Android 上整個沒反應，iOS Safari 因為沒有這個手勢所以一直是好的。
+   * overflow:hidden 擋不住它，PTR 看的是 overscroll-behavior。
+   *
+   * 用 contain 不用 none：contain 只切斷「捲動傳給外層」與 PTR，
+   * none 會連元素自己的過捲效果一起關掉，那不是我們要處理的東西。
+   *
+   * **不要改成在滑動容器上設 touch-action。** 那會一併關掉巢狀可捲區的原生捲動
+   * ——ContentList（提示／道具清單）、TalkText、QuestionText 都是 overflowY:auto，
+   * 而 touch-action 一旦在祖先層收掉，後代是加不回來的。 */
+  overscroll-behavior-y: contain;
 }
 
 body {

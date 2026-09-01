@@ -11,4 +11,8 @@ body {
 
 body {
   min-height: 100dvh;
+  /* 同 player/index.css：擋掉 Android 的下拉重新整理。
+   * 這一份也要，因為**分享出去的試玩連結是從 /create 出去的**——
+   * 收到連結的人是在手機上玩遊戲，而這條路徑不載入 player/index.css。 */
+  overscroll-behavior-y: contain;
 }

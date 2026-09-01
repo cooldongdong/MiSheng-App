@@ -42,6 +42,20 @@ const HintPage = () => {
     setCurrentHints(updatedFilteredHints);
   }, [currentMissionId, hintData, currentMission]);
 
+  // 換關就把展開狀態清掉。
+  //
+  // expandedHints 裝的是索引（[0, 2]），而索引只在「這一關的提示清單」裡有意義——
+  // 上一關的第 0 則跟這一關的第 0 則是兩則不同的提示。
+  //
+  // 一般玩遊戲時撞不到，是因為要換關就得先離開提示分頁，而分頁切換會把這個元件
+  // 卸載、state 跟著歸零。但 **/create 的三欄畫面可以在不離開提示分頁的情況下換關**
+  // ——點右邊流程圖的方塊會 goToId 跳到別關，而中間欄的分頁索引（GameShell 的 value）
+  // 不會被碰。於是這個元件一直掛著，上一關的展開狀態就套到了新的一關上
+  // （Dong 2026-09-01 回報：在某一關解鎖提示後跳到沒解鎖的那關，那關的提示也是開的）。
+  useEffect(() => {
+    setExpandedHints([]);
+  }, [currentMissionId]);
+
   const handleExpand = (index) => {
     setExpandedHints((prev) =>
       prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]

@@ -165,14 +165,16 @@ export function validateGame(tables) {
     }
   }
 
-  // hint.timer 填了但不是正數 —— 那一則就完全不會自動解鎖，而畫面上看不出原因。
+  // hint.timer 填了但不是合法分鐘數 —— 那一則就完全不會自動解鎖，而畫面上看不出原因。
   // 是提醒不是 error：填錯的是一個選填功能，遊戲照樣玩得下去（播放器會當它沒填）。
+  //
+  // **0 是合法的**，意思是「進關就解鎖」——空白才是「不自動解鎖」。
   if (tables.hint) {
     for (const { row, i } of rowsOf('hint')) {
       if (isEmpty(row.timer)) continue;
       const minutes = Number(norm(row.timer));
-      if (!Number.isFinite(minutes) || minutes <= 0) {
-        warn('hint', sheetRow(i), 'timer', `timer「${row.timer}」不是正整數的分鐘數（例如填 3 代表進關後第 3 分鐘自動解鎖），這一則不會自動解鎖`);
+      if (!Number.isFinite(minutes) || minutes < 0) {
+        warn('hint', sheetRow(i), 'timer', `timer「${row.timer}」不是合法的分鐘數（填 3 代表進關後第 3 分鐘自動解鎖，填 0 代表進關就解鎖，留空代表只能手動解鎖），這一則不會自動解鎖`);
       }
     }
   }

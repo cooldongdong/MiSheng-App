@@ -10,13 +10,21 @@ export const HINT_TICK_MS = 10000;
 
 // 這一則的 timer 換算成毫秒。null ＝ 沒有設定。
 //
-// 空白、非數字、零或負數都當成「沒有設定」而不是報錯——**播放器不該因為試算表
-// 填錯就壞掉**，那是 validator 的工作（它會提醒）。播放器的責任是繼續能玩。
+// **空白與 0 是兩件事，這個區別要守住：**
+//   空白 → null → 沒有自動解鎖，只能手動開（舊試算表沒有這一欄，走的就是這條）
+//   0    → 0    → 進關就解鎖，玩家不必花一次手動解鎖去換
+//   3    → 3 分鐘後解鎖
+//
+// 0 的用途是真的：有些「提示」其實是該關的前提說明（「答案在廟埕的石碑上，
+// 不用進廟」），那種東西不該讓玩家付出「我承認我需要幫忙」的代價。
+//
+// 非數字與負數當成「沒有設定」而不是報錯——**播放器不該因為試算表填錯就壞掉**，
+// 那是 validator 的工作（它會提醒）。播放器的責任是繼續能玩。
 export const hintTimerMs = (hint) => {
   const raw = hint?.timer;
   if (raw === undefined || raw === null || String(raw).trim() === '') return null;
   const minutes = Number(String(raw).trim());
-  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  if (!Number.isFinite(minutes) || minutes < 0) return null;
   return minutes * 60 * 1000;
 };
 

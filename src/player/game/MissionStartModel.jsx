@@ -12,7 +12,8 @@ import AssistantDirectionRoundedIcon from '@mui/icons-material/AssistantDirectio
 import EndIconButton from '../component/common/EndIconButton';
 
 const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
-  const { getImg, getMissionById, currentMissionId } = useContext(GameContext);
+  const { getImg, getMissionById, currentMissionId, startMission } =
+    useContext(GameContext);
   const currentMission = getMissionById(currentMissionId);
 
   return (
@@ -77,7 +78,17 @@ const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
               </EndIconButton>
             )}
             {canProceed && (
-              <EndIconButton onClick={onNext}>開始遊戲</EndIconButton>
+              /* 按下這一刻＝這一關的計時起點（hint.timer 用它算「進關後幾分鐘」）。
+                 記在按鈕上而不是「走到這一列時」，是因為 MissionStart 這一頁可能
+                 停留很久——玩家在讀關卡說明、看導覽連結，那段時間不該算進去。 */
+              <EndIconButton
+                onClick={() => {
+                  startMission(currentMissionId);
+                  onNext();
+                }}
+              >
+                開始遊戲
+              </EndIconButton>
             )}
           </Stack>
         </Box>

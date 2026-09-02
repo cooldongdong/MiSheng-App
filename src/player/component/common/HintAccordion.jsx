@@ -16,6 +16,7 @@ const HintAccordion = ({
   isExpanded,
   onExpand,
   onUnlock,
+  remainingMinutes,
 }) => {
   // expanded 要再 && 一次 isUnlocked，不能只靠 disabled。
   //
@@ -41,7 +42,13 @@ const HintAccordion = ({
         },
       }}
     >
-      {!isUnlocked && <LockedHintButton index={index} onUnlock={onUnlock} />}
+      {!isUnlocked && (
+        <LockedHintButton
+          index={index}
+          onUnlock={onUnlock}
+          remainingMinutes={remainingMinutes}
+        />
+      )}
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Typography>提示 {index + 1}</Typography>
       </AccordionSummary>
@@ -57,6 +64,7 @@ const HintAccordion = ({
 };
 
 HintAccordion.propTypes = {
+  remainingMinutes: PropTypes.number,
   index: PropTypes.number.isRequired,
   hint: PropTypes.shape({
     speaker: PropTypes.string,

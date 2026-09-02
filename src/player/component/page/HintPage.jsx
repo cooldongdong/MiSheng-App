@@ -5,6 +5,12 @@ import PageTitleText from '../common/PageTitleText';
 import ContentList from '../common/ContentList';
 import HintAccordion from '../common/HintAccordion';
 import ConfirmDialog from '../common/ConfirmDialog';
+import useHintTick from '../../hook/useHintTick';
+import {
+  dueHintIndexes,
+  hintRemainingMs,
+  hintRemainingMinutes,
+} from '../../game/hintTimer';
 
 const HintPage = () => {
   const {
@@ -14,7 +20,9 @@ const HintPage = () => {
     currentMissionId,
     unlockedHints,
     unlockHint,
+    missionStartedAt,
   } = useContext(GameContext);
+  const now = useHintTick();
   const [currentHints, setCurrentHints] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false); // Dialog 的開關
   const [currentHintIndex, setCurrentHintIndex] = useState(null); // 當前選擇的提示索引
@@ -55,6 +63,23 @@ const HintPage = () => {
   useEffect(() => {
     setExpandedHints([]);
   }, [currentMissionId]);
+
+  // 時間到的提示自動解鎖。
+  //
+  // 放在提示頁而不是全域，是因為**玩家沒在看的時候解不解鎖沒有差別**——他打開
+  // 這一頁的那一刻，過期的會一起出現。導覽列的小紅點用同一組判斷（dueHintIndexes）
+  // 自己算，所以「有東西該看了」在別的分頁上也看得到。
+  const startedAt = missionStartedAt?.[currentMission?.id];
+  useEffect(() => {
+    if (!currentMission) return;
+    const due = dueHintIndexes(
+      currentHints,
+      startedAt,
+      unlockedHints[currentMission.id],
+      now
+    );
+    due.forEach((index) => unlockHint(currentMission.id, index));
+  }, [now, currentHints, startedAt, unlockedHints, currentMission]);
 
   const handleExpand = (index) => {
     setExpandedHints((prev) =>
@@ -97,6 +122,10 @@ const HintPage = () => {
             isExpanded={expandedHints.includes(index)}
             onExpand={handleExpand}
             onUnlock={handleUnlockClick}
+            remainingMinutes={
+              hintRemainingMinutes(hintRemainingMs(hint, startedAt, now)) ??
+              undefined
+            }
           />
         )}
         emptyText="No hints available"

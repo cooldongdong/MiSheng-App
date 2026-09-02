@@ -1,4 +1,8 @@
-import { BottomNavigation, BottomNavigationAction } from '@mui/material';
+import { useContext } from 'react';
+import { Badge, BottomNavigation, BottomNavigationAction } from '@mui/material';
+import { GameContext } from '../store/game-context';
+import useHintTick from '../hook/useHintTick';
+import { dueHintIndexes } from '../game/hintTimer';
 import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
 import HomeRepairServiceRoundedIcon from '@mui/icons-material/HomeRepairServiceRounded';
 import QuestionAnswerRoundedIcon from '@mui/icons-material/QuestionAnswerRounded';
@@ -7,6 +11,26 @@ import AutoStoriesRoundedIcon from '@mui/icons-material/AutoStoriesRounded';
 import PropTypes from 'prop-types';
 
 export default function FixedBottomNavigation({ value, onChange }) {
+  const { hintData, currentMissionId, unlockedHints, missionStartedAt } =
+    useContext(GameContext);
+  const now = useHintTick();
+
+  // 「時間到了但還沒被解鎖」的數量。
+  //
+  // 不需要額外記「玩家看過了沒」——他一打開提示頁，那些就被解鎖了，這個數字
+  // 自然歸零。少一份狀態，就少一個會跟事實不同步的地方。
+  //
+  // 為什麼要有這顆紅點：自動解鎖的提示是靜靜出現在提示頁的，而**卡住的人正盯著
+  // 謎題，不會想到去翻提示頁**——沒有這個訊號，這個功能救不到它要救的人。
+  const dueCount = dueHintIndexes(
+    Array.isArray(hintData)
+      ? hintData.filter((row) => row.missionId === currentMissionId)
+      : [],
+    missionStartedAt?.[currentMissionId],
+    unlockedHints?.[currentMissionId],
+    now
+  ).length;
+
   return (
     <BottomNavigation
       sx={{
@@ -35,7 +59,11 @@ export default function FixedBottomNavigation({ value, onChange }) {
       />
       <BottomNavigationAction
         label="提示"
-        icon={<TipsAndUpdatesRoundedIcon />}
+        icon={
+          <Badge badgeContent={dueCount} color="error">
+            <TipsAndUpdatesRoundedIcon />
+          </Badge>
+        }
       />
       <BottomNavigationAction label="故事" icon={<AutoStoriesRoundedIcon />} />
     </BottomNavigation>

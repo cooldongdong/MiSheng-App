@@ -277,6 +277,16 @@ const GameShell = ({
               position: sidePanel || leftPanel ? 'absolute' : 'fixed',
               bottom: sidePanel || leftPanel ? -56 : 0,
               left: 0,
+              // 要壓過 #main-container 的 550。
+              //
+              // 導覽列本體不會被蓋到（它在遊戲區下方那 56px 裡），但**提示的小紅點是
+              // 往上凸出去的**（MUI Badge 用 translate(50%, -50%) 掛在圖示右上角），
+              // 凸進遊戲區的範圍就會被對白框那些東西蓋住（Dong 2026-09-02 回報）。
+              // 兩個都是定位元素，有明確 z-index 的那個贏，而這裡原本沒設。
+              //
+              // 停在 700：要蓋過遊戲內容（550）與分隔線（600），但**必須低於全螢幕
+              // 道具**（放大的圖 1000–1102、Camera 1200）——那些東西蓋住導覽列是對的。
+              zIndex: 700,
             }}
           >
             <FixedBottomNavigation

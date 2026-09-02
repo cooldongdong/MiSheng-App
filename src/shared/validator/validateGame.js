@@ -41,6 +41,8 @@ export const REQUIRED_FIELDS = {
 // prop.backImg＝Wheel 最底層的固定背景圖（見 Wheel.jsx 的圖層說明）。
 export const OPTIONAL_FIELDS = {
   prop: ['backImg'],
+  // hint.timer＝進這一關之後第幾分鐘自動解鎖這一則（單位：分鐘）
+  hint: ['timer'],
 };
 
 // 表頭上「兩級都不認得」的欄位。這種欄位的資料永遠不會被讀到，
@@ -159,6 +161,20 @@ export function validateGame(tables) {
         } else if (isEmpty(row.rotateImg1)) {
           warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填 rotateImg1，轉盤上沒有可以轉的圖');
         }
+      }
+    }
+  }
+
+  // hint.timer 填了但不是合法分鐘數 —— 那一則就完全不會自動解鎖，而畫面上看不出原因。
+  // 是提醒不是 error：填錯的是一個選填功能，遊戲照樣玩得下去（播放器會當它沒填）。
+  //
+  // **0 是合法的**，意思是「進關就解鎖」——空白才是「不自動解鎖」。
+  if (tables.hint) {
+    for (const { row, i } of rowsOf('hint')) {
+      if (isEmpty(row.timer)) continue;
+      const minutes = Number(norm(row.timer));
+      if (!Number.isFinite(minutes) || minutes < 0) {
+        warn('hint', sheetRow(i), 'timer', `timer「${row.timer}」不是合法的分鐘數（填 3 代表進關後第 3 分鐘自動解鎖，填 0 代表進關就解鎖，留空代表只能手動解鎖），這一則不會自動解鎖`);
       }
     }
   }

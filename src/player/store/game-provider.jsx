@@ -105,6 +105,11 @@ export const GameProvider = ({
   const setSpatialNav = useCallback((fn) => setSpatialNavRaw(() => fn ?? null), []);
   const [currentMissionId, setCurrentMissionId] = useState('0');
   const [unlockedHints, setUnlockedHints] = useState({});
+  // 玩家按下每一關 MissionStart 的「開始遊戲」的時刻（epoch ms），用來算 hint.timer。
+  //
+  // 存**絕對時間**而不是累計秒數：這是戶外實境遊戲，玩家會鎖螢幕、走路、接電話，
+  // 而「卡了三分鐘就該給提示」講的是牆上時鐘，不是螢幕亮著的時間。
+  const [missionStartedAt, setMissionStartedAt] = useState({});
   const [customPairs, setCustomPairs] = useState({});
 
   // 當 gameId 設定完成後，從 localStorage 載入數據
@@ -120,6 +125,9 @@ export const GameProvider = ({
     );
     setUnlockedHints(
       JSON.parse(localStorage.getItem(getStorageKey('unlockedHints'))) || {}
+    );
+    setMissionStartedAt(
+      JSON.parse(localStorage.getItem(getStorageKey('missionStartedAt'))) || {}
     );
     setCustomPairs(
       JSON.parse(localStorage.getItem(getStorageKey('customPairs'))) || {}
@@ -175,6 +183,14 @@ export const GameProvider = ({
       JSON.stringify(unlockedHints)
     );
   }, [unlockedHints]);
+
+  useEffect(() => {
+    if (!gameId || previewMode) return;
+    localStorage.setItem(
+      getStorageKey('missionStartedAt'),
+      JSON.stringify(missionStartedAt)
+    );
+  }, [missionStartedAt]);
 
   useEffect(() => {
     if (!gameId || previewMode) return;
@@ -260,10 +276,22 @@ export const GameProvider = ({
     localStorage.removeItem(`${gameId}_currentId`);
     localStorage.removeItem(`${gameId}_currentMissionId`);
     localStorage.removeItem(`${gameId}_unlockedHints`);
+    localStorage.removeItem(`${gameId}_missionStartedAt`);
     localStorage.removeItem(`${gameId}_customPairs`);
 
     // 重新整理瀏覽器
     window.location.reload();
+  };
+
+  // 記下玩家按「開始遊戲」進入這一關的時刻。
+  //
+  // **只記第一次。** 玩家往回翻一頁再走回來會再按一次，如果每次都覆寫，
+  // 提示的倒數就被歸零了——而他其實已經在這一關卡了很久。
+  const startMission = (missionId) => {
+    if (missionId === undefined || missionId === null) return;
+    setMissionStartedAt((prev) =>
+      prev[missionId] ? prev : { ...prev, [missionId]: Date.now() }
+    );
   };
 
   // 更新提示的開啟狀態
@@ -352,6 +380,8 @@ export const GameProvider = ({
         unlockedHints,
         setUnlockedHints,
         unlockHint,
+        missionStartedAt,
+        startMission,
         updateMissionStatus,
         customPairs,
         updateCustomPairs,

@@ -214,7 +214,7 @@ const GameSkeleton = ({ title }) => (
 
 GameSkeleton.propTypes = { title: PropTypes.string };
 
-// 右側流程圖：點陣底、置中的一直排節點、串起它們的縱線、靠左貼底的工具列
+// 右側流程圖：點陣底、置中的一直排節點、靠左貼底的工具列
 const FlowSkeleton = () => {
   const theme = useTheme();
   const dot = theme.palette.canvas?.dot || theme.palette.divider;
@@ -234,18 +234,6 @@ const FlowSkeleton = () => {
     >
       {/* 「32 節點／32 列」貼左上 */}
       <Skeleton variant="text" sx={{ ...at(18, 12, 82, 16) }} />
-
-      {/* 串起節點的縱線，在節點底下 */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          bottom: 0,
-          left: '50%',
-          width: '2px',
-          bgcolor: 'divider',
-        }}
-      />
 
       {/* 節點：置中、間距 75，畫得比一屏多，超出的由外層裁掉。
           **第一顆是選取狀態**（136×42，比其他顆大一圈）——真的流程圖一定有

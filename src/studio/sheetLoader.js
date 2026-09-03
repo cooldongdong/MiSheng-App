@@ -30,6 +30,11 @@
 // 沒有任何相容性保證。所以**挖不到就整組退回 gviz**：最壞情況等於這次改動之前，
 // 而那個情況今天已經在掉資料了，所以這個交換沒有下檔風險。
 //
+// 那趟 htmlview 是**序列的**，載入因此從約 1.0 秒變成約 1.7 秒。gid 幾乎不會變
+//（改名、搬位置、改內容都不動它），所以存進 localStorage 重複使用，並在貼上網址的
+// 當下先抓（見 gidCache 與 prefetchSheetGids）。剩下那 1.0 秒省不掉：export 的 307
+// 導去 googleusercontent.com，網址帶會輪替的簽章 token，既算不出來也存不住。
+//
 // 三個端點都帶 access-control-allow-origin，瀏覽器可以直接 fetch，不用後端代理
 //（export 會先回一個 307，兩跳都帶 CORS）。
 //
@@ -41,6 +46,7 @@
 
 import Papa from 'papaparse';
 import { REQUIRED_TABLES } from '../shared/validator/validateGame';
+import { readGids, rememberGids, forgetGids } from './gidCache';
 
 // 從各種 Google 試算表網址挖出 spreadsheet id
 export const parseSpreadsheetId = (input) => {
@@ -119,10 +125,15 @@ const fetchSheetCsv = async (id, sheetName, gid) => {
 
   if (!res.ok) {
     // 404＝找不到這個分頁名；其他多半是權限沒開（Google 會導去登入頁）
-    if (res.status === 404) {
-      throw new Error(`找不到名為「${sheetName}」的分頁`);
-    }
-    throw new Error(`讀取「${sheetName}」分頁失敗（HTTP ${res.status}）`);
+    const err = new Error(
+      res.status === 404
+        ? `找不到名為「${sheetName}」的分頁`
+        : `讀取「${sheetName}」分頁失敗（HTTP ${res.status}）`
+    );
+    // 把狀態碼掛上去，讓 loadGameFromSheet 分得出「這是 gid 過期」還是「網路不通」。
+    // 逾時與斷線走的是上面那個 catch，不會有這個欄位——它們不該觸發快取修復。
+    err.httpStatus = res.status;
+    throw err;
   }
 
   const text = await res.text();
@@ -133,6 +144,33 @@ const fetchSheetCsv = async (id, sheetName, gid) => {
   }
 
   return text;
+};
+
+// 七張表一起抓。抽成函式是因為快取過期時要整組再跑一次
+// （只重試失敗的那一支不夠：gid 全部來自同一份過期對照）。
+const fetchAllCsv = (id, gids) =>
+  Promise.all(
+    REQUIRED_TABLES.map((type) => fetchSheetCsv(id, type, gids?.[type]))
+  );
+
+/**
+ * 貼上網址的當下先去問分頁對照，把 htmlview 那 0.7s 藏在使用者
+ * 把手移到「載入」按鈕的時間裡。
+ *
+ * **這條救得了第一次載入，快取救不了**——第一次快取本來就是空的。
+ *
+ * 刻意不回傳也不丟錯：抓到就寫進快取，抓不到就當沒發生，
+ * 真正載入時 loadGameFromSheet 自己會再問一次。使用者只是在打字，
+ * 不該因為背景那支請求失敗就看到紅字。
+ */
+export const prefetchSheetGids = (input) => {
+  const id = parseSpreadsheetId(input);
+  if (!id || readGids(id)) return;
+  fetchSheetGids(id)
+    .then((gids) => {
+      if (gids) rememberGids(id, gids);
+    })
+    .catch(() => {});
 };
 
 /**
@@ -146,13 +184,39 @@ export const loadGameFromSheet = async (input) => {
     throw new Error('這不像 Google 試算表的連結，請貼上試算表網址');
   }
 
-  // 先問一次分頁的 gid。拿不到就整組走 gviz（見 fetchSheetGids 的註解）。
+  // 分頁的 gid：先看快取（上一次載入留下的，或貼上網址時預抓的），
+  // 沒有才當場問一次 htmlview。拿不到就整組走 gviz（見 fetchSheetGids 的註解）。
   // 只問一次：七張表共用同一份對照，不必問七遍。
-  const gids = await fetchSheetGids(id);
+  // **蓋不滿七張表的快取不算命中。** 缺的那一張會退回 gviz，而 gviz 會推型別、
+  // 把中文 id 吃成空的（見檔頭）——沒有錯誤、沒有紅字，資料就這樣少了。
+  // 創作者後來才補上某張分頁、或改過分頁名時就會撞到。
+  const cached = readGids(id);
+  let gids =
+    cached && REQUIRED_TABLES.every((type) => cached[type]) ? cached : null;
+  const usedCache = Boolean(gids);
+  if (!gids) {
+    gids = await fetchSheetGids(id);
+    if (gids) rememberGids(id, gids);
+  }
 
-  const csvList = await Promise.all(
-    REQUIRED_TABLES.map((type) => fetchSheetCsv(id, type, gids?.[type]))
-  );
+  let csvList;
+  try {
+    csvList = await fetchAllCsv(id, gids);
+  } catch (err) {
+    // 快取修復。gid 只在分頁被**刪掉重建**時會變（同名、新號碼），
+    // 那時拿舊 gid 去打 export 會回 4xx，而錯誤訊息長成
+    //「讀取「hint」分頁失敗（HTTP 400）」——一個字都沒提到真正的原因。
+    // 所以這裡自己補救：丟掉這份對照、重抓一次、整組重跑。
+    //
+    // **兩個條件缺一不可。** 只認帶 httpStatus 的錯誤（逾時與斷線沒有這個欄位，
+    // 重試它們只會讓使用者從等 12 秒變成等 24 秒才看到同一句話），
+    // 而且只在真的用了快取的時候——剛從 htmlview 抓來的對照再抓一次還是一樣。
+    if (!usedCache || !err?.httpStatus) throw err;
+    forgetGids(id);
+    const fresh = await fetchSheetGids(id);
+    if (fresh) rememberGids(id, fresh);
+    csvList = await fetchAllCsv(id, fresh);
+  }
 
   const csvFiles = {};
   const tables = {};

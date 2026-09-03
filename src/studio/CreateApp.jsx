@@ -60,6 +60,13 @@ const FloatingSchemeToggle = () => (
 // 就知道。原本放在 useEffect 裡判斷，而 effect 是畫完之後才跑，所以重整時一定會先
 // 閃一格開始畫面才跳載入畫面。
 // 三欄擺不下的寬度。1024 是常見的平板／桌機分界，也高於實際需要的 984。
+// 這份試算表上一次載入時叫什麼名字。查不到就空字串——沒有名字不是錯誤。
+const titleOfSheet = (input) => {
+  const id = parseSpreadsheetId(input);
+  if (!id) return '';
+  return readRecentSheets().find((it) => it.id === id)?.title || '';
+};
+
 const NARROW = 1024;
 const isNarrowViewport = () => {
   try {
@@ -114,6 +121,12 @@ const CreateApp = () => {
     hashIntent.autoload ? ' Google 試算表' : ''
   );
   // 載入遮罩：off｜on（不透明）｜fading（淡出中）
+  // 骨架上要寫的遊戲名。來自 recentSheets——上一次成功載入時存下來的，
+  // 所以 Cmd+R 自動重讀時當場就有，不用等任何一支請求回來。
+  // 查不到就留空（別人分享來的連結、第一次貼的試算表），骨架自己撐著。
+  const [loadingTitle, setLoadingTitle] = useState(() =>
+    hashIntent.autoload ? titleOfSheet(hashIntent.autoload) : ''
+  );
   const [veil, setVeil] = useState(hashIntent.autoload ? 'on' : 'off');
   const veilRef = useRef('off');
   veilRef.current = veil;
@@ -257,6 +270,7 @@ const CreateApp = () => {
       return;
     }
 
+    setLoadingTitle(titleOfSheet(url));
     beginLoad(keepPlaying, ' Google 試算表');
     try {
       const { csvFiles, tables, spreadsheetId } = await loadGameFromSheet(url);
@@ -285,6 +299,7 @@ const CreateApp = () => {
   const handleFolder = async (files) => {
     if (!files?.length) return;
     const keepPlaying = status === 'playing';
+    setLoadingTitle('');
     beginLoad(keepPlaying, '本機資料夾');
     try {
       const {
@@ -425,7 +440,11 @@ const CreateApp = () => {
   // 三個畫面分支都要蓋同一塊遮罩——它跨越的正是分支切換的那一刻
   const veilEl =
     veil === 'off' ? null : (
-      <LoadingScreen label={loadingLabel} fadingOut={veil === 'fading'} />
+      <LoadingScreen
+        label={loadingLabel}
+        title={loadingTitle}
+        fadingOut={veil === 'fading'}
+      />
     );
 
   // 被分享來試玩的：只給遊戲本身。沒有流程圖、沒有驗證報告、沒有匯出鈕，

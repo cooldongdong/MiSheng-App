@@ -21,6 +21,7 @@ import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
 import IconButton from '@mui/material/IconButton';
 import { timeAgo } from './recentSheets';
+import { prefetchSheetGids } from './sheetLoader';
 
 const TEMPLATE_URL =
   'https://docs.google.com/spreadsheets/d/16U8l6eeu7BaWwH3TOf09T40FkHmVKJepNWtA9pjBQfU/edit';
@@ -283,12 +284,28 @@ const SourcePicker = ({
             </AccordionSummary>
             <AccordionDetails sx={{ px: 0, pt: 0 }}>
               <Stack direction="row" spacing={1}>
+                {/* 貼上／離開欄位時就先去問分頁的 gid，不等按「檢查」。
+                    那趟 htmlview 要 0.7 秒，而使用者貼完之後總要把手移到按鈕上
+                    ——時間本來就在那裡，只是原本沒被用掉。
+
+                    **綁 onPaste 而不是 onChange**：逐字輸入時，打到一半的網址
+                    照樣會被 parseSpreadsheetId 認成合法 id（正則只認「/d/ 後面
+                    有東西」），於是每敲一個字就去問一次不存在的試算表。
+                    貼上只觸發一次，而且拿到的是完整字串。
+                    onBlur 補的是「真的用手打完」的那種人。
+
+                    prefetch 失敗完全不出聲：使用者只是在打字，
+                    不該因為背景那支請求而看到紅字（見 sheetLoader）。 */}
                 <TextField
                   fullWidth
                   size="small"
                   placeholder="https://docs.google.com/spreadsheets/d/..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
+                  onPaste={(e) =>
+                    prefetchSheetGids(e.clipboardData?.getData('text'))
+                  }
+                  onBlur={() => prefetchSheetGids(url)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && url) onSheet(url);
                   }}

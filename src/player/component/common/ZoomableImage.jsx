@@ -1,7 +1,21 @@
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Fab, Paper } from '@mui/material';
+import { Box, Fab, Paper, Skeleton, useMediaQuery } from '@mui/material';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
+import { DEFAULT_RATIO, readRatio, rememberRatio } from '../../game/imgRatio';
+
+// 這是遊戲裡**唯一**的圖片入口——道具、故事、提示、Camera、全文對話框、ImgModel
+// 全部走這裡。所以載入時的行為只要在這個檔修好，四個地方一起好。
+//
+// **2026-09-03：改成骨架佔位。** 原本是一個裸的 `<img>`，沒有寬高、外層 Paper 也沒有
+// 保留高度，於是圖沒載完時整張卡片是**塌的**、載完瞬間撐開，底下的東西整排被推下去
+// （道具頁一關好幾張圖，這個推擠會連續發生好幾次）。Dong 回報「道具載入時的效果不好」
+// 指的就是這個——問題不是「沒有轉圈」，是版面會跳。
+//
+// 難處是**長寬比要載完才知道**，所以第一次只能猜。作法是 imgRatio：第一次用預設比例，
+// 載完把真正的比例記進 localStorage，之後每一次都是準的。玩家會反覆進出道具頁、
+// 反覆放大同一張圖，所以第二次之後的命中率很高。
 
 const ZoomableImage = ({
   src,
@@ -15,6 +29,41 @@ const ZoomableImage = ({
   onToggle,
   openIcon, // 給 Camera 道具換成相機圖示；不給就是原本的放大
 }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [ratio, setRatio] = useState(() => readRatio(src) ?? DEFAULT_RATIO);
+  // 會動的東西對某些人是負擔，系統設定說不要動就不要動。
+  // **pulse 掛在元素本身、wave 才掛在 ::after**，兩個選擇器都要關，只關一個等於沒關。
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+
+  // 換圖就重來一輪。同一個元件會被重複使用（換關、換道具），
+  // 沒有這一段的話新圖會沿用上一張的 loaded=true，骨架整個失效。
+  useEffect(() => {
+    setLoaded(false);
+    setRatio(readRatio(src) ?? DEFAULT_RATIO);
+  }, [src]);
+
+  const handleLoad = (e) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    if (w > 0 && h > 0) {
+      setRatio(w / h);
+      rememberRatio(src, w / h);
+    }
+    setLoaded(true);
+  };
+
+  // 圖掛掉時也要放行，否則骨架會永遠停在那裡——
+  // 一個永遠不會結束的載入動畫比一張破圖更難懂。
+  const handleError = () => setLoaded(true);
+
+  // ImgModel（zoomInFab='center'）的 Paper 是固定高度的，
+  // 這時不能再用長寬比撐開，讓佔位直接填滿那個高度就好。
+  const fixedHeight = zoomInFab === 'center';
+
+  const fadeSx = {
+    opacity: loaded ? 1 : 0,
+    transition: reduceMotion ? 'none' : 'opacity 240ms ease',
+  };
+
   return (
     <>
       {/* 當圖片沒有放大時，顯示在 Paper 內 */}
@@ -88,15 +137,48 @@ const ZoomableImage = ({
               )}
             </Box>
           )}
-          <img
-            src={src}
-            alt={alt}
-            style={{
+          {/* 保留高度的容器：載入中由骨架填滿，載完換成圖，兩者尺寸一致所以不會跳。
+              第一次看這張圖時 ratio 是猜的（DEFAULT_RATIO），onLoad 之後換成真的
+              ——**那一下還是會跳，但只會發生在這台裝置從沒看過的圖的第一眼**，
+              而且幅度遠小於現在「整張卡片從塌的撐開」。 */}
+          <Box
+            sx={{
+              position: 'relative',
               width: '100%',
-              objectFit: 'scale-down',
+              ...(fixedHeight ? { height: '100%' } : { aspectRatio: String(ratio) }),
               borderRadius: 'inherit',
+              overflow: 'hidden',
+              ...(reduceMotion
+                ? {
+                    '& .MuiSkeleton-root, & .MuiSkeleton-root::after': {
+                      animation: 'none',
+                    },
+                  }
+                : null),
             }}
-          />
+          >
+            {!loaded && (
+              <Skeleton
+                variant="rectangular"
+                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+              />
+            )}
+            <img
+              src={src}
+              alt={alt}
+              onLoad={handleLoad}
+              onError={handleError}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'scale-down',
+                borderRadius: 'inherit',
+                ...fadeSx,
+              }}
+            />
+          </Box>
         </Paper>
       )}
 
@@ -124,10 +206,15 @@ const ZoomableImage = ({
           />
 
           {/* 放大的圖片 */}
+          {/* 放大這一份不疊骨架：要點放大就一定先看過縮圖，瀏覽器已經有快取，
+              疊上去只會閃一下。但 onLoad 還是要掛——有些入口（ImgModel）可能
+              直接以放大狀態掛載，那時這裡是第一次量到比例的地方。 */}
           <img
             data-no-swipe
             src={src}
             alt={alt}
+            onLoad={handleLoad}
+            onError={handleError}
             style={{
               width: '100%',
               maxWidth: '600px',

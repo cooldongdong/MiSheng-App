@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { Box, Skeleton, Stack, Typography, useMediaQuery } from '@mui/material';
+import { Box, Skeleton, Typography, useMediaQuery, useTheme } from '@mui/material';
 
 // 檢查通過之後不再停在檢查頁，而是直接進三欄——中間就少了一個「有東西在動」的畫面。
 // 讀 7 張 CSV 要幾秒，沒有這一頁的話會是一段白畫面，看起來像當掉了。
@@ -19,168 +19,223 @@ import { Box, Skeleton, Stack, Typography, useMediaQuery } from '@mui/material';
 //
 // 骨架畫的是三欄。檢查沒過時去的是錯誤報告頁而不是三欄，那種情況骨架會落空；
 // 但過關就直接進三欄是絕大多數的路徑，錯誤是少數，這個交換是刻意的。
-
+//
 // ---------------------------------------------------------------------------
-// 尺寸全部是 2026-09-03 在 1440×900 的實機量測（用 getBoundingClientRect 讀
-// 真正的版面，不是目測）：
+// 尺寸與顏色全部是 2026-09-03 在 1900×1110 的實機量測（getBoundingClientRect
+// ＋ getComputedStyle 讀真正的版面，不是目測）。第一版是憑印象畫的，比例和配色
+// 都對不上——**四欄一律同一個底色**是最明顯的破綻，真實版面每一欄的底色都不同：
 //
-//   左欄      0–268     按鈕 235×31、檢查報告列滿版 h48
-//   中間欄    276–691   （415 寬）TabBar 5 格 × 83、h56；頂端兩顆切換 86×33 置中
-//   流程圖    700–1208  （508 寬）節點 130×36、縱向間距 74、選取的那顆 136×42
-//                        底部工具列 8 顆 30×30
-//   右側列表  1209–1440 （231 寬）搜尋框 169×40、每列 h49
+//   左欄      0–268      background.paper
+//   中間欄    276–788    game.bg（#eee，比左右都深／淺一階，這是它最強的辨識特徵）
+//     └ 卡片  337–726    background.default（#fafafa），y=144 h=766
+//                        —— **在整欄裡置中**（上下各 144）
+//   （game.frame 是整個 shell 的襯底，不是這一欄；兩個弄反的話淺色下卡片
+//     會跟欄底同色，中間就變成一整片灰）
+//     └ 分頁列 y=1054    game.nav，h=56，5 格等寬
+//   流程圖    796–1668   canvas.bg ＋ 24px 的點陣（canvas.dot）
+//     └ 節點  130×36，縱向間距 75，置中；**第一顆是選取狀態 136×42**
+//     └ 工具列 8 顆 30×30，**靠左**（x=814，離欄左緣 18），貼底
+//   右列表    1668–1900  background.paper，搜尋框 y=54、每列 h49
 //
-// 寫死這些數字是刻意的：骨架是一張示意圖，不是版面。真正的版面在遮罩底下已經
-// 照自己的規則長好了，這裡差幾像素沒有人看得出來——但**比例對不對看得出來**，
-// 所以比例照抄量到的值。
+// 中間欄的寬度不是固定值：GameShell 從視窗高度推回來（900→415、1110→512，
+// 兩次都是 46.1%），所以這裡用 46.1vh，才會跟著一起長。
 // ---------------------------------------------------------------------------
 const NARROW = 1024; // 低於此寬度 CreateApp 預設收起兩側，骨架跟著只留中間
 const WITH_LIST = 1200; // 再窄一點右側列表就擠不下
 const LEFT_W = 268;
-const GAME_W = 415;
+const LIST_W = 232;
 const FLOW_MIN = 320;
-const LIST_W = 231;
+const MID_W = 'clamp(320px, 46.1vh, 600px)';
+const NAV_H = 56;
 const NODE_W = 130;
 const NODE_H = 36;
-const NODE_GAP = 74 - NODE_H; // 量到的是間距 74（含節點本身）
+const NODE_PITCH = 75;
 
-// 左欄：SourcePanel。返回列、兩組資料來源、檢查通過、三顆按鈕、檢查報告
+// 左欄與右列表的每一項都在固定像素位置（欄寬是固定的，不隨視窗變），
+// 所以直接用實測座標絕對定位——比疊一堆 spacing 猜出來的準。
+const at = (x, y, w, h) => ({ position: 'absolute', left: x, top: y, width: w, height: h });
+
+const LEFT_ITEMS = [
+  ['rounded', 8, 9, 28, 28], // 返回鍵
+  ['text', 40, 12, 111, 20], // 回到 /create
+  ['text', 16, 64, 52, 14], // 「遊戲資料」
+  ['rounded', 16, 92, 18, 18], // 資料夾圖示
+  ['text', 44, 92, 91, 20], // Google 試算表
+  ['text', 44, 115, 54, 20], // 重新讀取
+  ['text', 16, 152, 32, 14], // 「圖片」
+  ['rounded', 16, 183, 18, 18], // 圖片圖示
+  ['text', 44, 183, 113, 20], // 用表格裡填的網址
+  ['text', 44, 206, 96, 20], // 改用本機資料夾
+  ['chip', 16, 243, 69, 24], // 「檢查通過」
+  ['rounded', 16, 279, 235, 31], // 複製試玩連結
+  ['rounded', 16, 318, 235, 31], // 顯示 QR
+  ['text', 16, 357, 235, 13], // 說明，第一行
+  ['text', 16, 375, 196, 13], // 說明，第二行
+  ['rounded', 16, 404, 235, 31], // 匯出可上架的遊戲
+  ['bar', 0, 448, LEFT_W, 48], // 檢查報告（無問題）——滿版一列
+];
+
 const LeftSkeleton = () => (
-  <Box sx={{ width: LEFT_W, flex: '0 0 auto', display: 'flex', flexDirection: 'column' }}>
-    {/* 「← 回到 /create」那一列 */}
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 1 }}>
-      <Skeleton variant="rounded" width={28} height={28} />
-      <Skeleton variant="text" width={90} height={20} />
-    </Stack>
-
-    <Stack spacing={1.75} sx={{ px: 2, pt: 2 }}>
-      <Skeleton variant="text" width={56} height={14} />
-      {/* 試算表／圖片各是「小圖示 ＋ 一行標題 ＋ 一行操作」 */}
-      {[0, 1].map((i) => (
-        <Stack key={i} direction="row" spacing={1}>
-          <Skeleton variant="rounded" width={16} height={16} sx={{ mt: 0.5 }} />
-          <Box sx={{ flex: 1 }}>
-            <Skeleton variant="text" width="70%" height={18} />
-            <Skeleton variant="text" width="45%" height={16} />
-          </Box>
-        </Stack>
-      ))}
-
-      {/* 「檢查通過」那顆 chip */}
-      <Skeleton variant="rounded" width={76} height={24} sx={{ borderRadius: 12, mt: 1 }} />
-
-      <Skeleton variant="rounded" width={235} height={31} sx={{ mt: 1 }} />
-      <Skeleton variant="rounded" width={235} height={31} />
-      {/* 「收到的人只會看到遊戲…」那段說明，三行 */}
-      <Box sx={{ pt: 0.5 }}>
-        <Skeleton variant="text" width="100%" height={12} />
-        <Skeleton variant="text" width="92%" height={12} />
-        <Skeleton variant="text" width="60%" height={12} />
-      </Box>
-      <Skeleton variant="rounded" width={235} height={31} />
-    </Stack>
-
-    {/* 「檢查報告（無問題）」是滿版的一列。它**接在匯出按鈕後面**，
-        不是釘在左欄底部（量到 y=448／900，剛好在中間） */}
-    <Skeleton variant="rectangular" height={48} sx={{ mt: 2 }} />
+  <Box
+    sx={{
+      width: LEFT_W,
+      flex: '0 0 auto',
+      position: 'relative',
+      bgcolor: 'background.paper',
+      overflow: 'hidden',
+    }}
+  >
+    {LEFT_ITEMS.map(([kind, x, y, w, h], i) => (
+      <Skeleton
+        key={i}
+        variant={kind === 'text' ? 'text' : kind === 'bar' ? 'rectangular' : 'rounded'}
+        sx={{
+          ...at(x, y, w, h),
+          ...(kind === 'chip' ? { borderRadius: 12 } : null),
+        }}
+      />
+    ))}
   </Box>
 );
 
-// 中間欄：頂端的兩顆切換、遊戲卡片、底部五格分頁
+// 中間欄：頂端的切換、置中的遊戲卡片、底部五格分頁。
+// 三塊各自的底色是這一欄最好認的特徵，不能省。
 const GameSkeleton = ({ title }) => (
   <Box
     sx={{
-      width: '100%',
-      maxWidth: GAME_W,
-      flex: '1 1 auto',
+      width: MID_W,
+      flex: '0 0 auto',
       minWidth: 0,
+      bgcolor: 'game.bg',
       display: 'flex',
       flexDirection: 'column',
     }}
   >
-    {/* 「照流程走 ／ 照圖走」＋ 說明圖示 */}
-    <Stack direction="row" spacing={0} justifyContent="center" alignItems="center" sx={{ pt: 2, pb: 1.5 }}>
-      <Skeleton variant="rounded" width={86} height={33} sx={{ borderRadius: '16px 0 0 16px' }} />
-      <Skeleton variant="rounded" width={86} height={33} sx={{ borderRadius: '0 16px 16px 0' }} />
-      <Skeleton variant="circular" width={20} height={20} sx={{ ml: 1 }} />
-    </Stack>
+    <Box sx={{ flex: '1 1 auto', position: 'relative', minHeight: 0 }}>
+      {/* 「走流程／回剛才那頁」那顆膠囊，置中；說明圖示貼在它右邊。
+          它是浮在卡片上方的，所以用絕對定位，不參與卡片的置中計算。 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 1.25,
+        }}
+      >
+        <Skeleton variant="rounded" width={171} height={33} sx={{ borderRadius: 17 }} />
+        <Skeleton variant="circular" width={25} height={25} />
+      </Box>
 
-    {/* 遊戲卡片。真的那張是整頁的圖，所以這裡是一整塊，
-        標題與內文疊在它下緣——跟首頁「大圖 ＋ 標題 ＋ 簡介 ＋ 開始遊戲」一致。 */}
-    <Box
-      sx={{
-        flex: '1 1 auto',
-        mx: 5,
-        mb: 1,
-        minHeight: 160,
-        borderRadius: 2,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        position: 'relative',
-      }}
-    >
-      {/* 高寬要寫明。MUI 的 Skeleton 沒給尺寸時 height 是 auto，
-          配上 position:absolute 會塌成 0，整塊大圖就不見了。 */}
-      <Skeleton
-        variant="rectangular"
-        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-      />
-      <Box sx={{ position: 'relative', p: 2 }}>
-        {/* 知道遊戲叫什麼就寫出來——骨架配一個真名字，讀起來是
-            「你的工作區正在回來」，而不是「有個東西在載」。
-            名字來自 recentSheets（上一次成功載入時存的），不用多打一支請求。
-            別人分享來的連結查不到，那時就只有骨架，這是對的：
-            那份試算表本來就不是他的東西。 */}
-        {title ? (
-          <Typography variant="h5" noWrap sx={{ fontWeight: 700, opacity: 0.5, mb: 1 }}>
-            {title}
-          </Typography>
-        ) : (
-          <Skeleton variant="text" width="65%" height={34} sx={{ mb: 1 }} />
-        )}
-        <Skeleton variant="text" width="100%" height={12} />
-        <Skeleton variant="text" width="96%" height={12} />
-        <Skeleton variant="text" width="72%" height={12} />
-        {/* 「開始遊戲 →」 */}
-        <Skeleton variant="rounded" width={104} height={32} sx={{ mt: 1.5, borderRadius: 16 }} />
+      {/* 卡片在**整欄**裡置中（實測上下各 144／1054），不是接在膠囊底下。
+          比例：寬 389／512 ＝ 76%，高 766／1054 ＝ 72.7%。 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            width: '76%',
+            height: '72.7%',
+            bgcolor: 'background.default',
+            borderRadius: 2,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            position: 'relative',
+          }}
+        >
+          {/* 高寬要寫明。MUI 的 Skeleton 沒給尺寸時 height 是 auto，
+              配上 position:absolute 會塌成 0，整塊大圖就不見了。 */}
+          <Skeleton
+            variant="rectangular"
+            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          />
+          <Box sx={{ position: 'relative', p: 2.5 }}>
+            {/* 知道遊戲叫什麼就寫出來——骨架配一個真名字，讀起來是
+                「你的工作區正在回來」，而不是「有個東西在載」。
+                名字來自 recentSheets（上一次成功載入時存的），不用多打一支請求。
+                別人分享來的連結查不到，那時就只有骨架，這是對的：
+                那份試算表本來就不是他的東西。 */}
+            {title ? (
+              <Typography variant="h5" noWrap sx={{ fontWeight: 700, opacity: 0.45, mb: 1.5 }}>
+                {title}
+              </Typography>
+            ) : (
+              <Skeleton variant="text" width="65%" height={36} sx={{ mb: 1.5 }} />
+            )}
+            <Skeleton variant="text" width="100%" height={13} />
+            <Skeleton variant="text" width="96%" height={13} />
+            <Skeleton variant="text" width="70%" height={13} />
+            {/* 「開始遊戲 →」 */}
+            <Skeleton variant="rounded" width={116} height={36} sx={{ mt: 2, borderRadius: 18 }} />
+          </Box>
+        </Box>
       </Box>
     </Box>
 
-    {/* 底部分頁列：五格等寬，每格是圖示 ＋ 一行字 */}
-    <Stack direction="row" sx={{ height: 56, alignItems: 'center' }}>
+    {/* 底部分頁列：自己的底色、五格等寬、每格是圖示 ＋ 一行字 */}
+    <Box
+      sx={{
+        height: NAV_H,
+        flex: '0 0 auto',
+        bgcolor: 'game.nav',
+        display: 'flex',
+        alignItems: 'center',
+      }}
+    >
       {[0, 1, 2, 3, 4].map((i) => (
-        <Stack key={i} spacing={0.5} alignItems="center" sx={{ flex: 1 }}>
+        <Box
+          key={i}
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+        >
           <Skeleton variant="rounded" width={22} height={22} />
           <Skeleton variant="text" width={26} height={10} />
-        </Stack>
+        </Box>
       ))}
-    </Stack>
+    </Box>
   </Box>
 );
 
 GameSkeleton.propTypes = { title: PropTypes.string };
 
-// 右側流程圖：置中的一直排節點、串起它們的縱線、底部工具列
-const FlowSkeleton = () => (
-  <Box
-    sx={{
-      flex: `1 1 ${FLOW_MIN}px`,
-      minWidth: FLOW_MIN,
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'relative',
-      overflow: 'hidden',
-    }}
-  >
-    {/* 「32 節點／32 列」 */}
-    <Skeleton variant="text" width={82} height={16} sx={{ m: 1.5 }} />
+// 右側流程圖：點陣底、置中的一直排節點、串起它們的縱線、靠左貼底的工具列
+const FlowSkeleton = () => {
+  const theme = useTheme();
+  const dot = theme.palette.canvas?.dot || theme.palette.divider;
+  return (
+    <Box
+      sx={{
+        flex: `1 1 ${FLOW_MIN}px`,
+        minWidth: FLOW_MIN,
+        position: 'relative',
+        overflow: 'hidden',
+        bgcolor: 'canvas.bg',
+        // 真的流程圖底下有一層 24px 的點陣（SVG pattern，circle r=1）。
+        // 這裡用 radial-gradient 仿一份——少了它，這一欄看起來就只是塊空白。
+        backgroundImage: `radial-gradient(${dot} 1px, transparent 1px)`,
+        backgroundSize: '24px 24px',
+      }}
+    >
+      {/* 「32 節點／32 列」貼左上 */}
+      <Skeleton variant="text" sx={{ ...at(18, 12, 82, 16) }} />
 
-    {/* 這一層自己裁切，不要靠外層——節點刻意畫得比一屏多，
-        不裁的話最後一顆會壓在底部工具列上面。 */}
-    <Box sx={{ flex: '1 1 auto', position: 'relative', minHeight: 0, overflow: 'hidden' }}>
-      {/* 串起節點的那條縱線，在節點底下 */}
+      {/* 串起節點的縱線，在節點底下 */}
       <Box
         sx={{
           position: 'absolute',
@@ -188,51 +243,70 @@ const FlowSkeleton = () => (
           bottom: 0,
           left: '50%',
           width: '2px',
-          bgcolor: 'action.hover',
+          bgcolor: 'divider',
         }}
       />
-      <Stack spacing={`${NODE_GAP}px`} alignItems="center" sx={{ position: 'relative', pt: 0.5 }}>
-        {/* 第三顆畫成「被選取」的樣子（量到的是 136×42，比其他顆大一圈）
-            ——真的流程圖一定有一顆是目前所在，骨架少了它會少一層資訊 */}
-        {/* 12 顆是「1440×900 底下一屏塞得下的數量」（量到的間距 74）。
-            多畫幾顆讓它排滿整欄——真的流程圖是一路往下接到底的，
-            排到一半就停會露出一截沒有節點的縱線，反而像壞掉。
-            超出的部分由外層的 overflow:hidden 裁掉。 */}
-        {Array.from({ length: 12 }, (_, i) => (
-          <Skeleton
-            key={i}
-            variant="rounded"
-            width={i === 2 ? 136 : NODE_W}
-            height={i === 2 ? 42 : NODE_H}
-          />
-        ))}
-      </Stack>
-    </Box>
 
-    {/* 底部那排縮放／版面工具，8 顆 */}
-    <Stack direction="row" spacing={1} justifyContent="center" sx={{ py: 1.5 }}>
-      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-        <Skeleton key={i} variant="circular" width={30} height={30} />
+      {/* 節點：置中、間距 75，畫得比一屏多，超出的由外層裁掉。
+          **第一顆是選取狀態**（136×42，比其他顆大一圈）——真的流程圖一定有
+          一顆是目前所在，少了它會少一層資訊。 */}
+      {Array.from({ length: 16 }, (_, i) => (
+        <Skeleton
+          key={i}
+          variant="rounded"
+          sx={{
+            position: 'absolute',
+            top: 32 + i * NODE_PITCH,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: i === 0 ? 136 : NODE_W,
+            height: i === 0 ? 42 : NODE_H,
+          }}
+        />
       ))}
-    </Stack>
-  </Box>
-);
+
+      {/* 底部工具列：8 顆，**靠左**（實測 x=814，離欄左緣 18） */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 18,
+          bottom: 26,
+          display: 'flex',
+          gap: 1,
+        }}
+      >
+        {Array.from({ length: 8 }, (_, i) => (
+          <Skeleton key={i} variant="circular" width={30} height={30} />
+        ))}
+      </Box>
+    </Box>
+  );
+};
 
 // 最右側列表：搜尋框、關卡數、每一列是「MissionStart 標籤 ＋ 關卡編號 ＋ 標題」
 const ListSkeleton = () => (
-  <Stack spacing={1} sx={{ width: LIST_W, flex: '0 0 auto', px: 1.5, pt: 5, pb: 1.5 }}>
-    <Skeleton variant="rounded" width={169} height={40} sx={{ alignSelf: 'flex-end', borderRadius: 20 }} />
-    <Skeleton variant="text" width={58} height={14} />
-    {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-      <Box key={i} sx={{ py: 0.5 }}>
-        <Stack direction="row" spacing={0.75} alignItems="center">
-          <Skeleton variant="rounded" width={64} height={12} />
-          <Skeleton variant="text" width={44} height={12} />
-        </Stack>
-        <Skeleton variant="text" width={i % 3 === 0 ? '78%' : '62%'} height={18} />
-      </Box>
-    ))}
-  </Stack>
+  <Box
+    sx={{
+      width: LIST_W,
+      flex: '0 0 auto',
+      position: 'relative',
+      overflow: 'hidden',
+      bgcolor: 'background.paper',
+    }}
+  >
+    <Skeleton variant="rounded" sx={{ ...at(16, 54, 200, 40), borderRadius: 20 }} />
+    <Skeleton variant="text" sx={{ ...at(16, 106, 58, 14) }} />
+    {Array.from({ length: 8 }, (_, i) => {
+      const top = 137 + i * 49;
+      return (
+        <Box key={i}>
+          <Skeleton variant="rounded" sx={{ ...at(16, top + 4, 64, 12) }} />
+          <Skeleton variant="text" sx={{ ...at(88, top + 4, 44, 12) }} />
+          <Skeleton variant="text" sx={{ ...at(16, top + 22, i % 3 === 0 ? 150 : 116, 18) }} />
+        </Box>
+      );
+    })}
+  </Box>
 );
 
 const LoadingScreen = ({ label = '', fadingOut = false, title = '' }) => {
@@ -248,13 +322,12 @@ const LoadingScreen = ({ label = '', fadingOut = false, title = '' }) => {
         position: 'fixed',
         inset: 0,
         zIndex: 3000,
-        bgcolor: 'background.default',
+        bgcolor: 'game.frame',
         opacity: fadingOut ? 0 : 1,
         transition: 'opacity 260ms ease',
         // 淡出中不要擋住底下已經可以用的介面
         pointerEvents: fadingOut ? 'none' : 'auto',
         display: 'flex',
-        flexDirection: 'column',
         overflow: 'hidden',
         // 動畫統一在這裡關，不必每個 Skeleton 各寫一次。
         // **兩個選擇器都要**：MUI 預設的 pulse 掛在元素本身，
@@ -268,26 +341,43 @@ const LoadingScreen = ({ label = '', fadingOut = false, title = '' }) => {
           : null),
       }}
     >
-      <Box sx={{ flex: '1 1 auto', display: 'flex', alignItems: 'stretch', minHeight: 0 }}>
-        {/* 窄螢幕上三欄本來就擺不下（CreateApp 預設把兩側收起來），
-            骨架跟著只留中間，否則它承諾了一個不會出現的版面。 */}
-        {!narrow && <LeftSkeleton />}
+      {/* 窄螢幕上三欄本來就擺不下（CreateApp 預設把兩側收起來），
+          骨架跟著只留中間，否則它承諾了一個不會出現的版面。
+          窄螢幕時中間欄要吃滿，所以 flexGrow 開起來。 */}
+      {!narrow && <LeftSkeleton />}
+      <Box
+        sx={{
+          flex: narrow ? '1 1 auto' : '0 0 auto',
+          display: 'flex',
+          minWidth: 0,
+          '& > *': narrow ? { width: '100%', maxWidth: 'none' } : null,
+        }}
+      >
         <GameSkeleton title={title} />
-        {!narrow && <FlowSkeleton />}
-        {!narrow && withList && <ListSkeleton />}
       </Box>
+      {!narrow && <FlowSkeleton />}
+      {!narrow && withList && <ListSkeleton />}
 
-      {/* 骨架對螢幕閱讀器沒有意義，所以「正在讀取」這句話要留著 */}
-      <Box sx={{ textAlign: 'center', pb: 1.5, px: 2 }}>
-        <Typography
-          variant="caption"
-          role="status"
-          aria-live="polite"
-          sx={{ color: 'text.disabled' }}
-        >
-          {label ? `正在讀取${label}` : '讀取中'}．表格比較大時要幾秒
-        </Typography>
-      </Box>
+      {/* 骨架對螢幕閱讀器沒有意義，所以「正在讀取」這句話要留著。
+          視覺上壓到最低——真正在說話的是版面。
+          **靠右下而不是置中**：正中央的下緣是流程圖工具列的位置（實測 x=814–1082、
+          貼底），擺在那裡會疊在骨架上面。
+          窄螢幕時整個畫面只剩中間欄，右下角就是分頁列，所以要再往上讓開一格。 */}
+      <Typography
+        variant="caption"
+        role="status"
+        aria-live="polite"
+        sx={{
+          position: 'fixed',
+          right: 16,
+          bottom: narrow ? NAV_H + 10 : 10,
+          textAlign: 'right',
+          color: 'text.disabled',
+          pointerEvents: 'none',
+        }}
+      >
+        {label ? `正在讀取${label}` : '讀取中'}．表格比較大時要幾秒
+      </Typography>
     </Box>
   );
 };

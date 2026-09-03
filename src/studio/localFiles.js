@@ -6,6 +6,7 @@
 // 圖片轉成 blob: 網址，重整就失效——正好對上 /create「一次性預覽」的定位。
 
 import Papa from 'papaparse';
+import { withRowKeys } from '../shared/rowKey';
 import { REQUIRED_TABLES } from '../shared/validator/validateGame';
 
 const IMG_EXT = /\.(png|jpe?g|webp|svg|gif|avif)$/i;
@@ -41,7 +42,12 @@ export const readLocalCsvFiles = async (fileList) => {
       const csv = await file.text();
       csvFiles[`${type}CsvFile`] = csv;
       const result = Papa.parse(csv, { header: true, skipEmptyLines: false });
-      tables[type] = { fields: result.meta.fields || [], rows: result.data };
+      // 同 sheetLoader：解析過的列一定要有內部身分，否則流程圖會把所有
+      // 無名列當成同一個（見 shared/rowKey）
+      tables[type] = {
+        fields: result.meta.fields || [],
+        rows: withRowKeys(result.data),
+      };
     }),
   );
 

@@ -28,7 +28,7 @@ export const REQUIRED_TABLES = ['character', 'config', 'hint', 'mission', 'prop'
 // 既有欄位這次原封不動留在 REQUIRED：它們本來就在每一份現存試算表裡，
 // 重新分級等於在改「什麼算錯」，那是另一個判斷，不該搭這班車。
 export const REQUIRED_FIELDS = {
-  character: ['id', 'name', 'avatar', 'straight'],
+  character: ['name', 'avatar', 'straight'],
   config: ['id', 'title', 'description', 'duration', 'backgroundImg', 'developer', 'creator', 'designer', 'version', 'type', 'releaseDate', 'languagesSupported', 'contactInformation'],
   hint: ['id', 'missionId', 'speaker', 'text', 'img'],
   mission: ['id', 'subtitle', 'title', 'description', 'answer', 'similarAnswer', 'successText', 'giveUpText', 'confirmGiveUpText', 'backgroundImg', 'navigation'],
@@ -41,6 +41,13 @@ export const REQUIRED_FIELDS = {
 // prop.backImg＝Wheel 最底層的固定背景圖（見 Wheel.jsx 的圖層說明）。
 export const OPTIONAL_FIELDS = {
   prop: ['backImg'],
+  // character.id 是歷史遺毒：角色一律靠 **name** 比對（rundown.speaker、hint.speaker），
+  // 沒有任何一張表指向 character.id。
+  //
+  // **移到選填而不是刪掉**：刪掉的話它就變成「不認得的欄位」，validator 會對
+  // 每一份既有試算表跳警告——而資料在創作者的雲端硬碟裡，我們沒有 migration 的權力。
+  // 放這裡的話既有試算表完全不受影響（不吭聲），新的可以整欄不要。
+  character: ['id'],
   // hint.timer＝進這一關之後第幾分鐘自動解鎖這一則（單位：分鐘）
   hint: ['timer'],
 };
@@ -129,10 +136,9 @@ export function validateGame(tables) {
   // **兩者必須一起生效**——validator 放行而引擎沒有 fallback，會變成
   // 「檢查通過、遊戲卻壞掉」，跟 PR #4 那次「validator 放行、遊戲靜默卡在 Loading」
   // 是同一種錯。
-  // character 也沒有任何東西指向它（立繪與頭像全部靠 name 比對，見 TalkModel），
-  // 技術上同樣可以放寬。**但那不在 COO-136 的範圍裡，等 Dong 拍板才動**
-  // ——放寬是不可逆的（既有試算表會開始出現空 id），縮回去會讓別人的遊戲突然報錯。
-  const ID_REQUIRED_TABLES = new Set(['mission', 'character']);
+  // 只剩 mission。character 的身分是 name 不是 id（Dong 2026-09-04 拍板放寬），
+  // 而 character.id 已經移到 OPTIONAL_FIELDS——留著不吭聲、不留也不吭聲。
+  const ID_REQUIRED_TABLES = new Set(['mission']);
   for (const type of REQUIRED_TABLES) {
     if (!tables[type] || type === 'config') continue;
     const seen = new Map();
@@ -182,6 +188,58 @@ export function validateGame(tables) {
           warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填任何圖（backImg／frontImg／rotateImg1／rotateImg2 全空），打開後會是空白');
         } else if (isEmpty(row.rotateImg1)) {
           warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填 rotateImg1，轉盤上沒有可以轉的圖');
+        }
+      }
+    }
+  }
+
+  // ---- character 的身分是 name，所以要照身分來驗 ----
+  //
+  // **一直以來被檢查的是沒有人在讀的那一個。** id 驗了唯一，但角色是靠 name 比對的
+  //（TalkModel／HintPage 都是 `find(char => char.name === row.speaker)`），
+  // 而 name 從來沒有驗過必填、更沒有驗過唯一。
+  //
+  // 兩個角色同名時，find 永遠只會找到第一個——第二個角色的立繪與頭像會靜靜地
+  // 變成第一個的。不報錯、不空白，就是換了張臉。
+  if (tables.character) {
+    const seenName = new Map();
+    for (const { row, i } of rowsOf('character')) {
+      if (isEmpty(row.name)) {
+        add('character', sheetRow(i), 'name', 'name 不可空白（rundown 與 hint 的 speaker 是靠它找到這個角色的）');
+        continue;
+      }
+      const key = norm(row.name);
+      if (seenName.has(key)) {
+        add('character', sheetRow(i), 'name', `name「${key}」重複（也出現在第 ${seenName.get(key)} 列）。同名的角色只會用到第一個，後面那個的立繪與頭像不會出現`);
+      } else seenName.set(key, sheetRow(i));
+    }
+  }
+
+  // ---- speaker 要指到登記過的角色 ----
+  //
+  // **rundown 是 error**（Dong 2026-09-04 拍板）：是角色就要登記。
+  // 不想登記的話有退路——**留空 speaker、改填 title**，畫面上照樣顯示那個名字
+  //（TalkModel 是 `title || speaker`），而且不會去查角色表。
+  //
+  // **hint 只是 warn**：hint 沒有 title 欄位，所以那條退路在這裡不存在；
+  // 而且後果比較輕——只是沒有頭像，名字仍然照樣顯示（見 HintContent）。
+  if (tables.character) {
+    const names = new Set(
+      rowsOf('character').map(({ row }) => norm(row.name)).filter((x) => x !== '')
+    );
+    if (tables.rundown) {
+      for (const { row, i } of rowsOf('rundown')) {
+        if (isEmpty(row.speaker)) continue;
+        if (!names.has(norm(row.speaker))) {
+          add('rundown', sheetRow(i), 'speaker', `speaker「${row.speaker}」在 character 表找不到這個角色（立繪與頭像不會出現）。不想登記角色的話，把 speaker 留空、改用 title 寫名字`);
+        }
+      }
+    }
+    if (tables.hint) {
+      for (const { row, i } of rowsOf('hint')) {
+        if (isEmpty(row.speaker)) continue;
+        if (!names.has(norm(row.speaker))) {
+          warn('hint', sheetRow(i), 'speaker', `speaker「${row.speaker}」在 character 表找不到這個角色，這一則提示不會有頭像（名字仍會顯示）`);
         }
       }
     }

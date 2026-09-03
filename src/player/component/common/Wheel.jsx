@@ -1,9 +1,15 @@
-import PropTypes from 'prop-types';
-import { useContext, useState } from 'react';
-import { GameContext } from '../../store/game-context';
-import { Box, Fab, Paper, Slider } from '@mui/material';
-import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
-import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
+import PropTypes from "prop-types";
+import { useContext, useEffect, useState } from "react";
+import { GameContext } from "../../store/game-context";
+import { Box, Fab, Paper, Skeleton, Slider } from "@mui/material";
+import OpenInFullRoundedIcon from "@mui/icons-material/OpenInFullRounded";
+import CloseFullscreenRoundedIcon from "@mui/icons-material/CloseFullscreenRounded";
+import SkeletonImage from "./SkeletonImage";
+import {
+  useImageRatio,
+  useReduceMotion,
+  stillSkeletonSx,
+} from "../../hook/useImageRatio";
 
 // 轉盤跟著 slider 轉，所以**不能給 transform 補間**。
 //
@@ -18,8 +24,8 @@ import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRound
 const Wheel = ({
   prop,
   elevation = 10,
-  borderRadius = '10px',
-  zoomInFab = 'right',
+  borderRadius = "10px",
+  zoomInFab = "right",
   isFullScreen,
   showZoomButton,
   onToggle,
@@ -57,6 +63,60 @@ const Wheel = ({
     prop.rotateImg2 ||
     prop.img;
 
+  // 放大的轉盤：**四層圖要一起出現，不能一層一層冒出來。**
+  //
+  // 每一層各自載入的話，玩家會看到轉盤自己拼起來——底圖先到、指針後到、
+  // 外框最後到。而這幾層是要精準對齊的，半成品比空白更難看。
+  // 所以全部載完才一起淡入，在那之前是一整塊骨架。
+  //
+  // 高度同樣要先佔好。原本完全靠那張看不見的量尺撐，而量尺沒載完前它的高度是 0
+  // ——整個轉盤縮成一條線，載完瞬間彈開。改成先用記住的長寬比撐著（第一次是猜的），
+  // 量尺載完之後兩者本來就會一致，所以不會再跳。
+  const sizerResolved = getImg(sizerSrc);
+  const {
+    ratio,
+    measured: sizerMeasured,
+    onLoad: onSizerLoad,
+    onError: onSizerError,
+  } = useImageRatio(sizerResolved);
+  const reduceMotion = useReduceMotion();
+
+  const layerSrcs = [
+    sizerResolved,
+    getImg(prop.backImg),
+    hasRotateImg2 ? getImg(prop.rotateImg2) : null,
+    getImg(prop.rotateImg1),
+    getImg(prop.frontImg),
+  ].filter(Boolean);
+  const layerKey = layerSrcs.join("|");
+
+  const [loadedLayers, setLoadedLayers] = useState({});
+  const [failedLayers, setFailedLayers] = useState({});
+  // 換道具就重來一輪，否則新轉盤會沿用上一個的「全部載完」
+  useEffect(() => {
+    setLoadedLayers({});
+    setFailedLayers({});
+  }, [layerKey]);
+  const markLoaded = (src) => () =>
+    setLoadedLayers((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+  // 載失敗的圖層要**整層藏起來**，不是讓它顯示破圖。
+  // 這幾層是一張合成圖的一部分，畫不出來就該消失；瀏覽器預設會畫一個破圖圖示
+  // 加上 alt 文字，而這裡的 alt 是原始網址，結果是一長串 https://... 橫在轉盤上。
+  // （實測撞到：福德之路第三關的 rotateImg1 是壞的 Drive 連結。）
+  const markFailed = (src) => () => {
+    setFailedLayers((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+    setLoadedLayers((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+  };
+  const allLoaded = layerSrcs.every((src) => loadedLayers[src]);
+  const layerSx = (src) =>
+    failedLayers[src] ? { display: "none" } : layerFade;
+
+  // 某一層掛掉就不該卡住其他層——寧可少一層也不要永遠停在骨架
+  const layerFade = {
+    opacity: allLoaded ? 1 : 0,
+    transition: reduceMotion ? "none" : "opacity 240ms ease",
+  };
+
   return (
     <>
       {/* 當圖片沒有放大時，顯示在 Paper 內 */}
@@ -64,63 +124,63 @@ const Wheel = ({
         <Paper
           elevation={elevation}
           sx={{
-            display: 'flex',
+            display: "flex",
             borderRadius: { borderRadius },
-            position: 'relative',
+            position: "relative",
           }}
         >
           {showZoomButton && (
             <Box
               sx={{
-                position: 'absolute',
-                width: '100%',
+                position: "absolute",
+                width: "100%",
                 bottom: 10,
-                display: 'flex',
-                alignItems: 'center',
+                display: "flex",
+                alignItems: "center",
                 zIndex: 1101,
               }}
             >
               {prop.title && (
                 <Box
                   sx={{
-                    backgroundColor: '#37474F',
-                    borderRadius: '0px 20px 20px 0px',
+                    backgroundColor: "#37474F",
+                    borderRadius: "0px 20px 20px 0px",
                     fontSize: 14,
-                    fontWeight: 'regular',
-                    textAlign: 'center',
+                    fontWeight: "regular",
+                    textAlign: "center",
                     letterSpacing: 0.7,
-                    color: '#fff',
-                    p: '6px',
-                    pr: '13px',
+                    color: "#fff",
+                    p: "6px",
+                    pr: "13px",
                   }}
                 >
                   {prop.title}
                 </Box>
               )}
-              {zoomInFab === 'right' && (
+              {zoomInFab === "right" && (
                 <Fab
                   size="small"
                   onClick={onToggle}
                   sx={{
-                    backgroundColor: '#fff',
-                    color: '#37474F',
+                    backgroundColor: "#fff",
+                    color: "#37474F",
                     right: 10,
-                    ml: 'auto',
+                    ml: "auto",
                   }}
                 >
                   <OpenInFullRoundedIcon />
                 </Fab>
               )}
-              {zoomInFab === 'center' && (
+              {zoomInFab === "center" && (
                 <Fab
                   size="medium"
                   onClick={onToggle}
                   sx={{
-                    backgroundColor: '#fff',
-                    color: '#37474F',
-                    m: 'auto',
+                    backgroundColor: "#fff",
+                    color: "#37474F",
+                    m: "auto",
                     top: 10,
-                    transform: 'translateY(50%)',
+                    transform: "translateY(50%)",
                   }}
                 >
                   <OpenInFullRoundedIcon />
@@ -128,15 +188,9 @@ const Wheel = ({
               )}
             </Box>
           )}
-          <img
-            src={getImg(prop.img)}
-            alt={prop.img}
-            style={{
-              width: '100%',
-              objectFit: 'scale-down',
-              borderRadius: 'inherit',
-            }}
-          />
+          {/* 縮圖跟 ZoomableImage 用同一個元件——兩邊分開寫的話行為遲早會分岔，
+              2026-09-03 第一版就是只改了 ZoomableImage、漏掉這裡 */}
+          <SkeletonImage src={getImg(prop.img)} alt={prop.img} />
         </Paper>
       )}
 
@@ -148,66 +202,94 @@ const Wheel = ({
             sx={{
               // 100vw/100vh 會量到「視窗」，嵌在 /create 的欄位裡時會溢出去；
               // 100% 才是填滿定位基準（見 GameShell #main-container 的 transform）
-              width: '100%',
-              height: '100%',
-              m: '0 !important',
-              position: 'fixed',
+              width: "100%",
+              height: "100%",
+              m: "0 !important",
+              position: "fixed",
               top: 0,
               left: 0,
-              backgroundColor: 'rgba(200, 200, 200, 0.9)',
+              backgroundColor: "rgba(200, 200, 200, 0.9)",
               zIndex: 1000,
             }}
           />
           {/* Fixed底層 */}
           <Box
             sx={{
-              width: '100%',
-              height: '100%',
-              m: '0 !important',
-              position: 'fixed',
+              width: "100%",
+              height: "100%",
+              m: "0 !important",
+              position: "fixed",
               top: 0,
               left: 0,
-              display: 'flex',
-              alignItems: 'center',
+              display: "flex",
+              alignItems: "center",
               zIndex: 1100,
             }}
           >
             {/* 功能區 */}
             <Box
               sx={{
-                width: '100%',
-                maxWidth: '600px',
+                width: "100%",
+                maxWidth: "600px",
                 // 用 % 而不是 dvh：嵌在 /create 的欄位裡時，dvh 量的是整個視窗
-                height: '80%',
-                maxHeight: '650px',
-                margin: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+                height: "80%",
+                maxHeight: "650px",
+                margin: "auto",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
               {/* 放大的圖片 */}
               <Box
                 sx={{
-                  width: '100%',
-                  maxWidth: '600px',
-                  height: 'auto',
-                  position: 'relative',
+                  width: "100%",
+                  maxWidth: "600px",
+                  height: "auto",
+                  position: "relative",
+                  // 全部載完之前先用長寬比把高度佔住；載完就交還給量尺
+                  // **量尺自己載失敗時不能交還**——它的高度是 0，交還等於讓整個
+                  // 轉盤先撐開再塌掉。實測撞到：福德之路第三關三個轉盤共用的
+                  // rotateImg1 是壞的 Drive 連結，而它剛好就是量尺。
+                  ...(allLoaded && sizerMeasured
+                    ? null
+                    : { aspectRatio: String(ratio) }),
+                  ...stillSkeletonSx(reduceMotion),
                 }}
               >
+                {!allLoaded && (
+                  <Skeleton
+                    variant="rectangular"
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  />
+                )}
+
                 {/* 看不見的量尺：只負責把容器撐到正確高度，不參與畫面 */}
                 {sizerSrc && (
                   <img
-                    src={getImg(sizerSrc)}
+                    src={sizerResolved}
                     alt=""
                     aria-hidden
+                    onLoad={(e) => {
+                      onSizerLoad(e);
+                      markLoaded(sizerResolved)();
+                    }}
+                    onError={(e) => {
+                      onSizerError(e);
+                      markFailed(sizerResolved)();
+                    }}
                     style={{
-                      width: '100%',
-                      maxWidth: '600px',
-                      display: 'block',
-                      visibility: 'hidden',
-                      pointerEvents: 'none',
+                      width: "100%",
+                      maxWidth: "600px",
+                      display: "block",
+                      visibility: "hidden",
+                      pointerEvents: "none",
                     }}
                   />
                 )}
@@ -220,14 +302,17 @@ const Wheel = ({
                   <img
                     src={getImg(prop.backImg)}
                     alt={prop.backImg}
+                    onLoad={markLoaded(getImg(prop.backImg))}
+                    onError={markFailed(getImg(prop.backImg))}
                     style={{
-                      width: '100%',
-                      maxWidth: '600px',
-                      maxHeight: '100%',
-                      position: 'absolute',
+                      width: "100%",
+                      maxWidth: "600px",
+                      maxHeight: "100%",
+                      position: "absolute",
                       top: 0,
                       left: 0,
-                      objectFit: 'scale-down',
+                      objectFit: "scale-down",
+                      ...layerSx(getImg(prop.backImg)),
                     }}
                   />
                 )}
@@ -237,19 +322,22 @@ const Wheel = ({
                   <img
                     src={getImg(prop.rotateImg2)}
                     alt={prop.rotateImg2}
+                    onLoad={markLoaded(getImg(prop.rotateImg2))}
+                    onError={markFailed(getImg(prop.rotateImg2))}
                     style={{
-                      width: '100%',
-                      maxWidth: '600px',
-                      maxHeight: '100%',
+                      width: "100%",
+                      maxWidth: "600px",
+                      maxHeight: "100%",
                       // 三層都要明寫 top/left：absolute 沒給偏移時會落在「靜態位置」，
                       // 而量尺排在它們前面，會把靜態位置整個往下推
-                      position: 'absolute',
+                      position: "absolute",
                       top: 0,
                       left: 0,
                       transform: `rotate(${angle2}deg)`,
-                      willChange: 'transform',
-                      objectFit: 'scale-down',
-                      filter: 'drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))',
+                      willChange: "transform",
+                      objectFit: "scale-down",
+                      filter: "drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))",
+                      ...layerSx(getImg(prop.rotateImg2)),
                     }}
                   />
                 )}
@@ -258,17 +346,20 @@ const Wheel = ({
                 <img
                   src={getImg(prop.rotateImg1)}
                   alt={prop.rotateImg1}
+                  onLoad={markLoaded(getImg(prop.rotateImg1))}
+                  onError={markFailed(getImg(prop.rotateImg1))}
                   style={{
-                    width: '100%',
-                    maxWidth: '600px',
-                    maxHeight: '100%',
-                    position: 'absolute',
+                    width: "100%",
+                    maxWidth: "600px",
+                    maxHeight: "100%",
+                    position: "absolute",
                     top: 0,
                     left: 0,
                     transform: `rotate(${angle}deg)`,
-                    willChange: 'transform',
-                    objectFit: 'scale-down',
-                    filter: 'drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))',
+                    willChange: "transform",
+                    objectFit: "scale-down",
+                    filter: "drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))",
+                    ...layerSx(getImg(prop.rotateImg1)),
                   }}
                 />
 
@@ -278,15 +369,18 @@ const Wheel = ({
                   <img
                     src={getImg(prop.frontImg)}
                     alt={prop.frontImg}
+                    onLoad={markLoaded(getImg(prop.frontImg))}
+                    onError={markFailed(getImg(prop.frontImg))}
                     style={{
-                      width: '100%',
-                      maxWidth: '600px',
-                      maxHeight: '100%',
-                      position: 'absolute',
+                      width: "100%",
+                      maxWidth: "600px",
+                      maxHeight: "100%",
+                      position: "absolute",
                       top: 0,
                       left: 0,
-                      objectFit: 'scale-down',
-                      filter: 'drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.5))',
+                      objectFit: "scale-down",
+                      filter: "drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.5))",
+                      ...layerSx(getImg(prop.frontImg)),
                     }}
                   />
                 )}
@@ -296,32 +390,32 @@ const Wheel = ({
                 // 有兩個滑桿
                 <Box
                   sx={{
-                    width: '100%',
-                    maxWidth: '600px',
-                    position: 'absolute',
+                    width: "100%",
+                    maxWidth: "600px",
+                    position: "absolute",
                   }}
                 >
                   <Box
                     sx={{
-                      width: '100%',
-                      display: 'flex',
-                      justifyContent: 'space-between',
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "space-between",
                     }}
                   >
                     <div
                       style={{
                         // 面板高度跟著裡面的滑桿走就好。原本是 100dvw（視窗寬），
                         // 在窄欄位裡會變成一根比轉盤還高的白柱子
-                        height: 'auto',
-                        padding: '6% 1%',
-                        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                        backdropFilter: 'blur(5px)',
-                        borderRadius: '0 10px 10px 0',
-                        boxSizing: 'border-box',
-                        boxShadow: '-2px 0px 6px rgba(0, 0, 0, 0.3)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
+                        height: "auto",
+                        padding: "6% 1%",
+                        backgroundColor: "rgba(255, 255, 255, 0.5)",
+                        backdropFilter: "blur(5px)",
+                        borderRadius: "0 10px 10px 0",
+                        boxSizing: "border-box",
+                        boxShadow: "-2px 0px 6px rgba(0, 0, 0, 0.3)",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
                       }}
                     >
                       <Slider
@@ -347,16 +441,16 @@ const Wheel = ({
                       style={{
                         // 面板高度跟著裡面的滑桿走就好。原本是 100dvw（視窗寬），
                         // 在窄欄位裡會變成一根比轉盤還高的白柱子
-                        height: 'auto',
-                        padding: '6% 1%',
-                        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                        backdropFilter: 'blur(5px)',
-                        borderRadius: '10px 0 0 10px ',
-                        boxSizing: 'border-box',
-                        boxShadow: '-2px 0px 6px rgba(0, 0, 0, 0.3)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
+                        height: "auto",
+                        padding: "6% 1%",
+                        backgroundColor: "rgba(255, 255, 255, 0.5)",
+                        backdropFilter: "blur(5px)",
+                        borderRadius: "10px 0 0 10px ",
+                        boxSizing: "border-box",
+                        boxShadow: "-2px 0px 6px rgba(0, 0, 0, 0.3)",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
                       }}
                     >
                       <Slider
@@ -384,8 +478,8 @@ const Wheel = ({
                 // 僅有單一滑桿
                 <Box
                   sx={{
-                    width: '80%',
-                    maxWidth: '480px',
+                    width: "80%",
+                    maxWidth: "480px",
                   }}
                 >
                   <Slider
@@ -406,9 +500,9 @@ const Wheel = ({
               <Fab
                 onClick={onToggle}
                 sx={{
-                  flexShrink: '0',
-                  backgroundColor: '#fff',
-                  color: '#37474F',
+                  flexShrink: "0",
+                  backgroundColor: "#fff",
+                  color: "#37474F",
                 }}
               >
                 <CloseFullscreenRoundedIcon />

@@ -1,8 +1,8 @@
-import PropTypes from "prop-types";
-import { Box, Fab, Paper } from "@mui/material";
-import OpenInFullRoundedIcon from "@mui/icons-material/OpenInFullRounded";
-import CloseFullscreenRoundedIcon from "@mui/icons-material/CloseFullscreenRounded";
-import SkeletonImage from "./SkeletonImage";
+import PropTypes from 'prop-types';
+import { Box, Fab, Paper } from '@mui/material';
+import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
+import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
+import SkeletonImage from './SkeletonImage';
 
 // 道具、故事、提示、Camera、全文對話框、ImgModel 的圖都走這裡。
 //
@@ -24,8 +24,8 @@ const ZoomableImage = ({
   alt,
   title,
   elevation = 10,
-  borderRadius = "10px",
-  zoomInFab = "right",
+  borderRadius = '10px',
+  zoomInFab = 'right',
   isFullScreen,
   showZoomButton,
   onToggle,
@@ -33,7 +33,7 @@ const ZoomableImage = ({
 }) => {
   // ImgModel（zoomInFab='center'）的 Paper 是固定高度的，
   // 這時不能再用長寬比撐開，讓佔位直接填滿那個高度就好。
-  const fixedHeight = zoomInFab === "center";
+  const fixedHeight = zoomInFab === 'center';
 
   return (
     <>
@@ -42,65 +42,65 @@ const ZoomableImage = ({
         <Paper
           elevation={elevation}
           sx={{
-            display: "flex",
+            display: 'flex',
             borderRadius: { borderRadius },
-            position: "relative",
+            position: 'relative',
             // ImgModel 選項
-            height: zoomInFab === "center" ? "86%" : null,
+            height: zoomInFab === 'center' ? '86%' : null,
           }}
         >
           {showZoomButton && (
             <Box
               sx={{
-                position: "absolute",
-                width: "100%",
+                position: 'absolute',
+                width: '100%',
                 bottom: 10,
-                display: "flex",
-                alignItems: "center",
+                display: 'flex',
+                alignItems: 'center',
                 zIndex: 1101,
               }}
             >
               {title && (
                 <Box
                   sx={{
-                    backgroundColor: "#37474F",
-                    borderRadius: "0px 20px 20px 0px",
+                    backgroundColor: '#37474F',
+                    borderRadius: '0px 20px 20px 0px',
                     fontSize: 14,
-                    fontWeight: "regular",
-                    textAlign: "center",
+                    fontWeight: 'regular',
+                    textAlign: 'center',
                     letterSpacing: 0.7,
-                    color: "#fff",
-                    p: "6px",
-                    pr: "13px",
+                    color: '#fff',
+                    p: '6px',
+                    pr: '13px',
                   }}
                 >
                   {title}
                 </Box>
               )}
-              {zoomInFab === "right" && (
+              {zoomInFab === 'right' && (
                 <Fab
                   size="small"
                   onClick={onToggle}
                   sx={{
-                    backgroundColor: "#fff",
-                    color: "#37474F",
+                    backgroundColor: '#fff',
+                    color: '#37474F',
                     right: 10,
-                    ml: "auto",
+                    ml: 'auto',
                   }}
                 >
                   {openIcon || <OpenInFullRoundedIcon />}
                 </Fab>
               )}
-              {zoomInFab === "center" && (
+              {zoomInFab === 'center' && (
                 <Fab
                   size="medium"
                   onClick={onToggle}
                   sx={{
-                    backgroundColor: "#fff",
-                    color: "#37474F",
-                    m: "auto",
+                    backgroundColor: '#fff',
+                    color: '#37474F',
+                    m: 'auto',
                     top: 10,
-                    transform: "translateY(50%)",
+                    transform: 'translateY(50%)',
                   }}
                 >
                   {openIcon || <OpenInFullRoundedIcon />}
@@ -123,15 +123,15 @@ const ZoomableImage = ({
             data-no-swipe
             onClick={onToggle}
             sx={{
-              position: "fixed",
+              position: 'fixed',
               top: 0,
               left: 0,
-              m: "0 !important",
+              m: '0 !important',
               // 100vw/100vh 會量到「視窗」，嵌在 /create 的欄位裡時會溢出去；
               // 100% 才是填滿定位基準（見 GameShell #main-container 的 transform）
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(200, 200, 200, 0.9)",
+              width: '100%',
+              height: '100%',
+              backgroundColor: 'rgba(200, 200, 200, 0.9)',
               zIndex: 1000,
             }}
           />
@@ -144,15 +144,15 @@ const ZoomableImage = ({
             src={src}
             alt={alt}
             style={{
-              width: "100%",
-              maxWidth: "600px",
-              maxHeight: "100%",
-              position: "fixed",
-              top: "50%",
-              left: "50%",
+              width: '100%',
+              maxWidth: '600px',
+              maxHeight: '100%',
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
               margin: 0,
-              transform: "translate(-50%, -50%)",
-              objectFit: "scale-down",
+              transform: 'translate(-50%, -50%)',
+              objectFit: 'scale-down',
               zIndex: 1101, // 確保圖片在最上層
             }}
           />
@@ -162,13 +162,13 @@ const ZoomableImage = ({
             data-no-swipe
             onClick={onToggle}
             sx={{
-              position: "fixed",
+              position: 'fixed',
               bottom: 20,
-              left: "50%",
-              transform: "translateX(-50%)",
+              left: '50%',
+              transform: 'translateX(-50%)',
               zIndex: 1102, // 確保按鈕在圖片之上
-              backgroundColor: "#fff",
-              color: "#37474F",
+              backgroundColor: '#fff',
+              color: '#37474F',
             }}
           >
             <CloseFullscreenRoundedIcon />

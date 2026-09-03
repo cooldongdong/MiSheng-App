@@ -27,7 +27,9 @@ const safeRead = () => {
   try {
     const raw = localStorage.getItem(KEY);
     const list = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list.filter((it) => it && it.k && it.r > 0) : [];
+    return Array.isArray(list)
+      ? list.filter((it) => it && it.k && it.r > 0)
+      : [];
   } catch {
     return [];
   }

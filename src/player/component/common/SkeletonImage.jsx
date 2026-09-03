@@ -1,10 +1,10 @@
-import PropTypes from "prop-types";
-import { Box, Skeleton } from "@mui/material";
+import PropTypes from 'prop-types';
+import { Box, Skeleton } from '@mui/material';
 import {
   useImageRatio,
   useReduceMotion,
   stillSkeletonSx,
-} from "../../hook/useImageRatio";
+} from '../../hook/useImageRatio';
 
 // 一張會先佔好位子的圖。
 //
@@ -26,40 +26,41 @@ const SkeletonImage = ({
   style,
   ...imgProps
 }) => {
-  const { loaded, ratio, onLoad, onError } = useImageRatio(src);
+  const { ref, loaded, ratio, onLoad, onError } = useImageRatio(src);
   const reduceMotion = useReduceMotion();
 
   return (
     <Box
       sx={{
-        position: "relative",
-        width: "100%",
-        ...(fillHeight ? { height: "100%" } : { aspectRatio: String(ratio) }),
-        borderRadius: "inherit",
-        overflow: "hidden",
+        position: 'relative',
+        width: '100%',
+        ...(fillHeight ? { height: '100%' } : { aspectRatio: String(ratio) }),
+        borderRadius: 'inherit',
+        overflow: 'hidden',
         ...stillSkeletonSx(reduceMotion),
       }}
     >
       {!loaded && (
         <Skeleton
           variant="rectangular"
-          sx={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+          sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
         />
       )}
       <img
+        ref={ref}
         src={src}
         alt={alt}
         onLoad={onLoad}
         onError={onError}
         style={{
-          position: "absolute",
+          position: 'absolute',
           inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "scale-down",
-          borderRadius: "inherit",
+          width: '100%',
+          height: '100%',
+          objectFit: 'scale-down',
+          borderRadius: 'inherit',
           opacity: loaded ? 1 : 0,
-          transition: reduceMotion ? "none" : "opacity 240ms ease",
+          transition: reduceMotion ? 'none' : 'opacity 240ms ease',
           ...style,
         }}
         {...imgProps}

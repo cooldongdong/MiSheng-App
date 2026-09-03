@@ -1,3 +1,5 @@
+import { fingerprintOf } from '../../shared/rowKey';
+
 // hint.timer：進這一關之後第幾分鐘，自動解鎖這一則提示。單位是分鐘，選填。
 //
 // 抽成共用函式而不是各算各的，是因為**有兩個地方要問同一個問題**：提示頁（要真的
@@ -40,6 +42,32 @@ export const hintRemainingMs = (hint, missionStartedAt, now) => {
 export const hintRemainingMinutes = (remainingMs) =>
   remainingMs === null ? null : Math.ceil(remainingMs / 60000);
 
+// 解鎖狀態的鍵：這一則提示的**內容**，不是它排第幾個。
+//
+// 原本是用索引存的（`unlockedHints[missionId][3] = true`），於是**創作者在同一關的
+// 提示中間插一則，玩家已解鎖的提示會整批往下位移一格**——本來解開第 3 則，
+// 變成第 4 則被解開。跟 COO-137 修的 currentId 是同一種病，只是換一張表。
+//
+// 前綴 `h:` 是為了跟舊存檔的數字鍵永遠分得開——指紋是 base36，理論上可能長得像
+// 一個小數字，而那會讓「舊索引 3」誤判成「某一則的指紋」。
+//
+// **只認這三欄，不是整個物件。** 兩個理由：
+//   ① 提示頁會替 hint 掛上 avatar（從 character 查來的），而導覽列的小紅點拿的是
+//      原始列。整個物件算指紋的話兩邊答案不同，紅點會永遠不消失。
+//   ② `timer` 刻意不算——創作者調整幾分鐘後自動解鎖，那還是同一則提示，
+//      不該把玩家已經解開的鎖回去。
+const HINT_IDENTITY_FIELDS = ['speaker', 'text', 'img'];
+export const hintKeyOf = (hint) =>
+  `h:${fingerprintOf(hint, HINT_IDENTITY_FIELDS)}`;
+
+// 這一則解鎖了嗎。
+//
+// **同時認舊存檔的數字鍵**：本功能之前存的都是索引，直接改鍵會讓玩到一半的人
+// 手上的提示全部鎖回去。舊鍵在插列時仍然會位移，但那是它本來就有的行為
+// ——不會比以前更糟，而且解鎖一次之後就會用新鍵記下來。
+export const isHintUnlocked = (unlockedForMission, hint, index) =>
+  Boolean(unlockedForMission?.[hintKeyOf(hint)] || unlockedForMission?.[index]);
+
 // 時間到、但還沒被解鎖的那些索引。
 //
 // 提示頁拿它去解鎖；導覽列拿它的長度當小紅點的數字。**小紅點會自己消失**——
@@ -48,7 +76,7 @@ export const dueHintIndexes = (hints, missionStartedAt, unlockedForMission, now)
   if (!Array.isArray(hints) || !missionStartedAt) return [];
   const out = [];
   hints.forEach((hint, index) => {
-    if (unlockedForMission?.[index]) return;
+    if (isHintUnlocked(unlockedForMission, hint, index)) return;
     const remaining = hintRemainingMs(hint, missionStartedAt, now);
     if (remaining === 0) out.push(index);
   });

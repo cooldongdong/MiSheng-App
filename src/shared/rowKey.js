@@ -52,10 +52,15 @@ export const withRowKeys = (rows) => {
  * 正是創作者最常做的修改。那種情況靠第三層（退回這一關的開頭）兜住，
  * 見 game-provider 的還原邏輯。
  */
-export const fingerprintOf = (row) => {
+export const fingerprintOf = (row, fields = null) => {
   if (!row || typeof row !== 'object') return '';
-  const parts = Object.keys(row)
-    .filter((k) => k !== ROW_KEY && k !== 'id')
+  // 給了欄位清單就只認那幾欄。**用在「同一列會被不同地方裝飾成不同形狀」的時候**
+  // ——例如提示頁會替 hint 掛上 avatar，而導覽列的小紅點拿的是原始列；
+  // 兩邊若都用「整個物件」算指紋，就會得到兩個不同的答案，紅點永遠不會消。
+  const keys = fields
+    ? fields
+    : Object.keys(row).filter((k) => k !== ROW_KEY && k !== 'id');
+  const parts = [...keys]
     .sort()
     .map((k) => `${k}=${normId(row[k])}`);
   // FNV-1a：夠短、夠穩定，而且不必為了這件事拉一個雜湊函式庫進來。

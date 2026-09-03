@@ -8,8 +8,10 @@ import ConfirmDialog from '../common/ConfirmDialog';
 import useHintTick from '../../hook/useHintTick';
 import {
   dueHintIndexes,
+  hintKeyOf,
   hintRemainingMs,
   hintRemainingMinutes,
+  isHintUnlocked,
 } from '../../game/hintTimer';
 
 const HintPage = () => {
@@ -99,7 +101,7 @@ const HintPage = () => {
     if (currentHints.length > 0 && startedAt) autoExpandArmed.current = false;
 
     if (due.length === 0) return;
-    due.forEach((index) => unlockHint(currentMission.id, index));
+    due.forEach((index) => unlockHint(currentMission.id, hintKeyOf(currentHints[index])));
     if (armed) setExpandedHints((prev) => [...new Set([...prev, ...due])]);
   }, [now, currentHints, startedAt, unlockedHints, currentMission]);
 
@@ -116,7 +118,7 @@ const HintPage = () => {
 
   const handleConfirmUnlock = () => {
     if (currentHintIndex !== null) {
-      unlockHint(currentMission.id, currentHintIndex);
+      unlockHint(currentMission.id, hintKeyOf(currentHints[currentHintIndex]));
       setTimeout(() => {
         handleExpand(currentHintIndex);
       }, 100); // 略微延遲確保狀態更新,確保在解鎖後才展開
@@ -140,7 +142,11 @@ const HintPage = () => {
             key={index}
             index={index}
             hint={hint}
-            isUnlocked={!!unlockedHints[currentMission?.id]?.[index]}
+            isUnlocked={isHintUnlocked(
+              unlockedHints[currentMission?.id],
+              hint,
+              index
+            )}
             isExpanded={expandedHints.includes(index)}
             onExpand={handleExpand}
             onUnlock={handleUnlockClick}

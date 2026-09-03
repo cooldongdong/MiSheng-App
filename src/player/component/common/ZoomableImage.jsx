@@ -2,6 +2,22 @@ import PropTypes from 'prop-types';
 import { Box, Fab, Paper } from '@mui/material';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
+import SkeletonImage from './SkeletonImage';
+
+// 道具、故事、提示、Camera、全文對話框、ImgModel 的圖都走這裡。
+//
+// **但不是「遊戲裡唯一的圖片入口」**——Wheel 自己畫四層圖（量尺／底圖／兩層旋轉／
+// 前景），沒有經過這個檔。2026-09-03 第一版就是漏了它，Dong 回報「wheel 道具的
+// Skeleton 好像沒做到」。所以佔位的邏輯抽到 SkeletonImage，兩邊共用。
+//
+// **2026-09-03：改成骨架佔位。** 原本是一個裸的 `<img>`，沒有寬高、外層 Paper 也沒有
+// 保留高度，於是圖沒載完時整張卡片是**塌的**、載完瞬間撐開，底下的東西整排被推下去
+// （道具頁一關好幾張圖，這個推擠會連續發生好幾次）。Dong 回報「道具載入時的效果不好」
+// 指的就是這個——問題不是「沒有轉圈」，是版面會跳。
+//
+// 難處是**長寬比要載完才知道**，所以第一次只能猜。作法是 imgRatio：第一次用預設比例，
+// 載完把真正的比例記進 localStorage，之後每一次都是準的。玩家會反覆進出道具頁、
+// 反覆放大同一張圖，所以第二次之後的命中率很高。
 
 const ZoomableImage = ({
   src,
@@ -15,6 +31,10 @@ const ZoomableImage = ({
   onToggle,
   openIcon, // 給 Camera 道具換成相機圖示；不給就是原本的放大
 }) => {
+  // ImgModel（zoomInFab='center'）的 Paper 是固定高度的，
+  // 這時不能再用長寬比撐開，讓佔位直接填滿那個高度就好。
+  const fixedHeight = zoomInFab === 'center';
+
   return (
     <>
       {/* 當圖片沒有放大時，顯示在 Paper 內 */}
@@ -88,15 +108,8 @@ const ZoomableImage = ({
               )}
             </Box>
           )}
-          <img
-            src={src}
-            alt={alt}
-            style={{
-              width: '100%',
-              objectFit: 'scale-down',
-              borderRadius: 'inherit',
-            }}
-          />
+          {/* 佔位、記比例、淡入都在 SkeletonImage 裡（Wheel 的縮圖用同一個） */}
+          <SkeletonImage src={src} alt={alt} fillHeight={fixedHeight} />
         </Paper>
       )}
 
@@ -124,6 +137,8 @@ const ZoomableImage = ({
           />
 
           {/* 放大的圖片 */}
+          {/* 放大這一份不疊骨架：要點放大就一定先看過縮圖，瀏覽器已經有快取、
+              比例也在那一次記過了，疊上去只會閃一下。 */}
           <img
             data-no-swipe
             src={src}

@@ -1,9 +1,16 @@
 import PropTypes from 'prop-types';
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { GameContext } from '../../store/game-context';
-import { Box, Fab, Paper, Slider } from '@mui/material';
+import { Box, Fab, Paper, Skeleton, Slider } from '@mui/material';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
+import SkeletonImage from './SkeletonImage';
+import {
+  isReady,
+  useImageRatio,
+  useReduceMotion,
+  stillSkeletonSx,
+} from '../../hook/useImageRatio';
 
 // 轉盤跟著 slider 轉，所以**不能給 transform 補間**。
 //
@@ -56,6 +63,69 @@ const Wheel = ({
     prop.rotateImg1 ||
     prop.rotateImg2 ||
     prop.img;
+
+  // 放大的轉盤：**四層圖要一起出現，不能一層一層冒出來。**
+  //
+  // 每一層各自載入的話，玩家會看到轉盤自己拼起來——底圖先到、指針後到、
+  // 外框最後到。而這幾層是要精準對齊的，半成品比空白更難看。
+  // 所以全部載完才一起淡入，在那之前是一整塊骨架。
+  //
+  // 高度同樣要先佔好。原本完全靠那張看不見的量尺撐，而量尺沒載完前它的高度是 0
+  // ——整個轉盤縮成一條線，載完瞬間彈開。改成先用記住的長寬比撐著（第一次是猜的），
+  // 量尺載完之後兩者本來就會一致，所以不會再跳。
+  const sizerResolved = getImg(sizerSrc);
+  const {
+    ratio,
+    measured: sizerMeasured,
+    onLoad: onSizerLoad,
+    onError: onSizerError,
+  } = useImageRatio(sizerResolved);
+  const reduceMotion = useReduceMotion();
+
+  const layerSrcs = [
+    sizerResolved,
+    getImg(prop.backImg),
+    hasRotateImg2 ? getImg(prop.rotateImg2) : null,
+    getImg(prop.rotateImg1),
+    getImg(prop.frontImg),
+  ].filter(Boolean);
+  const layerKey = layerSrcs.join('|');
+
+  const stackRef = useRef(null);
+  const [loadedLayers, setLoadedLayers] = useState({});
+  const [failedLayers, setFailedLayers] = useState({});
+  // 換道具就重來一輪，否則新轉盤會沿用上一個的「全部載完」。
+  //
+  // 歸零之後要**當場掃一次已經好了的圖層**：快取命中時 load 事件可能早在 React
+  // 掛上 onLoad 之前就發生完了，只等事件的話那一層永遠不會被標記完成，
+  // 而這裡是「全部載完才顯示」——**少一層就整個轉盤永遠不出現**（見 isReady）。
+  useEffect(() => {
+    const ready = {};
+    stackRef.current?.querySelectorAll('img').forEach((el) => {
+      if (isReady(el)) ready[el.src] = true;
+    });
+    setLoadedLayers(ready);
+    setFailedLayers({});
+  }, [layerKey]);
+  const markLoaded = (src) => () =>
+    setLoadedLayers((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+  // 載失敗的圖層要**整層藏起來**，不是讓它顯示破圖。
+  // 這幾層是一張合成圖的一部分，畫不出來就該消失；瀏覽器預設會畫一個破圖圖示
+  // 加上 alt 文字，而這裡的 alt 是原始網址，結果是一長串 https://... 橫在轉盤上。
+  // （實測撞到：福德之路第三關的 rotateImg1 是壞的 Drive 連結。）
+  const markFailed = (src) => () => {
+    setFailedLayers((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+    setLoadedLayers((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+  };
+  const allLoaded = layerSrcs.every((src) => loadedLayers[src]);
+  const layerSx = (src) =>
+    failedLayers[src] ? { display: 'none' } : layerFade;
+
+  // 某一層掛掉就不該卡住其他層——寧可少一層也不要永遠停在骨架
+  const layerFade = {
+    opacity: allLoaded ? 1 : 0,
+    transition: reduceMotion ? 'none' : 'opacity 240ms ease',
+  };
 
   return (
     <>
@@ -128,15 +198,9 @@ const Wheel = ({
               )}
             </Box>
           )}
-          <img
-            src={getImg(prop.img)}
-            alt={prop.img}
-            style={{
-              width: '100%',
-              objectFit: 'scale-down',
-              borderRadius: 'inherit',
-            }}
-          />
+          {/* 縮圖跟 ZoomableImage 用同一個元件——兩邊分開寫的話行為遲早會分岔，
+              2026-09-03 第一版就是只改了 ZoomableImage、漏掉這裡 */}
+          <SkeletonImage src={getImg(prop.img)} alt={prop.img} />
         </Paper>
       )}
 
@@ -189,19 +253,48 @@ const Wheel = ({
             >
               {/* 放大的圖片 */}
               <Box
+                ref={stackRef}
                 sx={{
                   width: '100%',
                   maxWidth: '600px',
                   height: 'auto',
                   position: 'relative',
+                  // 全部載完之前先用長寬比把高度佔住；載完就交還給量尺
+                  // **量尺自己載失敗時不能交還**——它的高度是 0，交還等於讓整個
+                  // 轉盤先撐開再塌掉。實測撞到：福德之路第三關三個轉盤共用的
+                  // rotateImg1 是壞的 Drive 連結，而它剛好就是量尺。
+                  ...(allLoaded && sizerMeasured
+                    ? null
+                    : { aspectRatio: String(ratio) }),
+                  ...stillSkeletonSx(reduceMotion),
                 }}
               >
+                {!allLoaded && (
+                  <Skeleton
+                    variant="rectangular"
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                    }}
+                  />
+                )}
+
                 {/* 看不見的量尺：只負責把容器撐到正確高度，不參與畫面 */}
                 {sizerSrc && (
                   <img
-                    src={getImg(sizerSrc)}
+                    src={sizerResolved}
                     alt=""
                     aria-hidden
+                    onLoad={(e) => {
+                      onSizerLoad(e);
+                      markLoaded(sizerResolved)();
+                    }}
+                    onError={(e) => {
+                      onSizerError(e);
+                      markFailed(sizerResolved)();
+                    }}
                     style={{
                       width: '100%',
                       maxWidth: '600px',
@@ -220,6 +313,8 @@ const Wheel = ({
                   <img
                     src={getImg(prop.backImg)}
                     alt={prop.backImg}
+                    onLoad={markLoaded(getImg(prop.backImg))}
+                    onError={markFailed(getImg(prop.backImg))}
                     style={{
                       width: '100%',
                       maxWidth: '600px',
@@ -228,6 +323,7 @@ const Wheel = ({
                       top: 0,
                       left: 0,
                       objectFit: 'scale-down',
+                      ...layerSx(getImg(prop.backImg)),
                     }}
                   />
                 )}
@@ -237,6 +333,8 @@ const Wheel = ({
                   <img
                     src={getImg(prop.rotateImg2)}
                     alt={prop.rotateImg2}
+                    onLoad={markLoaded(getImg(prop.rotateImg2))}
+                    onError={markFailed(getImg(prop.rotateImg2))}
                     style={{
                       width: '100%',
                       maxWidth: '600px',
@@ -250,6 +348,7 @@ const Wheel = ({
                       willChange: 'transform',
                       objectFit: 'scale-down',
                       filter: 'drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))',
+                      ...layerSx(getImg(prop.rotateImg2)),
                     }}
                   />
                 )}
@@ -258,6 +357,8 @@ const Wheel = ({
                 <img
                   src={getImg(prop.rotateImg1)}
                   alt={prop.rotateImg1}
+                  onLoad={markLoaded(getImg(prop.rotateImg1))}
+                  onError={markFailed(getImg(prop.rotateImg1))}
                   style={{
                     width: '100%',
                     maxWidth: '600px',
@@ -269,6 +370,7 @@ const Wheel = ({
                     willChange: 'transform',
                     objectFit: 'scale-down',
                     filter: 'drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3))',
+                    ...layerSx(getImg(prop.rotateImg1)),
                   }}
                 />
 
@@ -278,6 +380,8 @@ const Wheel = ({
                   <img
                     src={getImg(prop.frontImg)}
                     alt={prop.frontImg}
+                    onLoad={markLoaded(getImg(prop.frontImg))}
+                    onError={markFailed(getImg(prop.frontImg))}
                     style={{
                       width: '100%',
                       maxWidth: '600px',
@@ -287,6 +391,7 @@ const Wheel = ({
                       left: 0,
                       objectFit: 'scale-down',
                       filter: 'drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.5))',
+                      ...layerSx(getImg(prop.frontImg)),
                     }}
                   />
                 )}

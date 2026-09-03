@@ -115,12 +115,34 @@ export function validateGame(tables) {
     }
   }
 
-  // ---- 層 2 + 3：各表 id 必填、唯一（config 除外，它是單筆設定）----
+  // ---- 層 2 + 3：id 唯一；只有「會被指到」的表才必填 ----
+  //
+  // **id 唯一的用途是被別人指到。** 手填 id 很累，但實測 demo 的 rundown 有 462 列，
+  // 真正被 nextId / parentId 指到的只有 55 列——另外 407 列（88%）純粹是為了
+  // 「每一列都要有」而填的白工；hint / prop / story / character 更是**沒有任何表
+  // 指向它們**，100% 白工（character 是靠 name 比對的，見 TalkModel）。
+  //
+  // 所以只有 mission 仍然必填——hint / prop / story / rundown 的 missionId 都指向它。
+  // rundown 的 id 可以留空，但**有填的仍須唯一**，否則 nextId 會指到兩個地方。
+  //
+  // 引擎那邊的配套：沒有 id 的列改用物理列號當內部身分（見 player/game/rowKey.js）。
+  // **兩者必須一起生效**——validator 放行而引擎沒有 fallback，會變成
+  // 「檢查通過、遊戲卻壞掉」，跟 PR #4 那次「validator 放行、遊戲靜默卡在 Loading」
+  // 是同一種錯。
+  // character 也沒有任何東西指向它（立繪與頭像全部靠 name 比對，見 TalkModel），
+  // 技術上同樣可以放寬。**但那不在 COO-136 的範圍裡，等 Dong 拍板才動**
+  // ——放寬是不可逆的（既有試算表會開始出現空 id），縮回去會讓別人的遊戲突然報錯。
+  const ID_REQUIRED_TABLES = new Set(['mission', 'character']);
   for (const type of REQUIRED_TABLES) {
     if (!tables[type] || type === 'config') continue;
     const seen = new Map();
     for (const { row, i } of rowsOf(type)) {
-      if (isEmpty(row.id)) { add(type, sheetRow(i), 'id', 'id 不可空白'); continue; }
+      if (isEmpty(row.id)) {
+        if (ID_REQUIRED_TABLES.has(type)) {
+          add(type, sheetRow(i), 'id', 'id 不可空白（其他表的 missionId 要指到它）');
+        }
+        continue;
+      }
       const key = norm(row.id);
       if (seen.has(key)) add(type, sheetRow(i), 'id', `id「${key}」重複（也出現在第 ${seen.get(key)} 列）`);
       else seen.set(key, sheetRow(i));

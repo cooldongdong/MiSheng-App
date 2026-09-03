@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { nextIdOf } from './useNextId';
+import { keyOf, normId } from '../../shared/rowKey';
 
 // 「上一步是哪一列」——照流程圖上看到的位置走，不是照走過的路。
 //
@@ -12,18 +13,18 @@ import { nextIdOf } from './useNextId';
 // 資料上就算得出來——它就是 nextIdOf 的反函數，不必讓遊戲去依賴流程圖的佈局。
 const prevIdOf = (data, currentId) => {
   if (!Array.isArray(data) || !currentId) return null;
-  const here = data.findIndex((row) => row.id === currentId);
+  const here = data.findIndex((row) => keyOf(row) === currentId);
   if (here < 0) return null;
 
   const candidates = [];
   data.forEach((row, index) => {
-    if (row.id === currentId) return;
+    if (keyOf(row) === currentId) return;
     if (nextIdOf(data, row, index) !== currentId) return;
 
     // Quiz 的選項在圖上是線上的標籤，不是方塊——選項那一列不是一個「頁面」，
     // 停在它身上畫面會是空的。往上再跳一層到題目，才對得上圖。
-    if (row.parentId) {
-      const parent = data.findIndex((item) => item.id === row.parentId);
+    if (normId(row.parentId)) {
+      const parent = data.findIndex((item) => keyOf(item) === normId(row.parentId));
       if (parent >= 0) candidates.push(parent);
       return;
     }
@@ -35,7 +36,7 @@ const prevIdOf = (data, currentId) => {
   // 卻往下跳，那跟「上」這個字說的是相反的事。
   const before = candidates.filter((index) => index < here);
   if (before.length === 0) return null;
-  return data[Math.max(...before)]?.id ?? null;
+  return keyOf(data[Math.max(...before)]) ?? null;
 };
 
 const usePrevId = (data, currentId) => {

@@ -1,4 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import {
+  keyOf,
+  normId,
+  parseSavedPosition,
+  positionToSave,
+  resolvePosition,
+} from '../../shared/rowKey';
 import PropTypes from 'prop-types';
 import { GameContext } from './game-context';
 import { resolveExternalImg } from '../game/imgUrl';
@@ -112,6 +119,11 @@ export const GameProvider = ({
   const [missionStartedAt, setMissionStartedAt] = useState({});
   const [customPairs, setCustomPairs] = useState({});
 
+  // 存檔裡那一筆位置（{ key, fp }）。還原只用它一次，用完就清掉——
+  // 之後資料再變（/create 就地重讀）走的是「現在停在哪還在不在」那條路，
+  // 不該再拿一筆很舊的指紋回來翻案。
+  const savedPosRef = useRef(null);
+
   // 當 gameId 設定完成後，從 localStorage 載入數據
   useEffect(() => {
     if (!gameId || previewMode) return;
@@ -119,7 +131,13 @@ export const GameProvider = ({
     setPlayerMissionData(
       JSON.parse(localStorage.getItem(getStorageKey('playerMissionData'))) || []
     );
-    setCurrentId(localStorage.getItem(getStorageKey('currentId')) || null);
+    // 存的是 { key, fp }（舊存檔是裸字串，parseSavedPosition 會相容）。
+    // 這裡只先把它記下來——**還原要等 rundownData 到齊才做得了**，
+    // 因為三層退讓要拿指紋去比對真正的資料（見下面那條 effect）。
+    savedPosRef.current = parseSavedPosition(
+      localStorage.getItem(getStorageKey('currentId'))
+    );
+    setCurrentId(savedPosRef.current?.key || null);
     setCurrentMissionId(
       localStorage.getItem(getStorageKey('currentMissionId')) || '0'
     );
@@ -139,23 +157,67 @@ export const GameProvider = ({
   const onPositionLostRef = useRef(onPositionLost);
   onPositionLostRef.current = onPositionLost;
 
-  // 起點＝rundown 的第一列（不再假設第一列的 id 叫 "1"）
-  // 資料是非同步載入的，所以等 rundownData 就緒才設。兩種情況都會落到第一列：
-  //   ① 還沒有 currentId（新玩／無存檔）
-  //   ② 原本停的那一列在新資料裡不見了——/create 就地重新讀取後，如果那一列的 id
-  //      被改掉或刪掉，不退回開頭就會停在一個不存在的位置，畫面只剩「Loading...」
-  // 「還在不在」必須跟 GameController 找 currentRow 用同一種比對（嚴格相等），
-  // 否則會出現「這裡判定還在、那裡卻找不到」的空白畫面
+
+  // 玩家停在哪一列。資料是非同步載入的，所以等 rundownData 就緒才決定。
+  //
+  // **起點＝rundown 的第一列**（不再假設第一列的 id 叫 "1"，也不再跳過沒有 id 的列
+  // ——id 可以留空之後，第一列很可能就沒有名字）。
+  //
+  // 「還在不在」必須跟 GameController 找 currentRow 用同一種比對（keyOf），
+  // 否則會出現「這裡判定還在、那裡卻找不到」的空白畫面。
+  //
+  // **存檔的還原走三層退讓**（COO-137）。只用內部 key 的話，創作者往中間插一列，
+  // 沒有名字的列 key 就是位置，玩家的存檔會整個位移一列。所以存檔同時記了內容指紋：
+  //
+  //   1. key 還在、指紋也對得上 → 直接用
+  //   2. 指紋出現在別的地方、而且剛好一筆 → 用它（插／刪列）
+  //   3. 都不行 → 退回**這一關的開頭**
+  //
+  // 第 3 層之所以退得回去，是因為 mission.id 不放寬（COO-136），
+  // currentMissionId 一定指得到一個真的關卡。最壞情況是「回到你正在玩的那一關開頭」，
+  // 不是掉到別人的關卡、也不是整場重來。
+  //
+  // 已知極限：**改掉玩家正踩著那一列的文字，指紋就對不上了**——而修錯字正是創作者
+  // 最常做的修改。那一種就是靠第 3 層兜住的。
   useEffect(() => {
-    if (!Array.isArray(rundownData)) return;
-    const firstRow = rundownData.find((row) => row?.id);
-    if (!firstRow) return;
-    if (currentId && rundownData.some((row) => row?.id === currentId)) return;
+    if (!Array.isArray(rundownData) || rundownData.length === 0) return;
+    const firstKey = keyOf(rundownData[0]);
+    if (!firstKey) return;
+
+    // **存檔的第一次還原一定要走三層退讓，不能因為 key 剛好還在就跳過。**
+    //
+    // 沒有名字的列，key 就是它的位置（`#3`）。創作者往前面插一列之後，那個位置
+    // 「還存在」——但指到的是別人。所以「還在不在」對無名列來說不是「還是不是同一列」，
+    // 必須拿指紋確認過才算數。
+    //
+    // （這個順序寫反過的：先擋「還存在」再比指紋，結果是插一列之後玩家安靜地
+    // 往前位移一句，而整個功能就是為了解決這件事。）
+    const saved = savedPosRef.current;
+    if (saved) {
+      savedPosRef.current = null;
+      const { key } = resolvePosition(rundownData, saved);
+      if (key) {
+        setCurrentId(key);
+        return;
+      }
+      // 三層都沒中：往下走，退回這一關的開頭
+    } else if (currentId && rundownData.some((row) => keyOf(row) === currentId)) {
+      // 還停在一個存在的位置（存檔已經還原過了）：什麼都不用做
+      return;
+    }
+
     if (currentId) onPositionLostRef.current?.();
-    // 資料換過了，舊的軌跡指向的那些 id 可能都不存在了，整條丟掉
+    // 資料換過了，舊的軌跡指向的那些位置可能都不存在了，整條丟掉
     setHistory([]);
-    setCurrentId(firstRow.id);
-  }, [rundownData, currentId]);
+
+    // 退回這一關的開頭；找不到才回整場的開頭
+    const missionStart = rundownData.find(
+      (row) =>
+        normId(row?.model) === 'MissionStart' &&
+        normId(row?.missionId) === normId(currentMissionId)
+    );
+    setCurrentId(keyOf(missionStart) ?? firstKey);
+  }, [rundownData, currentId, currentMissionId]);
 
   // 當狀態改變時存入 localStorage（使用 gameId 作為 key）
   useEffect(() => {
@@ -168,8 +230,12 @@ export const GameProvider = ({
 
   useEffect(() => {
     if (!gameId || !currentId || previewMode) return;
-    localStorage.setItem(getStorageKey('currentId'), currentId);
-  }, [currentId]);
+    // 同時記「是誰」與「講了什麼」——創作者插一列之後，只有後者還算數
+    localStorage.setItem(
+      getStorageKey('currentId'),
+      JSON.stringify(positionToSave(rundownData, currentId))
+    );
+  }, [currentId, rundownData]);
 
   useEffect(() => {
     if (!gameId || previewMode) return;

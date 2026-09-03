@@ -524,7 +524,7 @@ const CreateApp = () => {
           devTools
           onPositionLost={() =>
             setNotice(
-              '你剛才停的那一列在新資料裡找不到了（id 被改掉或刪掉），已回到開頭。'
+              '你剛才停的那一列在新資料裡找不到了（內容被改掉或刪掉），已回到這一關的開頭。'
             )
           }
           leftPanel={

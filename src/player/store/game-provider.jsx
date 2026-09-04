@@ -76,11 +76,24 @@ export const GameProvider = ({
     [missionData]
   );
 
+  // gameId ＝ config.id，同時是 localStorage 的命名空間（見 getStorageKey）。
+  //
+  // **空的話所有存檔會靜默不寫**，而畫面上完全看不出來——玩家一路玩得下去，
+  // 重整才發現什麼都沒記住。validator 會擋（config.id 不可空白），
+  // 但**播放器拿到的資料不一定經過 validator**（獨立播放器讀的是資料夾），
+  // 所以這裡自己出一次聲：能丟，但不可以無聲地丟。
   useEffect(() => {
     if (!configData) {
       return;
     }
-    setGameId(configData[0].id);
+    const id = configData[0]?.id;
+    if (!id) {
+      console.warn(
+        '[misheng] config.id 是空的，這一局的進度不會被記住（存檔用它當名字）。' +
+          '請在 config 表的 id 欄填一個固定的值。'
+      );
+    }
+    setGameId(id);
   }, [configData, gameId]);
 
   const getStorageKey = (key) => (gameId ? `${gameId}_${key}` : null);

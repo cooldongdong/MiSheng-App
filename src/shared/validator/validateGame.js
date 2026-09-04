@@ -119,6 +119,19 @@ export function validateGame(tables) {
     else if (configRows.length > 1) add('config', sheetRow(configRows[1].i), null, `config 應該只有一筆，卻有 ${configRows.length} 筆`);
     for (const { row, i } of configRows) {
       if (isEmpty(row.title)) add('config', sheetRow(i), 'title', '遊戲標題 title 不可空白');
+      // **config.id 不是普通的 id，它是存檔的命名空間。**
+      //
+      // game-provider 拿它當 localStorage 的前綴（`${gameId}_currentId`），
+      // 空的話 getStorageKey 回 null，於是**所有存檔靜默不寫**——玩家一重整
+      // 就從頭開始，而畫面上完全看不出原因。
+      //
+      // 底下「各表 id」那一段刻意跳過 config（它是單筆設定、不必驗唯一），
+      // 而「不必驗唯一」被延伸成了「不必驗有沒有填」——**中間漏掉的是
+      // 「它還有第二個工作」**。2026-09-04 Dong 把整份試算表的 id 清空來測
+      // COO-136 時撞到：遊戲玩得下去，但什麼都沒記住。
+      if (isEmpty(row.id)) {
+        add('config', sheetRow(i), 'id', 'id 不可空白——它是這個遊戲存檔的名字，空白的話玩家的進度不會被記住（重整就從頭開始）');
+      }
     }
   }
 

@@ -46,6 +46,7 @@
 
 import Papa from 'papaparse';
 import { REQUIRED_TABLES } from '../shared/validator/validateGame';
+import { withRowKeys } from '../shared/rowKey';
 import { readGids, rememberGids, forgetGids } from './gidCache';
 
 // 從各種 Google 試算表網址挖出 spreadsheet id
@@ -226,7 +227,14 @@ export const loadGameFromSheet = async (input) => {
     csvFiles[`${type}CsvFile`] = csv;
 
     const result = Papa.parse(csv, { header: true, skipEmptyLines: false });
-    tables[type] = { fields: result.meta.fields || [], rows: result.data };
+    // **每一列都要有內部身分。** /create 有兩條解析路徑：遊戲走 loadCSVData、
+    // 流程圖與檢查走這裡。只有前者掛 key 的話，id 可以留空之後，流程圖會把所有
+    // 無名列都當成同一個（keyOf 回傳空字串），整張圖塌成幾個框。
+    // 「解析過的列一定有 key」必須是兩條路都成立的不變式（見 shared/rowKey）。
+    tables[type] = {
+      fields: result.meta.fields || [],
+      rows: withRowKeys(result.data),
+    };
   });
 
   return { spreadsheetId: id, csvFiles, tables };

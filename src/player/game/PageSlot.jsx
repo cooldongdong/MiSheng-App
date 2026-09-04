@@ -1,4 +1,5 @@
 import { useContext, useMemo } from 'react';
+import { keyOf } from '../../shared/rowKey';
 import PropTypes from 'prop-types';
 import { GameContext } from '../store/game-context';
 import { MODEL_COMPONENTS } from './models';
@@ -55,7 +56,7 @@ const PageSlot = ({
     const mission = ctx.getMissionById?.(row?.missionId);
     return {
       ...ctx,
-      currentId: row?.id ?? ctx.currentId,
+      currentId: keyOf(row) ?? ctx.currentId,
       currentMissionId: mission ? row.missionId : ctx.currentMissionId,
       goToId: noop,
       setCurrentId: noop,

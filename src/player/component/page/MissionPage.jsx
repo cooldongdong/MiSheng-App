@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState, useRef } from 'react';
+import { keyOf } from '../../../shared/rowKey';
 import { GameContext } from '../../store/game-context';
 import PageContainer from '../common/PageContainer';
 import PageTitleText from '../common/PageTitleText';
@@ -59,7 +60,7 @@ const MissionPage = () => {
 
     if (missionStartRow) {
       // 跟流程圖的跳關同一條路：進歷史，← 才回得來
-      goToId(missionStartRow.id);
+      goToId(keyOf(missionStartRow));
       setCurrentMissionId(missionStartRow.missionId);
       updateMissionStatus(missionStartRow.missionId, 'solving');
     }

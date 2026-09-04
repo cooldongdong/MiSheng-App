@@ -28,7 +28,7 @@ export const REQUIRED_TABLES = ['character', 'config', 'hint', 'mission', 'prop'
 // 既有欄位這次原封不動留在 REQUIRED：它們本來就在每一份現存試算表裡，
 // 重新分級等於在改「什麼算錯」，那是另一個判斷，不該搭這班車。
 export const REQUIRED_FIELDS = {
-  character: ['id', 'name', 'avatar', 'straight'],
+  character: ['name', 'avatar', 'straight'],
   config: ['id', 'title', 'description', 'duration', 'backgroundImg', 'developer', 'creator', 'designer', 'version', 'type', 'releaseDate', 'languagesSupported', 'contactInformation'],
   hint: ['id', 'missionId', 'speaker', 'text', 'img'],
   mission: ['id', 'subtitle', 'title', 'description', 'answer', 'similarAnswer', 'successText', 'giveUpText', 'confirmGiveUpText', 'backgroundImg', 'navigation'],
@@ -41,6 +41,13 @@ export const REQUIRED_FIELDS = {
 // prop.backImg＝Wheel 最底層的固定背景圖（見 Wheel.jsx 的圖層說明）。
 export const OPTIONAL_FIELDS = {
   prop: ['backImg'],
+  // character.id 是歷史遺毒：角色一律靠 **name** 比對（rundown.speaker、hint.speaker），
+  // 沒有任何一張表指向 character.id。
+  //
+  // **移到選填而不是刪掉**：刪掉的話它就變成「不認得的欄位」，validator 會對
+  // 每一份既有試算表跳警告——而資料在創作者的雲端硬碟裡，我們沒有 migration 的權力。
+  // 放這裡的話既有試算表完全不受影響（不吭聲），新的可以整欄不要。
+  character: ['id'],
   // hint.timer＝進這一關之後第幾分鐘自動解鎖這一則（單位：分鐘）
   hint: ['timer'],
 };
@@ -112,15 +119,49 @@ export function validateGame(tables) {
     else if (configRows.length > 1) add('config', sheetRow(configRows[1].i), null, `config 應該只有一筆，卻有 ${configRows.length} 筆`);
     for (const { row, i } of configRows) {
       if (isEmpty(row.title)) add('config', sheetRow(i), 'title', '遊戲標題 title 不可空白');
+      // **config.id 不是普通的 id，它是存檔的命名空間。**
+      //
+      // game-provider 拿它當 localStorage 的前綴（`${gameId}_currentId`），
+      // 空的話 getStorageKey 回 null，於是**所有存檔靜默不寫**——玩家一重整
+      // 就從頭開始，而畫面上完全看不出原因。
+      //
+      // 底下「各表 id」那一段刻意跳過 config（它是單筆設定、不必驗唯一），
+      // 而「不必驗唯一」被延伸成了「不必驗有沒有填」——**中間漏掉的是
+      // 「它還有第二個工作」**。2026-09-04 Dong 把整份試算表的 id 清空來測
+      // COO-136 時撞到：遊戲玩得下去，但什麼都沒記住。
+      if (isEmpty(row.id)) {
+        add('config', sheetRow(i), 'id', 'id 不可空白——它是這個遊戲存檔的名字，空白的話玩家的進度不會被記住（重整就從頭開始）');
+      }
     }
   }
 
-  // ---- 層 2 + 3：各表 id 必填、唯一（config 除外，它是單筆設定）----
+  // ---- 層 2 + 3：id 唯一；只有「會被指到」的表才必填 ----
+  //
+  // **id 唯一的用途是被別人指到。** 手填 id 很累，但實測 demo 的 rundown 有 462 列，
+  // 真正被 nextId / parentId 指到的只有 55 列——另外 407 列（88%）純粹是為了
+  // 「每一列都要有」而填的白工；hint / prop / story / character 更是**沒有任何表
+  // 指向它們**，100% 白工（character 是靠 name 比對的，見 TalkModel）。
+  //
+  // 所以只有 mission 仍然必填——hint / prop / story / rundown 的 missionId 都指向它。
+  // rundown 的 id 可以留空，但**有填的仍須唯一**，否則 nextId 會指到兩個地方。
+  //
+  // 引擎那邊的配套：沒有 id 的列改用物理列號當內部身分（見 player/game/rowKey.js）。
+  // **兩者必須一起生效**——validator 放行而引擎沒有 fallback，會變成
+  // 「檢查通過、遊戲卻壞掉」，跟 PR #4 那次「validator 放行、遊戲靜默卡在 Loading」
+  // 是同一種錯。
+  // 只剩 mission。character 的身分是 name 不是 id（Dong 2026-09-04 拍板放寬），
+  // 而 character.id 已經移到 OPTIONAL_FIELDS——留著不吭聲、不留也不吭聲。
+  const ID_REQUIRED_TABLES = new Set(['mission']);
   for (const type of REQUIRED_TABLES) {
     if (!tables[type] || type === 'config') continue;
     const seen = new Map();
     for (const { row, i } of rowsOf(type)) {
-      if (isEmpty(row.id)) { add(type, sheetRow(i), 'id', 'id 不可空白'); continue; }
+      if (isEmpty(row.id)) {
+        if (ID_REQUIRED_TABLES.has(type)) {
+          add(type, sheetRow(i), 'id', 'id 不可空白（其他表的 missionId 要指到它）');
+        }
+        continue;
+      }
       const key = norm(row.id);
       if (seen.has(key)) add(type, sheetRow(i), 'id', `id「${key}」重複（也出現在第 ${seen.get(key)} 列）`);
       else seen.set(key, sheetRow(i));
@@ -160,6 +201,58 @@ export function validateGame(tables) {
           warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填任何圖（backImg／frontImg／rotateImg1／rotateImg2 全空），打開後會是空白');
         } else if (isEmpty(row.rotateImg1)) {
           warn('prop', sheetRow(i), 'rotateImg1', 'Wheel 道具沒有填 rotateImg1，轉盤上沒有可以轉的圖');
+        }
+      }
+    }
+  }
+
+  // ---- character 的身分是 name，所以要照身分來驗 ----
+  //
+  // **一直以來被檢查的是沒有人在讀的那一個。** id 驗了唯一，但角色是靠 name 比對的
+  //（TalkModel／HintPage 都是 `find(char => char.name === row.speaker)`），
+  // 而 name 從來沒有驗過必填、更沒有驗過唯一。
+  //
+  // 兩個角色同名時，find 永遠只會找到第一個——第二個角色的立繪與頭像會靜靜地
+  // 變成第一個的。不報錯、不空白，就是換了張臉。
+  if (tables.character) {
+    const seenName = new Map();
+    for (const { row, i } of rowsOf('character')) {
+      if (isEmpty(row.name)) {
+        add('character', sheetRow(i), 'name', 'name 不可空白（rundown 與 hint 的 speaker 是靠它找到這個角色的）');
+        continue;
+      }
+      const key = norm(row.name);
+      if (seenName.has(key)) {
+        add('character', sheetRow(i), 'name', `name「${key}」重複（也出現在第 ${seenName.get(key)} 列）。同名的角色只會用到第一個，後面那個的立繪與頭像不會出現`);
+      } else seenName.set(key, sheetRow(i));
+    }
+  }
+
+  // ---- speaker 要指到登記過的角色 ----
+  //
+  // **rundown 是 error**（Dong 2026-09-04 拍板）：是角色就要登記。
+  // 不想登記的話有退路——**留空 speaker、改填 title**，畫面上照樣顯示那個名字
+  //（TalkModel 是 `title || speaker`），而且不會去查角色表。
+  //
+  // **hint 只是 warn**：hint 沒有 title 欄位，所以那條退路在這裡不存在；
+  // 而且後果比較輕——只是沒有頭像，名字仍然照樣顯示（見 HintContent）。
+  if (tables.character) {
+    const names = new Set(
+      rowsOf('character').map(({ row }) => norm(row.name)).filter((x) => x !== '')
+    );
+    if (tables.rundown) {
+      for (const { row, i } of rowsOf('rundown')) {
+        if (isEmpty(row.speaker)) continue;
+        if (!names.has(norm(row.speaker))) {
+          add('rundown', sheetRow(i), 'speaker', `speaker「${row.speaker}」在 character 表找不到這個角色（立繪與頭像不會出現）。不想登記角色的話，把 speaker 留空、改用 title 寫名字`);
+        }
+      }
+    }
+    if (tables.hint) {
+      for (const { row, i } of rowsOf('hint')) {
+        if (isEmpty(row.speaker)) continue;
+        if (!names.has(norm(row.speaker))) {
+          warn('hint', sheetRow(i), 'speaker', `speaker「${row.speaker}」在 character 表找不到這個角色，這一則提示不會有頭像（名字仍會顯示）`);
         }
       }
     }

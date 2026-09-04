@@ -69,7 +69,11 @@ const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
           )}
 
           <Stack direction="row" spacing={2} sx={{ mt: '10px' }}>
-            {currentMission.navigation && (
+            {/* 上面那段有「正在載入任務資料…」的 null 防護，但它只包到三元運算式裡，
+                這一行在外面。missionId 指不到關卡時（例如 currentMissionId 還是
+                初始的 '0'，而這份遊戲的關卡從 1 開始）整個元件會爆掉、畫面全黑。
+                demo 剛好有一列 id=0 的關卡，所以一直沒被撞到。 */}
+            {currentMission?.navigation && (
               <EndIconButton
                 href={currentMission.navigation}
                 endIcon={<AssistantDirectionRoundedIcon />}

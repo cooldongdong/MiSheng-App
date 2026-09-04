@@ -1,4 +1,5 @@
 import { useContext, useMemo, useCallback, useEffect } from 'react';
+import { keyOf } from '../shared/rowKey';
 import PropTypes from 'prop-types';
 import { Box } from '@mui/material';
 import { GameContext } from '../player/store/game-context';
@@ -58,7 +59,7 @@ const FlowPanel = ({ rundownRows, toolbarActions = null }) => {
     goToId(id);
     // 跳過去的那一列若屬於某個關卡，關卡狀態也要跟著換，
     // 不然提示／道具頁會停在上一關
-    const row = (rundownData || []).find((r) => String(r.id) === String(id));
+    const row = (rundownData || []).find((r) => keyOf(r) === String(id));
     if (row?.missionId) setCurrentMissionId(String(row.missionId));
   };
 

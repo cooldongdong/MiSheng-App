@@ -1,3 +1,5 @@
+import { keyOf } from '../shared/rowKey';
+
 // flowGraph.js
 // 從 rundown 建出「流程圖」的資料結構——純函式，不碰畫面。
 //
@@ -21,13 +23,16 @@ const STRUCTURAL = new Set([
 ]);
 
 export const buildFlowGraph = (rundownRows = [], { collapse = true } = {}) => {
-  const rows = rundownRows.filter((r) => r && !isEmpty(r.id));
+  // **不再濾掉「沒有 id 的列」。** id 可以留空之後（COO-136），那個過濾會讓
+  // 流程圖上大部分節點直接消失——而它們是流程的一部分，只是沒有名字而已。
+  // 身分改用 keyOf（有名字用名字，沒名字用物理列號），見 shared/rowKey。
+  const rows = rundownRows.filter((r) => r && typeof r === 'object');
 
   // 選項列（有 parentId）不是流程節點，先分開
   const steps = rows.filter((r) => isEmpty(r.parentId));
   const options = rows.filter((r) => !isEmpty(r.parentId));
 
-  const stepIndex = new Map(steps.map((r, i) => [norm(r.id), i]));
+  const stepIndex = new Map(steps.map((r, i) => [keyOf(r), i]));
   const optionsOf = new Map();
   for (const opt of options) {
     const key = norm(opt.parentId);
@@ -49,7 +54,7 @@ export const buildFlowGraph = (rundownRows = [], { collapse = true } = {}) => {
   };
 
   steps.forEach((row, i) => {
-    const id = norm(row.id);
+    const id = keyOf(row);
     const model = norm(row.model);
     const opts = optionsOf.get(id) || [];
 
@@ -63,18 +68,18 @@ export const buildFlowGraph = (rundownRows = [], { collapse = true } = {}) => {
       return;
     }
     const next = steps[i + 1];
-    if (next) addEdge(id, norm(next.id), 'seq');
+    if (next) addEdge(id, keyOf(next), 'seq');
   });
 
   // ---- 節點 ----
   const nodes = steps.map((row, i) => ({
-    id: norm(row.id),
+    id: keyOf(row),
     order: i,
     model: norm(row.model) || '(空白)',
     missionId: norm(row.missionId),
     speaker: norm(row.speaker),
     text: norm(row.text) || norm(row.title),
-    optionCount: (optionsOf.get(norm(row.id)) || []).length,
+    optionCount: (optionsOf.get(keyOf(row)) || []).length,
     merged: 1, // 摺疊後代表幾列
   }));
 

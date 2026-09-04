@@ -3,6 +3,7 @@ import { GameContext } from '../store/game-context';
 import { Box, Typography, useMediaQuery } from '@mui/material';
 import KeyHintBar from '../component/common/KeyHintBar';
 import { loadCSVData } from './csvLoader';
+import { keyOf, normId } from '../../shared/rowKey';
 import useNextId from '../hook/useNextId';
 import usePrevId from '../hook/usePrevId';
 import useFlowKeys from '../hook/useFlowKeys';
@@ -62,7 +63,7 @@ const GameController = ({
   // 於是按十下只走一格。推導值就該用 useMemo 推導，不該存起來。
   const currentRow = useMemo(() => {
     if (!Array.isArray(rundownData)) return null;
-    return rundownData.find((item) => item.id === currentId) ?? null;
+    return rundownData.find((item) => keyOf(item) === currentId) ?? null;
   }, [rundownData, currentId]);
   // 剛剛是用 ← 退回來的嗎——只為了在畫面上講一句「狀態沒跟著倒回來」
   const [wentBack, setWentBack] = useState(false);
@@ -142,7 +143,7 @@ const GameController = ({
   // 這裡也算一次，是為了讓數字鍵不必等 QuizModel 把它算好再往上傳。
   const quizOptions = useMemo(() => {
     if (currentRow?.model !== 'Quiz' || !Array.isArray(rundownData)) return [];
-    return rundownData.filter((row) => row.parentId === currentId);
+    return rundownData.filter((row) => normId(row.parentId) === currentId);
   }, [currentRow, rundownData, currentId]);
 
   // 這一頁能不能用 down 鍵前進。

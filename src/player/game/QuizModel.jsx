@@ -1,4 +1,5 @@
 import { useContext } from 'react';
+import { normId } from '../../shared/rowKey';
 import { Typography } from '@mui/material';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 import { GameContext } from '../store/game-context';
@@ -35,7 +36,7 @@ const QuizModel = ({
   // 更明顯而被 Dong 抓到（2026-08-28）。這與 GameController 當初把 currentRow 從
   // state 改成 useMemo 是同一個病：**存起來的推導值永遠慢真相一個 render。**
   const options = Array.isArray(rundownData)
-    ? rundownData.filter((row) => row.parentId === currentId)
+    ? rundownData.filter((row) => normId(row.parentId) === currentId)
     : [];
   const speaker = currentRow?.speaker
     ? characterData?.find((char) => char.name === currentRow.speaker) || null

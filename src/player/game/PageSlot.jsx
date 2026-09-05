@@ -51,13 +51,19 @@ const PageSlot = ({
   const ctx = useContext(GameContext);
 
   const scoped = useMemo(() => {
-    // missionId 不一定對得到真的關卡（0 在這份資料裡是「沒有關卡」的哨兵值，
-    // 但也可能真的有一關叫 0——見 README 的實測），對不到就沿用現在的
+    // missionId 不一定對得到真的關卡（舊資料的 0 是封面那一列的關卡編號），
+    // 對不到就沿用現在的——rundown 的 missionId 空白代表「沿用上一關」。
+    // 唯一的例外是封面：GameStart 的預覽要是「不在任何一關」，跟真的走到它時一致。
     const mission = ctx.getMissionById?.(row?.missionId);
     return {
       ...ctx,
       currentId: keyOf(row) ?? ctx.currentId,
-      currentMissionId: mission ? row.missionId : ctx.currentMissionId,
+      currentMissionId:
+        row?.model === 'GameStart'
+          ? ''
+          : mission
+            ? row.missionId
+            : ctx.currentMissionId,
       goToId: noop,
       setCurrentId: noop,
       goBack: noop,

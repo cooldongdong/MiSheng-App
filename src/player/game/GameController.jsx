@@ -21,7 +21,7 @@ import PageSlot from './PageSlot';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 
 // 「按一下就走」的三種 model
-const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart']);
+const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart', 'GameStart']);
 // 要打字的兩種。游標落在框裡時方向鍵是移動游標，得先按 Esc 才拿得回來
 // （輸入框本身不再自動 focus，但使用者點過就會）
 const INPUT_MODELS = new Set(['MissionAnswerInput', 'CustomValueInput']);
@@ -41,7 +41,6 @@ const GameController = ({
   const {
     setCharacterData,
     setHintData,
-    missionData,
     setMissionData,
     setPropData,
     rundownData,
@@ -57,8 +56,6 @@ const GameController = ({
     goBack,
     canGoBack,
     backId,
-    setCurrentMissionId,
-    updateMissionStatus,
     playerMissionData,
     mapMode,
     spatialNav,
@@ -133,20 +130,9 @@ const GameController = ({
     };
   }, [dataVersion, loadedVersion]);
 
-  // 走到哪一列，關卡狀態就要跟到哪
-  useEffect(() => {
-    if (!currentRow) return;
-
-    const mission = missionData.find(
-      (mission) => mission.id === currentRow.missionId
-    );
-    if (mission) {
-      setCurrentMissionId(mission.id);
-      updateMissionStatus(mission.id, 'solving');
-    } else {
-      console.log('這頁沒有 missionId');
-    }
-  }, [currentRow, missionData]);
+  // 註：「走到哪一列，關卡狀態就跟到哪」以前在這裡，**已經搬進 game-provider**。
+  // 搬家理由見那邊的註解——這個元件只在「解謎」分頁掛載，而 currentId 在別的
+  // 分頁一樣會變。
 
   // 走到一列「沒有下一步」的地方＝流程的終點。
   //

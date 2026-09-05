@@ -21,7 +21,6 @@ const LEGACY_COVER_MISSION_ID = '0';
 const MissionPage = () => {
   const {
     missionData,
-    getMissionById,
     playerMissionData,
     rundownData,
     currentMissionId,
@@ -36,13 +35,15 @@ const MissionPage = () => {
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef(null);
 
-  const currentMission = getMissionById(currentMissionId);
-
+  // 這一頁**不需要** currentMission。
+  //
+  // 原本開頭有一道 `if (!currentMission) return;`——關卡清單會因為「玩家還沒進
+  // 任何一關」而整頁空白，那正好是最需要看到清單的時候。GameStart 落地後
+  // currentMissionId 會真的變成 ''，那道 guard 會讓封面上的關卡頁全空。
+  //
+  // 移除是安全的：isActive 拿 '' 去比對不會中，MissionItem 在 !mission.status
+  // 時本來就是暗的。
   useEffect(() => {
-    if (!currentMission) {
-      console.log('還沒有 currentMission！');
-      return;
-    }
     if (!Array.isArray(missionData)) {
       console.log('missionData 不是有效的數組！');
       return;
@@ -65,7 +66,7 @@ const MissionPage = () => {
       return { ...mission, status: targetMission?.status || '' };
     });
     setDisplayMissions(updatedFilterMissions);
-  }, [currentMission, currentMissionId, missionData, playerMissionData]);
+  }, [missionData, playerMissionData]);
 
   const handleMissionSelect = (missionId, title) => {
     setSelectedMissionId(missionId);

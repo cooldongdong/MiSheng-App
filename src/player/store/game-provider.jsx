@@ -150,7 +150,14 @@ export const GameProvider = ({
   const [spatialNav, setSpatialNavRaw] = useState(null);
   // useState 存「函式」一定要包一層：直接傳函式會被當成 updater 呼叫掉
   const setSpatialNav = useCallback((fn) => setSpatialNavRaw(() => fn ?? null), []);
-  const [currentMissionId, setCurrentMissionId] = useState('0');
+  // 初始值是 ''＝「還不在任何一關」，不是 '0'。
+  //
+  // '0' 是舊資料的封面關編號（mission 表裡一列 id=0 的假關卡）。把它當初始值，
+  // 等於對每一份遊戲斷言「開場時你在第 0 關」——而那只對「剛好有 mission 0」
+  // 的遊戲成立。新遊戲的封面是 GameStart，沒有任何關卡。
+  //
+  // 舊存檔不受影響：存的是 '0' 就照樣讀回 '0'，舊遊戲指得到 mission 0，行為不變。
+  const [currentMissionId, setCurrentMissionId] = useState('');
   const [unlockedHints, setUnlockedHints] = useState({});
   // 玩家按下每一關 MissionStart 的「開始遊戲」的時刻（epoch ms），用來算 hint.timer。
   //
@@ -197,8 +204,10 @@ export const GameProvider = ({
       localStorage.getItem(getStorageKey('currentId'))
     );
     setCurrentId(savedPosRef.current?.key || null);
+    // 用 ?? 不是 ||：'' 是一個有意義的值（玩家存檔時人在封面上），
+    // 用 || 會把它換成 '0'，也就是把「不在任何一關」誤讀成「在第 0 關」。
     setCurrentMissionId(
-      localStorage.getItem(getStorageKey('currentMissionId')) || '0'
+      localStorage.getItem(getStorageKey('currentMissionId')) ?? ''
     );
     setUnlockedHints(
       JSON.parse(localStorage.getItem(getStorageKey('unlockedHints'))) || {}
@@ -476,6 +485,34 @@ export const GameProvider = ({
       return [...prevMissions, { id: missionId, status }];
     });
   };
+
+  // 走到哪一列，關卡狀態就要跟到哪。
+  //
+  // **住在 provider，不在 GameController。** GameController 只在「解謎」那一個
+  // 分頁掛載（見 GameShell 的 switch），但 currentId 在別的分頁一樣會變——
+  // /create 的三欄畫面點右邊流程圖就會 goToId，中間欄停在哪一頁完全不受影響。
+  // 放在 GameController 裡的話，停在提示分頁跳去別關，提示清單會一直是上一關的，
+  // 直到有人切回解謎分頁才更新。
+  //（Dong 2026-09-01 回報過這個症狀的一半——展開狀態沿用到新的一關。當時修的是
+  //  HintPage 自己的 expandedHints，沒發現連 currentMissionId 都還沒跟上。）
+  useEffect(() => {
+    if (!Array.isArray(rundownData) || !Array.isArray(missionData)) return;
+    const row = rundownData.find((item) => keyOf(item) === currentId);
+    if (!row) return;
+
+    // 封面＝玩家不在任何一關。這是**唯一**會清掉 currentMissionId 的地方，
+    // 而且由 model 判斷，**不是由 missionId 空白判斷**——rundown 的 missionId
+    // 空白代表「沿用上一關」，demo 有 481 列是這樣（關卡中間的每一句對白）。
+    if (normId(row.model) === 'GameStart') {
+      setCurrentMissionId('');
+      return;
+    }
+
+    const mission = getMissionById(row.missionId);
+    if (!mission) return;
+    setCurrentMissionId(mission.id);
+    updateMissionStatus(mission.id, 'solving');
+  }, [currentId, rundownData, missionData, getMissionById]);
 
   // 更新自定義鍵值對
   const updateCustomPairs = (customKey, customValue) => {

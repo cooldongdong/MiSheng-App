@@ -2,7 +2,6 @@ import { useContext } from 'react';
 import { normId } from '../../shared/rowKey';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 import { GameContext } from '../store/game-context';
-import { useTypewriterEffect } from '../animation/useTypewriterEffect';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
 import Layer from '../component/layer/Layer';
 import GradientLayer from '../component/layer/GradientLayer';
@@ -49,12 +48,6 @@ const QuizModel = ({
     }
   );
 
-  const displayText = useTypewriterEffect(
-    processedText || '', // Pass the dialogue text to the hook
-    50, // Typing speed in milliseconds
-    textMode // 見 useTypewriterEffect：往回走給全文、正在滑過來的先不給字
-  );
-
   const handleOptionClick = (nextId) => {
     if (!nextId) {
       return;
@@ -94,7 +87,8 @@ const QuizModel = ({
         <Layer>
           <QuestionBox
             speaker={currentRow?.speaker || currentRow.title}
-            text={displayText}
+            text={processedText}
+            typeMode={textMode}
             options={options}
             onOptionClick={handleOptionClick}
             showKeys={devTools}

@@ -12,7 +12,7 @@ const TalkBox = ({
   title,
   text,
   fullText,
-  textContainerRef,
+  typeMode,
   onNext,
   canProceed,
   showIcon,
@@ -40,7 +40,7 @@ const TalkBox = ({
             </IconButton>
           )}
         </Box>
-        <TalkText text={text} ref={textContainerRef} />
+        <TalkText text={text} typeMode={typeMode} />
         {canProceed && <NextButton onClick={onNext}>Next</NextButton>}
       </Stack>
 
@@ -59,7 +59,7 @@ TalkBox.propTypes = {
   title: PropTypes.string.isRequired,
   text: PropTypes.string.isRequired,
   fullText: PropTypes.string,
-  textContainerRef: PropTypes.shape({ current: PropTypes.instanceOf(Element) }),
+  typeMode: PropTypes.oneOf(['type', 'instant', 'silent']),
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
   showIcon: PropTypes.bool,

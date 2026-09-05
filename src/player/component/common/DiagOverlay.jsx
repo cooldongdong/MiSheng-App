@@ -22,27 +22,45 @@ const DiagOverlay = () => {
     click: 0,
     lastGap: '-',
     fate: '-',
+    move: '-',
+    target: '-',
     longTask: '-',
     longTotal: 0,
   });
   const downAt = useRef(0);
   const downTarget = useRef(null);
+  const downPos = useRef({ x: 0, y: 0 });
+  const label = (el) =>
+    el instanceof Element
+      ? `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}`
+      : '?';
 
   useEffect(() => {
     const onDown = (e) => {
       downAt.current = performance.now();
       downTarget.current = e.target;
+      downPos.current = { x: e.clientX, y: e.clientY };
       setState((s) => ({ ...s, down: s.down + 1 }));
     };
     // 有 up 沒有 click ⇒ 按下與放開之間，那個元素被換掉了（React 重掛），
     // 瀏覽器就不會生 click。有 cancel ⇒ 手勢被瀏覽器接管（捲動／下拉更新）。
-    const onUp = () => {
+    const onUp = (e) => {
       const t = downTarget.current;
       const still = t instanceof Node ? t.isConnected : null;
+      // 手指從按下到放開移動了多少。超過瀏覽器的容忍值（Android 約 8–15px）
+      // 就會被當成拖曳而不是點擊，click 不會生出來。
+      const dist = Math.round(
+        Math.hypot(e.clientX - downPos.current.x, e.clientY - downPos.current.y)
+      );
+      // 放開的那一刻，手指底下是不是同一個元素。不同的話瀏覽器會把 click 發給
+      // 兩者的共同祖先——如果連共同祖先都沒有（其中一個被換掉），就不發。
+      const same = t === e.target;
       setState((s) => ({
         ...s,
         up: s.up + 1,
         fate: still === null ? '?' : still ? '元素還在' : '元素已被換掉',
+        move: `${dist}px`,
+        target: same ? `同一個 ${label(t)}` : `${label(t)} → ${label(e.target)}`,
       }));
     };
     const onCancel = () => setState((s) => ({ ...s, cancel: s.cancel + 1 }));
@@ -92,6 +110,8 @@ const DiagOverlay = () => {
           click: 0,
           lastGap: '-',
           fate: '-',
+          move: '-',
+          target: '-',
           longTask: '-',
           longTotal: 0,
         })
@@ -113,6 +133,8 @@ const DiagOverlay = () => {
     >
       {`down ${state.down} up ${state.up} cancel ${state.cancel} click ${state.click}
 放開時 ${state.fate}
+位移 ${state.move}
+目標 ${state.target}
 gap  ${state.lastGap}
 long ${state.longTask} (累計 ${state.longTotal}ms)
 （點我歸零）`}

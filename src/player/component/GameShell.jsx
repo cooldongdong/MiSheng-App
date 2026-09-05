@@ -11,6 +11,16 @@ import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
+import DiagOverlay from './common/DiagOverlay';
+
+// 現場量測面板：網址帶 ?diag=1 才出現（見 DiagOverlay）
+const wantsDiag = () => {
+  try {
+    return new URLSearchParams(window.location.search).get('diag') === '1';
+  } catch {
+    return false;
+  }
+};
 import ChromeFade from './common/ChromeFade';
 
 // 中間那一欄預設就是「一支手機」。
@@ -244,6 +254,8 @@ const GameShell = ({
           {/* 左上角＝身分與出口，右上角＝這一頁的控制項。
               兩邊都只在 !devTools 時出現：/create 的三欄有自己的導覽列（左欄頂端），
               不需要在遊戲畫面上再疊一顆。 */}
+          {wantsDiag() && <DiagOverlay />}
+
           {!devTools && brand && (
             <ChromeFade sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
               {brand}

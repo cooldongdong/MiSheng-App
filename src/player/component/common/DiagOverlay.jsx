@@ -24,6 +24,8 @@ const DiagOverlay = () => {
     fate: '-',
     move: '-',
     target: '-',
+    blocked: '-',
+    inert: '-',
     longTask: '-',
     longTotal: 0,
   });
@@ -64,6 +66,39 @@ const DiagOverlay = () => {
       }));
     };
     const onCancel = () => setState((s) => ({ ...s, cancel: s.cancel + 1 }));
+
+    // **掛在冒泡階段**：所有 capture 與 target 上的監聽器都跑完了才輪到這裡，
+    // 所以這時的 defaultPrevented 就是「有沒有人擋掉這個事件」。
+    // 在 pointerdown 上呼叫 preventDefault 會連帶取消相容性滑鼠事件——**包含 click**。
+    // 這是「事件都在、就是不生 click」最典型的成因。
+    const onDownLate = (e) => {
+      const t = e.target;
+      setState((s) => ({
+        ...s,
+        blocked: e.defaultPrevented ? 'down 被 preventDefault' : s.blocked,
+        // inert 的子樹不會收到 click，但 pointer 事件照樣發——症狀一模一樣
+        inert:
+          t instanceof Element
+            ? t.closest('[inert]')
+              ? '在 inert 裡'
+              : '不在 inert 裡'
+            : '?',
+      }));
+    };
+    const onUpLate = (e) => {
+      if (e.defaultPrevented) {
+        setState((s) => ({ ...s, blocked: 'up 被 preventDefault' }));
+      }
+    };
+    const onTouchLate = (e) => {
+      if (e.defaultPrevented) {
+        setState((s) => ({ ...s, blocked: `${e.type} 被 preventDefault` }));
+      }
+    };
+    window.addEventListener('pointerdown', onDownLate);
+    window.addEventListener('pointerup', onUpLate);
+    window.addEventListener('touchstart', onTouchLate);
+    window.addEventListener('touchend', onTouchLate);
     const onClick = (e) => {
       const gap = downAt.current ? Math.round(performance.now() - downAt.current) : -1;
       const tag = `${e.target?.tagName || '?'}`.toLowerCase();
@@ -96,6 +131,10 @@ const DiagOverlay = () => {
       window.removeEventListener('pointerup', onUp, true);
       window.removeEventListener('pointercancel', onCancel, true);
       window.removeEventListener('click', onClick, true);
+      window.removeEventListener('pointerdown', onDownLate);
+      window.removeEventListener('pointerup', onUpLate);
+      window.removeEventListener('touchstart', onTouchLate);
+      window.removeEventListener('touchend', onTouchLate);
       obs?.disconnect();
     };
   }, []);
@@ -112,6 +151,8 @@ const DiagOverlay = () => {
           fate: '-',
           move: '-',
           target: '-',
+          blocked: '-',
+          inert: '-',
           longTask: '-',
           longTotal: 0,
         })
@@ -135,6 +176,8 @@ const DiagOverlay = () => {
 放開時 ${state.fate}
 位移 ${state.move}
 目標 ${state.target}
+擋掉 ${state.blocked}
+inert ${state.inert}
 gap  ${state.lastGap}
 long ${state.longTask} (累計 ${state.longTotal}ms)
 （點我歸零）`}

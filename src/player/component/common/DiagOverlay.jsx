@@ -26,6 +26,7 @@ const DiagOverlay = () => {
     target: '-',
     blocked: '-',
     inert: '-',
+    self: 0,
     longTask: '-',
     longTotal: 0,
   });
@@ -153,6 +154,7 @@ const DiagOverlay = () => {
           target: '-',
           blocked: '-',
           inert: '-',
+          self: 0,
           longTask: '-',
           longTotal: 0,
         })
@@ -172,12 +174,33 @@ const DiagOverlay = () => {
         pointerEvents: 'auto',
       }}
     >
+      <Box
+        component="button"
+        onClick={(e) => {
+          e.stopPropagation(); // 不要順手把面板歸零
+          setState((s) => ({ ...s, self: s.self + 1 }));
+        }}
+        sx={{
+          display: 'block',
+          mb: 0.5,
+          px: 1,
+          py: 0.25,
+          font: 'inherit',
+          color: '#ff0',
+          bgcolor: 'transparent',
+          border: '1px solid #ff0',
+          borderRadius: 1,
+        }}
+      >
+        自測鈕（按我）
+      </Box>
       {`down ${state.down} up ${state.up} cancel ${state.cancel} click ${state.click}
 放開時 ${state.fate}
 位移 ${state.move}
 目標 ${state.target}
 擋掉 ${state.blocked}
 inert ${state.inert}
+自測鈕 ${state.self}
 gap  ${state.lastGap}
 long ${state.longTask} (累計 ${state.longTotal}ms)
 （點我歸零）`}

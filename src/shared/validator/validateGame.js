@@ -66,7 +66,9 @@ const knownFieldsOf = (type) =>
   new Set([...(REQUIRED_FIELDS[type] || []), ...(OPTIONAL_FIELDS[type] || [])]);
 
 // rundown.model 合法值（見 GameController modelComponents）
-export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'MissionAnswerInput', 'Img', 'CustomValueInput'];
+// GameStart＝遊戲封面，資料取自 config（見 player/game/GameStartModel.jsx）。
+// 它是純增量的新值：既有試算表一格都不用改，照舊用 mission 0 那種假關卡當封面。
+export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'GameStart', 'MissionAnswerInput', 'Img', 'CustomValueInput'];
 // prop.type 合法值（2026-08-25 加入 Camera：相機畫面上疊半透明圖的數位透明片）
 export const VALID_PROP_TYPES = ['Img', 'Wheel', 'Camera'];
 
@@ -323,6 +325,43 @@ export function validateGame(tables) {
       for (const col of ['parentId', 'nextId']) {
         if (isEmpty(row[col])) continue;
         if (!rundownIds.has(norm(row[col]))) add('rundown', sheetRow(i), col, `${col}「${row[col]}」在 rundown 表找不到對應 id（流程會斷掉）`);
+      }
+    }
+  }
+
+  // ---- 層 2（延伸）：兩種「開始」的 missionId 規則相反 ----
+  //
+  // | | GameStart | MissionStart |
+  // | 資料來源 | config | mission 那一列 |
+  // | missionId | **必須空白** | **必須指到關卡** |
+  //
+  // MissionStart 這一條以前驗不了：封面就是一列 `missionId=0` 的 MissionStart，
+  // 而「忘了填 missionId」跟「刻意做的封面」長得一模一樣——**用空白表達意圖，
+  // 等於放棄偵測錯誤的能力**。有了 GameStart，封面不再需要借用這個位置，
+  // 這一條才驗得起來。
+  //
+  // 而它擋的是一個會整頁全黑的狀態：MissionStartModel 讀 currentMission.navigation
+  // 時沒有 null 防護，指不到關卡就直接爆掉（2026-09-04 實際撞到）。
+  if (tables.rundown) {
+    let gameStartRow = null;
+    for (const { row, i } of rowsOf('rundown')) {
+      const model = norm(row.model);
+
+      if (model === 'GameStart') {
+        if (!isEmpty(row.missionId)) {
+          add('rundown', sheetRow(i), 'missionId', 'GameStart 是遊戲封面，資料取自 config（title／description／backgroundImg），missionId 要留空。想做的是關卡開場的話，model 改成 MissionStart');
+        }
+        // 封面只會有一張：流程從第一列走起，第二個 GameStart 只會是誤複製。
+        // 不擋生成——它不會讓遊戲壞掉，只是走到那裡時關卡狀態會被清空。
+        if (gameStartRow) {
+          warn('rundown', sheetRow(i), 'model', `這是第 2 個 GameStart（第一個在第 ${gameStartRow} 列）。封面只需要一列，走到這一列時玩家的關卡狀態會被清掉`);
+        } else gameStartRow = sheetRow(i);
+        continue;
+      }
+
+      if (model !== 'MissionStart') continue;
+      if (isNoMission(row.missionId)) {
+        add('rundown', sheetRow(i), 'missionId', 'MissionStart 需要 missionId 指向這一關（關卡名、背景圖、導航都從那一列讀，指不到會整頁全黑）。這一列如果是遊戲封面，model 改成 GameStart、missionId 留空');
       }
     }
   }

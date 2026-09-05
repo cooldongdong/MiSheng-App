@@ -16,6 +16,9 @@
 // 低明度彩虹：色相拉開才分得出來，明度壓低才不會有「AI 感」的亮藍紫
 export const MODEL_COLOR = {
   MissionStart: '#2f3e46', // 章節錨點：深墨，實心底、白字
+  // 封面與章節錨點同色：它們在圖上是同一種東西（一段的起點），
+  // 給新色相等於在圖例上多一個要記的東西，而讀圖的人分不出「這兩顆有什麼不同」。
+  GameStart: '#2f3e46',
   Talk: '#3d5a80', // 對白：藏青
   Quiz: '#b2591f', // 選擇：鏽橘（分岔要醒目）
   MissionAnswerInput: '#9c3d54', // 作答：酒紅
@@ -25,6 +28,7 @@ export const MODEL_COLOR = {
 
 export const MODEL_TINT = {
   MissionStart: '#2f3e46', // 實心
+  GameStart: '#2f3e46',
   Talk: '#eef1f7',
   Quiz: '#fbf0e7',
   MissionAnswerInput: '#f9edf0',
@@ -40,6 +44,7 @@ export const MODEL_TINT = {
 // 各色對 canvas 底（#1c2429）實測皆 ≥ 3:1，符合 WCAG 非文字對比。
 export const MODEL_COLOR_DARK = {
   MissionStart: '#93a7b2', // 章節錨點：翻到 ramp 另一端——深色模式下「最重的那顆」是最亮的
+  GameStart: '#93a7b2',
   Talk: '#5b82b8', // 對白：藏青
   Quiz: '#e08a4a', // 選擇：鏽橘
   MissionAnswerInput: '#c4657f', // 作答：酒紅
@@ -57,6 +62,7 @@ export const MODEL_COLOR_DARK = {
 // 註：畫布從藍灰改成中性灰之後這組重算過一次——比例是對「畫布」算的，畫布換了就得跟著換。
 export const MODEL_TINT_DARK = {
   MissionStart: '#93a7b2', // 實心，與外框同色
+  GameStart: '#93a7b2',
   Talk: '#212b3b',
   Quiz: '#33261a',
   MissionAnswerInput: '#36212c',

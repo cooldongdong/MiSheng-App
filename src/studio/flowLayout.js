@@ -227,6 +227,10 @@ export const nodeBodyText = (n, missionTitles = null) => {
   const missionName = missionTitles?.[n.missionId] || null;
   const own = n.text ? (n.speaker ? `${n.speaker}：` : '') + n.text : '';
   return (
+    // 封面沒有 missionId，借不到關卡名，自己通常也沒有對白 ⇒ 照舊邏輯會變成
+    // 「第 2 列」，而它是整張圖的入口，最不該是那個樣子。給固定標籤而不是
+    // 遊戲標題，是因為這裡拿不到 config，而多接一個參數只為了一顆節點不划算。
+    (n.model === 'GameStart' ? '封面' : null) ||
     (n.model === 'MissionStart' ? missionName : null) ||
     own ||
     missionName ||

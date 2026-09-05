@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { GameContext } from '../store/game-context';
 import PropTypes from 'prop-types';
 import FloatingLayer from '../component/layer/FloatingLayer';
@@ -63,9 +63,15 @@ const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
               )}
             </>
           ) : (
-            <Typography variant="h6" gutterBottom>
-              正在載入任務資料...
-            </Typography>
+            // 指不到關卡時什麼都不畫。
+            //
+            // 這裡原本寫「正在載入任務資料...」，但那句話有兩個問題：
+            // ① 真正指不到關卡的原因不是「還在載入」，是創作者漏填 missionId
+            //    ——而那現在是 validator 的 error，不會走到播放器來。
+            // ② 剩下唯一會走到這裡的是**同步的那一幀**：currentMissionId 的初始值
+            //    是 ''，要等 GameController 的 effect 才會跟上這一列的 missionId。
+            //    在那一幀秀出「正在載入」，等於每次開場都閃一下一句假話。
+            null
           )}
 
           <Stack direction="row" spacing={2} sx={{ mt: '10px' }}>

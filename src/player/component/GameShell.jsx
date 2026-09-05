@@ -10,6 +10,7 @@ import PropPage from './page/PropPage';
 import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
+import GameLoading from './common/GameLoading';
 import { GameContext } from '../store/game-context';
 
 // 有東西蓋滿畫面時，把包住的內容整個收起來。
@@ -22,6 +23,29 @@ const HideWhileOverlay = ({ children }) => {
 };
 
 HideWhileOverlay.propTypes = { children: PropTypes.node };
+
+// 全螢幕看圖時「點一下」要讓三個角落的介面一起消失，包含這裡的左上與右上。
+//
+// **只動 opacity，不做掛載／卸載**——那樣是「啪」一下出現與消失，淡不順。
+// 隱藏時一併關掉 pointerEvents，否則看不見的按鈕還按得到。
+// 同樣得是獨立元件（GameShell 讀不到自己 render 的 provider）。
+const ChromeFade = ({ children }) => {
+  const { overlayOpen, overlayChromeVisible } = useContext(GameContext);
+  const hidden = overlayOpen && !overlayChromeVisible;
+  return (
+    <Box
+      sx={{
+        opacity: hidden ? 0 : 1,
+        pointerEvents: hidden ? 'none' : 'auto',
+        transition: 'opacity 240ms ease',
+      }}
+    >
+      {children}
+    </Box>
+  );
+};
+
+ChromeFade.propTypes = { children: PropTypes.node };
 
 // 中間那一欄預設就是「一支手機」。
 //
@@ -149,7 +173,7 @@ const GameShell = ({
   };
 
   const renderMainContainer = () => {
-    if (!gameData) return <div>載入中...</div>;
+    if (!gameData) return <GameLoading />;
 
     switch (value) {
       case 0:
@@ -255,9 +279,11 @@ const GameShell = ({
               兩邊都只在 !devTools 時出現：/create 的三欄有自己的導覽列（左欄頂端），
               不需要在遊戲畫面上再疊一顆。 */}
           {!devTools && brand && (
-            <Box sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
-              {brand}
-            </Box>
+            <ChromeFade>
+              <Box sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
+                {brand}
+              </Box>
+            </ChromeFade>
           )}
 
           {/* 右上角那組控制項。掛在這裡（Provider 內）而不是 App.jsx，是因為重啟鈕
@@ -265,6 +291,7 @@ const GameShell = ({
               算座標。/create 不給——那邊右上角已經有面板按鈕，而且重啟鈕在
               previewMode 下只會把試算表一起丟掉。 */}
           {!devTools && (
+            <ChromeFade>
             <Stack
               direction="row"
               spacing={0.5}
@@ -282,6 +309,7 @@ const GameShell = ({
               <RestartButton />
               {headerActions}
             </Stack>
+            </ChromeFade>
           )}
 
           {/* 有東西蓋滿畫面時整條收起來：一是避免玩家想關圖卻誤按分頁，

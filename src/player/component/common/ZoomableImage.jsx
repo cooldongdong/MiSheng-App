@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { Box, Fab, Paper } from '@mui/material';
 import { GameContext } from '../../store/game-context';
 import { usePhotoGestures } from '../../hook/usePhotoGestures';
@@ -38,17 +38,19 @@ const ZoomableImage = ({
   // 所以佔位改成「高度吃滿、寬度由長寬比算」（見 SkeletonImage）。
   const fixedHeight = zoomInFab === 'center';
 
-  // 全螢幕時的介面（縮小鈕）看不看得見。**點畫面一下就切換**——圖片本身就是謎面，
-  // 任何常駐的按鈕都可能蓋到關鍵的那一角，要能一鍵收乾淨（iPhone 相簿同一套）。
+  // 全螢幕時的介面看不看得見。**點畫面一下就切換**——圖片本身就是謎面，任何常駐的
+  // 按鈕都可能蓋到關鍵的那一角，要能一鍵收乾淨（iPhone 相簿同一套）。
+  // 狀態放在 provider：要一起消失的還有左上的品牌標與右上那排按鈕，它們在別的元件樹。
   // 每次重新放大都回到「看得見」：唯一的出口不可以藏在一個要先發現的手勢後面。
-  const [chromeVisible, setChromeVisible] = useState(true);
+  const {
+    openOverlay,
+    closeOverlay,
+    overlayChromeVisible: chromeVisible,
+    setOverlayChromeVisible: setChromeVisible,
+  } = useContext(GameContext);
   useEffect(() => {
-    if (isFullScreen) setChromeVisible(true);
-  }, [isFullScreen]);
-
-  // 讓 GameShell 把底部導覽列收起來（避免玩家想關圖卻誤按分頁）。
-  // 只能用「不要畫」，不能調 z-index——見 game-provider 的 overlayCount 註解。
-  const { openOverlay, closeOverlay } = useContext(GameContext);
+    if (isFullScreen) setChromeVisible?.(true);
+  }, [isFullScreen, setChromeVisible]);
   useEffect(() => {
     if (!isFullScreen) return undefined;
     openOverlay?.();
@@ -59,7 +61,7 @@ const ZoomableImage = ({
   const { ref: imgRef, transform, dy, dragging, reset, handlers } =
     usePhotoGestures({
       onDismiss: onToggle,
-      onTap: () => setChromeVisible((v) => !v),
+      onTap: () => setChromeVisible?.((v) => !v),
     });
 
   // 每次重新放大都從 1 倍開始。留著上一次的縮放，下次打開會是一張看不懂的局部。
@@ -212,11 +214,16 @@ const ZoomableImage = ({
               右上角是拇指最難搆到的位置之一（Dong 2026-09-05）。它會蓋到圖片
               底部的問題，改用「點一下收起介面」解決，不用搬家。
               全螢幕時導覽列已經收起來了，所以這裡可以回到 bottom:20。 */}
-          {chromeVisible && (
+          {/* **不要用掛載／卸載來切換。** 那樣按鈕是「啪」一下出現與消失；
+              一直掛著、只動 opacity，才淡得順。隱藏時要一併關掉 pointerEvents，
+              否則看不見的按鈕還按得到。 */}
           <Fab
             data-no-swipe
             onClick={onToggle}
             sx={{
+              opacity: chromeVisible ? 1 : 0,
+              pointerEvents: chromeVisible ? 'auto' : 'none',
+              transition: 'opacity 240ms ease',
               position: 'fixed',
               bottom: 20,
               left: '50%',
@@ -228,7 +235,6 @@ const ZoomableImage = ({
           >
             <CloseFullscreenRoundedIcon />
           </Fab>
-          )}
         </>
       )}
     </>

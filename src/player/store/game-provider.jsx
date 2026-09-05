@@ -168,6 +168,10 @@ export const GameProvider = ({
   // transform）的堆疊脈絡裡，對外只值 550，永遠壓不過導覽列的 700——擋住它
   // 的唯一辦法是讓 GameShell 自己不要畫。
   const [overlayCount, setOverlayCount] = useState(0);
+  // 全螢幕看圖時，介面（縮小鈕、左上品牌標、右上那排按鈕）顯不顯示。
+  // **放在這裡而不是 ZoomableImage 裡面**：點一下要讓三個角落一起消失，
+  // 而那三個東西分屬不同的元件樹，只能靠共用狀態同步。
+  const [overlayChromeVisible, setOverlayChromeVisible] = useState(true);
   const openOverlay = useCallback(() => setOverlayCount((n) => n + 1), []);
   const closeOverlay = useCallback(
     () => setOverlayCount((n) => Math.max(0, n - 1)),
@@ -534,6 +538,8 @@ export const GameProvider = ({
         overlayOpen: overlayCount > 0,
         openOverlay,
         closeOverlay,
+        overlayChromeVisible,
+        setOverlayChromeVisible,
       }}
     >
       {children}

@@ -27,12 +27,26 @@ const DiagOverlay = () => {
     blocked: '-',
     inert: '-',
     self: 0,
+    log: [],
     longTask: '-',
     longTotal: 0,
   });
   const downAt = useRef(0);
   const downTarget = useRef(null);
   const downPos = useRef({ x: 0, y: 0 });
+  // 事件時間軸：每一筆記「距離上一筆幾毫秒」。死區有多長、從哪一刻開始，
+  // 只有這個看得出來。
+  const lastAt = useRef(0);
+  const push = (type, extra = '') =>
+    setState((s) => {
+      const now = performance.now();
+      const gap = lastAt.current ? Math.round(now - lastAt.current) : 0;
+      lastAt.current = now;
+      return {
+        ...s,
+        log: [...(s.log || []).slice(-7), `+${gap} ${type}${extra ? ' ' + extra : ''}`],
+      };
+    });
   const label = (el) =>
     el instanceof Element
       ? `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}`
@@ -44,6 +58,7 @@ const DiagOverlay = () => {
       downTarget.current = e.target;
       downPos.current = { x: e.clientX, y: e.clientY };
       setState((s) => ({ ...s, down: s.down + 1 }));
+      push('down', label(e.target));
     };
     // 有 up 沒有 click ⇒ 按下與放開之間，那個元素被換掉了（React 重掛），
     // 瀏覽器就不會生 click。有 cancel ⇒ 手勢被瀏覽器接管（捲動／下拉更新）。
@@ -65,6 +80,7 @@ const DiagOverlay = () => {
         move: `${dist}px`,
         target: same ? `同一個 ${label(t)}` : `${label(t)} → ${label(e.target)}`,
       }));
+      push('up', `${dist}px`);
     };
     const onCancel = () => setState((s) => ({ ...s, cancel: s.cancel + 1 }));
 
@@ -104,6 +120,7 @@ const DiagOverlay = () => {
       const gap = downAt.current ? Math.round(performance.now() - downAt.current) : -1;
       const tag = `${e.target?.tagName || '?'}`.toLowerCase();
       setState((s) => ({ ...s, click: s.click + 1, lastGap: `${gap}ms ${tag}` }));
+      push('CLICK', tag);
     };
     window.addEventListener('pointerdown', onDown, true);
     window.addEventListener('pointerup', onUp, true);
@@ -155,6 +172,7 @@ const DiagOverlay = () => {
           blocked: '-',
           inert: '-',
           self: 0,
+          log: [],
           longTask: '-',
           longTotal: 0,
         })
@@ -203,7 +221,7 @@ inert ${state.inert}
 自測鈕 ${state.self}
 gap  ${state.lastGap}
 long ${state.longTask} (累計 ${state.longTotal}ms)
-${state.log.join('\n')}
+${(state.log || []).join('\n')}
 （點我歸零）`}
     </Box>
   );

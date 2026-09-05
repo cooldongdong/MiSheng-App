@@ -1,4 +1,11 @@
-import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { GameContext } from '../store/game-context';
 import { Box, Typography, useMediaQuery } from '@mui/material';
 import KeyHintBar from '../component/common/KeyHintBar';
@@ -54,6 +61,7 @@ const GameController = ({
     playerMissionData,
     mapMode,
     spatialNav,
+    record,
   } = useContext(GameContext);
   // 目前這一列直接從 currentId 算，不再存成 state。
   //
@@ -138,6 +146,24 @@ const GameController = ({
       console.log('這頁沒有 missionId');
     }
   }, [currentRow, missionData]);
+
+  // 走到一列「沒有下一步」的地方＝流程的終點。
+  //
+  // 用 getNextId() 判斷而不是「是不是陣列最後一列」：nextId 可以跳，物理上的最後
+  // 一列不一定是結局。Quiz 也不會誤判——它沒有自己的 nextId，但 getNextId 會給
+  // 物理下一列，所以不是 null。
+  //
+  // **注意：這不是「完賽」的可靠訊號。** 實測 demo 根本不會走到這裡——它最後一列
+  // 是 nextId=447 的 Quiz，流程繞回去了，沒有任何一列是死路。要算完賽率請看
+  // 最後一關的 answer_right，那個才是玩家真的把遊戲玩完的證據。
+  // 這一則的意義是「他走到了流程的盡頭」，只有寫成線性結局的遊戲才會有。
+  const endedRef = useRef(false);
+  useEffect(() => {
+    if (!currentRow || endedRef.current) return;
+    if (getNextId()) return;
+    endedRef.current = true;
+    record('game_end', { missionId: currentRow.missionId });
+  }, [currentRow, getNextId, record]);
 
   // Quiz 的選項＝以這一列為 parentId 的那些 row（跟 QuizModel 的算法一致）。
   // 這裡也算一次，是為了讓數字鍵不必等 QuizModel 把它算好再往上傳。

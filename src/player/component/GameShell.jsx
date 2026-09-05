@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Container, Stack } from '@mui/material';
 import RestartButton from './common/RestartButton';
+import ExportEventsButton from './common/ExportEventsButton';
 import { GameProvider } from '../store/game-provider';
 import FixedBottomNavigation from './BottomNavigation';
 import MissionPage from './page/MissionPage';
@@ -265,6 +266,7 @@ const GameShell = ({
                 bgcolor: 'background.overlay',
               }}
             >
+              <ExportEventsButton />
               <RestartButton />
               {headerActions}
             </Stack>

@@ -64,6 +64,8 @@ const PageSlot = ({
       canGoBack: false,
       updateMissionStatus: noop,
       unlockHint: noop,
+      // 上下拉露出來的前後頁是「還沒發生的事」，記進去會讓紀錄裡出現玩家沒做過的動作
+      record: noop,
       updateCustomPairs: noop,
       setMapMode: noop,
       setSpatialNav: noop,

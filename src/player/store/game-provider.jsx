@@ -9,6 +9,8 @@ import {
 import PropTypes from 'prop-types';
 import { GameContext } from './game-context';
 import { resolveExternalImg } from '../game/imgUrl';
+import { clearEvents, readEvents, recordEvent } from '../game/telemetry';
+import { hintKeyOf } from '../game/hintTimer';
 
 
 // previewMode：即時轉化（/create）的一次性試玩——不讀也不寫 localStorage，重整即消失
@@ -98,6 +100,31 @@ export const GameProvider = ({
 
   const getStorageKey = (key) => (gameId ? `${gameId}_${key}` : null);
 
+  // 記一則玩家行為。**previewMode（/create）不記**——那邊的進度本來就不寫
+  // localStorage，而創作者自己反覆試玩的資料混進去只會把真玩家的樣本弄髒。
+  //
+  // 包一層而不是讓各元件自己 import telemetry：gameId 與 previewMode 這兩道
+  // 守門只寫在這裡一次，新增呼叫點的人就不會漏掉其中一道。
+  const record = useCallback(
+    (type, detail) => {
+      if (!gameId || previewMode) return;
+      setEventCount(recordEvent(gameId, type, detail));
+    },
+    [gameId, previewMode]
+  );
+
+  // 這一局的第一則事件。用「還沒有任何事件」判斷而不是「元件掛載」，
+  // 否則玩家每重整一次就多一筆 game_start，完賽率會被灌水。
+  useEffect(() => {
+    if (!gameId || previewMode) return;
+    const existing = readEvents(gameId).length;
+    if (existing > 0) {
+      setEventCount(existing);
+      return;
+    }
+    setEventCount(recordEvent(gameId, 'game_start'));
+  }, [gameId, previewMode]);
+
   const [playerMissionData, setPlayerMissionData] = useState([]);
   const [currentId, setCurrentId] = useState(null);
   // 走過的路：每次前進／跳關就把「離開的那一列」推進來，← 後退時沿著它退回去。
@@ -131,6 +158,9 @@ export const GameProvider = ({
   // 而「卡了三分鐘就該給提示」講的是牆上時鐘，不是螢幕亮著的時間。
   const [missionStartedAt, setMissionStartedAt] = useState({});
   const [customPairs, setCustomPairs] = useState({});
+  // 這一局記了幾則行為事件。只拿來決定「下載紀錄」那顆鈕要不要出現——
+  // 讓它自己每次 render 去讀一次 localStorage 並 JSON.parse 太浪費。
+  const [eventCount, setEventCount] = useState(0);
 
   // 存檔裡那一筆位置（{ key, fp }）。還原只用它一次，用完就清掉——
   // 之後資料再變（/create 就地重讀）走的是「現在停在哪還在不在」那條路，
@@ -357,6 +387,8 @@ export const GameProvider = ({
     localStorage.removeItem(`${gameId}_unlockedHints`);
     localStorage.removeItem(`${gameId}_missionStartedAt`);
     localStorage.removeItem(`${gameId}_customPairs`);
+    // 行為紀錄與 sid 一起清掉——留著的話新的一局會被算成舊的那一場
+    clearEvents(gameId);
 
     // 重新整理瀏覽器
     window.location.reload();
@@ -371,10 +403,27 @@ export const GameProvider = ({
     setMissionStartedAt((prev) =>
       prev[missionId] ? prev : { ...prev, [missionId]: Date.now() }
     );
+    // **每一次按都記**，不是只記第一次。上面那個「只記第一次」是給提示倒數用的
+    // （回頭再進來不該把計時歸零）；而「他回頭重看了一次關卡說明」本身就是一件
+    // 值得知道的事——存事件不存結論，要不要合併留給分析的時候決定。
+    record('mission_start', { missionId });
   };
 
   // 更新提示的開啟狀態
   const unlockHint = (missionId, hintIndex) => {
+    // 記「第幾則」而不是內部的指紋鍵。指紋（`h:17k7sa6`）對引擎是對的——它讓解鎖
+    // 狀態在創作者插入／搬動提示之後仍然對得上——但**這批資料是要交出去給人看的**，
+    // 而創作者打開試算表只認得「解鎖提示 2」。跟畫面上的編號對齊，才有辦法讀。
+    //
+    // 篩選條件跟 HintPage 一樣（同一關的提示，照表裡的順序）。對不上就退回指紋，
+    // 寧可難讀也不要漏記。
+    const ordinal = (hintData || []).filter(
+      (row) => row.missionId === missionId
+    ).findIndex((row) => hintKeyOf(row) === hintIndex);
+    record('hint_unlock', {
+      missionId,
+      value: ordinal >= 0 ? String(ordinal + 1) : hintIndex,
+    });
     setUnlockedHints((prev) => ({
       ...prev,
       [missionId]: {
@@ -468,6 +517,8 @@ export const GameProvider = ({
         gameId,
         getImg,
         clearGameData,
+        record,
+        eventCount,
       }}
     >
       {children}

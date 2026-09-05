@@ -247,7 +247,9 @@ const ZoomableImage = ({
                 base: 'translateX(-50%)',
               }),
               position: 'absolute',
-              bottom: 20,
+              // 舞台刻意往下多蓋一條導覽列的高度（見上面），所以這裡要把那 56px
+              // 加回來，否則按鈕會有一半掉到畫面外（Dong 2026-09-05 在 Android 回報）。
+              bottom: NAV_HEIGHT + 20,
               left: '50%',
               zIndex: 2, // 在圖片之上
               backgroundColor: '#fff',

@@ -92,6 +92,12 @@ const ZoomableImage = ({
                 display: 'flex',
                 alignItems: 'center',
                 zIndex: 1101,
+                // **translateZ(0) 是給 iOS 的**（Dong 2026-09-05 回報：放大鈕會先被
+                // 圖蓋過、然後才蓋過圖）。底下那張圖有 opacity 過場，WebKit 會把它
+                // 提成合成層；這一層沒有被提，於是在圖層安定之前 z-index 不算數，
+                // 它就被畫在圖下面。兩邊都是合成層，先後才穩定。
+                // 同一種病的另一個病灶見 GradientLayer。
+                transform: 'translateZ(0)',
               }}
             >
               {title && (

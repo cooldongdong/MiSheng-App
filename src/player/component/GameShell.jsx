@@ -11,7 +11,10 @@ import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
-import ChromeFade, { CHROME_FADE_MS } from './common/ChromeFade';
+import ChromeFade, {
+  CHROME_FADE_MS,
+  CHROME_FADE_OUT_MS,
+} from './common/ChromeFade';
 import { GameContext } from '../store/game-context';
 
 // 有東西蓋滿畫面時，把包住的內容淡掉。
@@ -29,7 +32,9 @@ const HideWhileOverlay = ({ children }) => {
       sx={{
         opacity: overlayOpen ? 0 : 1,
         pointerEvents: overlayOpen ? 'none' : 'auto',
-        transition: `opacity ${CHROME_FADE_MS}ms ease`,
+        transition: overlayOpen
+          ? `opacity ${CHROME_FADE_OUT_MS}ms cubic-bezier(0.4, 0, 1, 1)`
+          : `opacity ${CHROME_FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
       }}
     >
       {children}

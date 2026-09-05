@@ -32,7 +32,7 @@ const ZoomableImage = ({
   openIcon, // 給 Camera 道具換成相機圖示；不給就是原本的放大
 }) => {
   // ImgModel（zoomInFab='center'）的 Paper 是固定高度的，
-  // 這時不能再用長寬比撐開，讓佔位直接填滿那個高度就好。
+  // 所以佔位改成「高度吃滿、寬度由長寬比算」（見 SkeletonImage）。
   const fixedHeight = zoomInFab === 'center';
 
   return (

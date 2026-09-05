@@ -22,7 +22,7 @@ import {
 const SkeletonImage = ({
   src,
   alt,
-  fillHeight = false, // 外層已經給了固定高度（ImgModel），這時不要再用長寬比撐
+  fillHeight = false, // 高度來自外層（ImgModel），寬度改由長寬比算
   style,
   ...imgProps
 }) => {
@@ -33,8 +33,26 @@ const SkeletonImage = ({
     <Box
       sx={{
         position: 'relative',
-        width: '100%',
-        ...(fillHeight ? { height: '100%' } : { aspectRatio: String(ratio) }),
+        // 兩種模式都吃長寬比，差別只在「哪一邊是被給定的」：
+        //   一般：寬度來自外層（清單是滿版的），高度由比例算
+        //   fillHeight：高度來自外層的固定高度，**寬度由比例算**
+        //
+        // fillHeight 原本是 `width: '100%'` ＋ 不給比例，那在 ImgModel 會塌成 0 寬——
+        // 它的容器是 `alignItems: 'center'`，flex 子項不會被拉滿，於是 Paper 的寬度
+        // 只能由內容決定，而內容又反過來要求「父層的 100%」。循環的百分比寬度在 CSS
+        // 裡的答案就是 0，圖片變成畫面上一條線（2026-09-05 Dong 回報）。
+        //
+        // fillHeight 一定要夾 maxWidth：還沒量到比例時用的是 DEFAULT_RATIO（4/3，
+        // 橫的），而這個容器是直的——照比例算會得到比框還寬的佔位，載入前那一瞬間
+        // 整張圖會凸出去。圖本身是 objectFit: scale-down，夾住不會讓它變形。
+        ...(fillHeight
+          ? {
+              height: '100%',
+              width: 'auto',
+              maxWidth: '100%',
+              aspectRatio: String(ratio),
+            }
+          : { width: '100%', aspectRatio: String(ratio) }),
         borderRadius: 'inherit',
         overflow: 'hidden',
         ...stillSkeletonSx(reduceMotion),

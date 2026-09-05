@@ -33,7 +33,15 @@ const AnswerInputForm = ({
   };
 
   return (
-    <FormControl variant="filled" fullWidth>
+    // 包成真的 <form>，為的是**手機鍵盤**：沒有 form 的單行輸入框，iOS 那顆是
+    // 「換行」，玩家不會知道它等於送出。onSubmit 只負責擋掉原生送出（會導頁），
+    // 真正的送出仍然走上面的 handleKeyDown——那裡才有輸入法的防護。
+    <FormControl
+      variant="filled"
+      fullWidth
+      component="form"
+      onSubmit={(event) => event.preventDefault()}
+    >
       {/* label 坐的是輸入框的白底，不是底下那層深墨——所以它跟送出鈕一樣，
           必須用對白底成立的固定色。不指定的話會吃 MUI 預設的 text.secondary，
           深色模式下那是淺灰，畫在白底上等於看不見（palette.dialogue 的註解裡
@@ -52,6 +60,8 @@ const AnswerInputForm = ({
       <FilledInput
         id="mission-answer"
         type="text"
+        // 讓手機鍵盤把那顆畫成「傳送」而不是「換行」
+        inputProps={{ enterKeyHint: 'send' }}
         inputRef={inputRef}
         // 不 autoFocus（Dong 2026-08-28）。原本是為了「進到作答頁就能直接打字」，
         // 但它在手機上會立刻叫出鍵盤蓋掉半個畫面——玩家還沒讀完題目就被推到打字的

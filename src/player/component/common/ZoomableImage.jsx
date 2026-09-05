@@ -215,9 +215,12 @@ const ZoomableImage = ({
             style={{
               width: '100%',
               maxWidth: '600px',
-              maxHeight: '100%',
+              // 舞台刻意比可視範圍高出一條導覽列（見上面），所以圖片的高度上限與
+              // 垂直中心都要把那 56px 扣回來——不然圖會有一截被切在畫面外
+              //（Dong 2026-09-05 在 iOS 回報「圖片下方會超出螢幕」）。
+              maxHeight: `calc(100% - ${NAV_HEIGHT}px)`,
               position: 'absolute',
-              top: '50%',
+              top: `calc(50% - ${NAV_HEIGHT / 2}px)`,
               left: '50%',
               margin: 0,
               // 縮放／平移（我們自己算的）＋ 下滑關閉的位移。

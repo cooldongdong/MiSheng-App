@@ -276,9 +276,15 @@ const GameShell = ({
           {/* 有東西蓋滿畫面時整條淡掉：一是避免玩家想關圖卻誤按分頁，
               二是放大的圖本來就不該被導覽列壓在上面。**只能用淡掉，不能調
               z-index**——理由見下面那段。 */}
+          {/* hideWithOverlay 只在「舞台真的蓋得到它」時才成立。實測：玩家端的舞台
+              填滿整個視窗（導覽列在裡面），/create 的舞台只有預覽欄，而導覽列坐在
+              欄位下方那 56px（bottom:-56）——**在舞台外面**。那邊藏它只會留下一條
+              空白（Dong 2026-09-05 回報）。
+              instantExit：見 chromeMotionSx——它的消失不該被看見。 */}
           <ChromeFade
             id="TabBar"
-            hideWithOverlay
+            hideWithOverlay={!sidePanel && !leftPanel}
+            instantExit
             from="bottom"
             sx={{
               width: '100%',

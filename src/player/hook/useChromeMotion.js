@@ -25,13 +25,22 @@ const SHIFT_PX = 10;
  * 有 transform 的外框會變成它底下 absolute／fixed 子元素的定位基準，
  * `top: 8` 或 `bottom: 20` 會整個跑掉。
  *
- * @param hidden 現在該不該藏起來
- * @param from   'top' 從上面掉下來 / 'bottom' 從下面浮上來
- * @param base   元素本來就有的 transform（例如置中用的 translateX(-50%)）
+ * @param hidden      現在該不該藏起來
+ * @param from        'top' 從上面掉下來 / 'bottom' 從下面浮上來
+ * @param base        元素本來就有的 transform（例如置中用的 translateX(-50%)）
+ * @param instantExit 退場不做動畫，直接消失
+ *
+ * **instantExit 是給導覽列用的。** 它不是「點一下」切換的介面，而是「有東西蓋上來
+ * 了所以它不該在」——那個消失不該被看見。而放大的背景是瞬間出現的，導覽列慢慢淡
+ * 出就會在背景上演一段沒有人需要的動畫（Dong 2026-09-05：「按下放大鍵的時候可以
+ * 隱約看到導覽列的隱藏動畫」）。回來時仍然要淡，因為那時它是主角。
  */
-export const chromeMotionSx = (hidden, { from = 'top', base = '' } = {}) => {
+export const chromeMotionSx = (
+  hidden,
+  { from = 'top', base = '', instantExit = false } = {}
+) => {
   const shift = from === 'bottom' ? SHIFT_PX : -SHIFT_PX;
-  const ms = hidden ? CHROME_EXIT_MS : CHROME_ENTER_MS;
+  const ms = hidden ? (instantExit ? 0 : CHROME_EXIT_MS) : CHROME_ENTER_MS;
   const ease = hidden ? EASE_EXIT : EASE_ENTER;
   return {
     opacity: hidden ? 0 : 1,

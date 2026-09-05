@@ -13,13 +13,14 @@ const ChromeFade = ({
   children,
   from = 'top',
   hideWithOverlay = false,
+  instantExit = false,
   sx,
   ...rest
 }) => {
   const { overlayOpen, chromeHidden } = useChromeHidden();
   const hidden = hideWithOverlay ? overlayOpen : chromeHidden;
   return (
-    <Box {...rest} sx={{ ...sx, ...chromeMotionSx(hidden, { from }) }}>
+    <Box {...rest} sx={{ ...sx, ...chromeMotionSx(hidden, { from, instantExit }) }}>
       {children}
     </Box>
   );
@@ -29,6 +30,7 @@ ChromeFade.propTypes = {
   children: PropTypes.node,
   from: PropTypes.oneOf(['top', 'bottom']),
   hideWithOverlay: PropTypes.bool,
+  instantExit: PropTypes.bool,
   sx: PropTypes.object,
 };
 

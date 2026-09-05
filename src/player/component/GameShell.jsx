@@ -228,6 +228,24 @@ const GameShell = ({
               zIndex: 550,
               top: 0,
               left: 0,
+              // **關掉文字選取。這是「翻頁後第一下按不動」的成因。**
+              //
+              // 翻頁是在對白文字上拖曳兩百多像素，而 Android Chrome 會把那個
+              // 拖曳當成「選字」。選取一旦存在，**下一次點擊就被瀏覽器用來取消
+              // 選取，不會產生 click**——所以第一下沒反應、第二下才行。
+              //
+              // 這一條解釋了五輪量測的每一項：事件都在（down／up 正常）、沒人
+              // preventDefault、不在 inert 裡、位移 0px、目標同一顆、主執行緒
+              // 也不忙（long 155ms）——因為問題根本不在頁面裡，是瀏覽器層級的
+              // 手勢。也解釋了為什麼連量測面板自己的按鈕都中招。
+              //
+              // 遊戲不是文件，選字在這裡沒有用途；輸入框另外開回來。
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              '& input, & textarea': {
+                userSelect: 'text',
+                WebkitUserSelect: 'text',
+              },
               // 全螢幕道具（放大的圖、Wheel、Camera）都是 position: fixed——在 /demo
               // 整個視窗就是遊戲，所以剛好正確；但嵌在 /create 的三欄裡時，fixed 是
               // 相對「視窗」而不是「遊戲那一欄」，它們會蓋掉整個畫面。

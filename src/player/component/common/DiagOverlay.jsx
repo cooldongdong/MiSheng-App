@@ -37,16 +37,20 @@ const DiagOverlay = () => {
   // 事件時間軸：每一筆記「距離上一筆幾毫秒」。死區有多長、從哪一刻開始，
   // 只有這個看得出來。
   const lastAt = useRef(0);
-  const push = (type, extra = '') =>
+  const push = (type, extra = '') => {
+    // **時間要在事件發生的當下取**，不能取在 setState 的 updater 裡——React 會
+    // 批次處理，那些 updater 是稍後一起跑的，於是每一筆的間隔都會塌成 0～1ms
+    //（2026-09-05 實測就踩到，害整條時間軸沒有意義）。
+    const now = performance.now();
+    const gap = lastAt.current ? Math.round(now - lastAt.current) : 0;
+    lastAt.current = now;
     setState((s) => {
-      const now = performance.now();
-      const gap = lastAt.current ? Math.round(now - lastAt.current) : 0;
-      lastAt.current = now;
       return {
         ...s,
         log: [...(s.log || []).slice(-7), `+${gap} ${type}${extra ? ' ' + extra : ''}`],
       };
     });
+  };
   const label = (el) =>
     el instanceof Element
       ? `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}`

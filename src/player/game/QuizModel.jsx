@@ -1,6 +1,5 @@
 import { useContext } from 'react';
 import { normId } from '../../shared/rowKey';
-import { Typography } from '@mui/material';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 import { GameContext } from '../store/game-context';
 import { useTypewriterEffect } from '../animation/useTypewriterEffect';
@@ -64,7 +63,8 @@ const QuizModel = ({
   };
 
   if (!currentRow) {
-    return <Typography>Quiz Loading...</Typography>;
+    // 同 TalkModel：正常路徑到不了，真的到了就什麼都不畫
+    return null;
   }
 
   return (

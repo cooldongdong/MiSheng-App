@@ -1,5 +1,4 @@
 import { useState, useEffect, useContext, useRef } from 'react';
-import { Typography } from '@mui/material';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 import { useTypewriterEffect } from '../animation/useTypewriterEffect';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
@@ -90,9 +89,9 @@ const Talk = ({
     container.scrollTop = container.scrollHeight;
   }, [displayText]);
 
-  if (!currentRow) {
-    return <Typography>Loading...</Typography>;
-  }
+  // GameController 已經擋過 currentRow，正常路徑到不了這裡。
+  // 真的到了就什麼都不畫——閃一行英文字比空白更像壞掉。
+  if (!currentRow) return null;
 
   return (
     <ThemeColorLayer>

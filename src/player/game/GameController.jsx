@@ -7,10 +7,11 @@ import {
   useRef,
 } from 'react';
 import { GameContext } from '../store/game-context';
-import { Box, Typography, useMediaQuery } from '@mui/material';
+import { Box, useMediaQuery } from '@mui/material';
 import KeyHintBar from '../component/common/KeyHintBar';
 import { loadCSVData } from './csvLoader';
 import { keyOf, normId } from '../../shared/rowKey';
+import GameLoading from '../component/common/GameLoading';
 import useNextId from '../hook/useNextId';
 import usePrevId from '../hook/usePrevId';
 import useFlowKeys from '../hook/useFlowKeys';
@@ -360,12 +361,11 @@ const GameController = ({
     model: currentRow?.model,
   });
 
-  if (!rundownData || !Array.isArray(rundownData)) {
-    return <Typography>Loading data...</Typography>;
-  }
-
-  if (!currentRow) {
-    return <Typography>Loading...</Typography>;
+  // 資料還沒解析完、或位置還沒決定好。**這是玩家進遊戲真正會看到的那一格**
+  //（GameShell 那道守門只擋到「檔案抓回來了沒」，CSV 解析與存檔還原都在這之後），
+  // 所以它跟開場畫面用同一份骨架，不是一行英文字。
+  if (!rundownData || !Array.isArray(rundownData) || !currentRow) {
+    return <GameLoading />;
   }
 
   // 遊戲欄頂端那一列的內容。回退後的但書優先——那一刻要講的是

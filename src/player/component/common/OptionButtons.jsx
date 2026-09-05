@@ -1,3 +1,4 @@
+import { keyOf } from '../../../shared/rowKey';
 import NextButton from './NextButton';
 import KeyCap from './KeyCap';
 import PropTypes from 'prop-types';
@@ -9,7 +10,10 @@ const OptionButtons = ({ options, onOptionClick, showKeys = false }) => (
     {options.map((option, index) => {
       return (
         <NextButton
-          key={option.id}
+          // 選項是「以這一列為 parentId 的那些 row」撈出來的，沒有任何人指向
+          // 選項自己 ⇒ 它的 id 本來就不必填（見 shared/rowKey）。用 option.id
+          // 當 key 的話，兩個都沒取名字的選項會拿到同一個 undefined，React 會接錯。
+          key={keyOf(option)}
           href={option.url}
           onClick={!option.url ? () => onOptionClick(option.nextId) : undefined}
         >
@@ -24,9 +28,9 @@ const OptionButtons = ({ options, onOptionClick, showKeys = false }) => (
 OptionButtons.propTypes = {
   options: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      id: PropTypes.string,
       title: PropTypes.string.isRequired,
-      nextId: PropTypes.string.isRequired,
+      nextId: PropTypes.string,
     })
   ).isRequired,
   onOptionClick: PropTypes.func.isRequired,

@@ -437,7 +437,9 @@ const GameController = ({
         <Box style={swipe.style} sx={{ position: 'absolute', inset: 0 }}>
           {slots.map((slot) => (
             <Box
-              key={slot.row.id}
+              // 對白列的 id 可以留空，兩個相鄰的無名列會拿到同一個 undefined——
+              // 而 slots 管的正是換頁動畫中的前後頁，接錯會把上一頁留在畫面上
+              key={keyOf(slot.row)}
               // inert：預覽那一頁裡有真的輸入框與按鈕。整棵子樹不可聚焦也不可互動，
               // 所以 Tab 不會走進去、按鈕按不到，未來哪個元件又加了 autoFocus 也搶不走
               // 玩家的游標。它是 attribute，切換不會讓 React 重掛這棵樹。

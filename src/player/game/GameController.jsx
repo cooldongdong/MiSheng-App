@@ -1,9 +1,17 @@
-import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { GameContext } from '../store/game-context';
-import { Box, Typography, useMediaQuery } from '@mui/material';
+import { Box, useMediaQuery } from '@mui/material';
 import KeyHintBar from '../component/common/KeyHintBar';
 import { loadCSVData } from './csvLoader';
 import { keyOf, normId } from '../../shared/rowKey';
+import GameLoading from '../component/common/GameLoading';
 import useNextId from '../hook/useNextId';
 import usePrevId from '../hook/usePrevId';
 import useFlowKeys from '../hook/useFlowKeys';
@@ -54,6 +62,7 @@ const GameController = ({
     playerMissionData,
     mapMode,
     spatialNav,
+    record,
   } = useContext(GameContext);
   // 目前這一列直接從 currentId 算，不再存成 state。
   //
@@ -138,6 +147,24 @@ const GameController = ({
       console.log('這頁沒有 missionId');
     }
   }, [currentRow, missionData]);
+
+  // 走到一列「沒有下一步」的地方＝流程的終點。
+  //
+  // 用 getNextId() 判斷而不是「是不是陣列最後一列」：nextId 可以跳，物理上的最後
+  // 一列不一定是結局。Quiz 也不會誤判——它沒有自己的 nextId，但 getNextId 會給
+  // 物理下一列，所以不是 null。
+  //
+  // **注意：這不是「完賽」的可靠訊號。** 實測 demo 根本不會走到這裡——它最後一列
+  // 是 nextId=447 的 Quiz，流程繞回去了，沒有任何一列是死路。要算完賽率請看
+  // 最後一關的 answer_right，那個才是玩家真的把遊戲玩完的證據。
+  // 這一則的意義是「他走到了流程的盡頭」，只有寫成線性結局的遊戲才會有。
+  const endedRef = useRef(false);
+  useEffect(() => {
+    if (!currentRow || endedRef.current) return;
+    if (getNextId()) return;
+    endedRef.current = true;
+    record('game_end', { missionId: currentRow.missionId });
+  }, [currentRow, getNextId, record]);
 
   // Quiz 的選項＝以這一列為 parentId 的那些 row（跟 QuizModel 的算法一致）。
   // 這裡也算一次，是為了讓數字鍵不必等 QuizModel 把它算好再往上傳。
@@ -334,12 +361,11 @@ const GameController = ({
     model: currentRow?.model,
   });
 
-  if (!rundownData || !Array.isArray(rundownData)) {
-    return <Typography>Loading data...</Typography>;
-  }
-
-  if (!currentRow) {
-    return <Typography>Loading...</Typography>;
+  // 資料還沒解析完、或位置還沒決定好。**這是玩家進遊戲真正會看到的那一格**
+  //（GameShell 那道守門只擋到「檔案抓回來了沒」，CSV 解析與存檔還原都在這之後），
+  // 所以它跟開場畫面用同一份骨架，不是一行英文字。
+  if (!rundownData || !Array.isArray(rundownData) || !currentRow) {
+    return <GameLoading />;
   }
 
   // 遊戲欄頂端那一列的內容。回退後的但書優先——那一刻要講的是
@@ -425,6 +451,10 @@ const GameController = ({
           //           不會中途交還**，所以在那塊區域上永遠翻不了頁。長清單適合。
           //   none  — 由 useSwipeFlow 自己捲，捲到底再把剩下的位移轉成翻頁。
           //           沒有慣性，適合只溢出一點的小框（對白框走這條）。
+          //
+          // 曾經改成「全螢幕時放開，讓瀏覽器接手雙指縮放」，但那會**連介面一起放大**
+          //（瀏覽器縮放的是整個頁面）。改成放大的圖自己接管所有觸控之後，這裡就該
+          // 維持 none——不要讓瀏覽器也插一腳。
           touchAction: 'none',
           // **這一層不要上底色。** 一度鋪過 dialogue.surface 當「露縫時不要白閃」的保險，
           // 但那反而製造了真正的 bug：Img 沒有色層、MissionStart 是一張 MUI Paper 白卡，
@@ -437,7 +467,9 @@ const GameController = ({
         <Box style={swipe.style} sx={{ position: 'absolute', inset: 0 }}>
           {slots.map((slot) => (
             <Box
-              key={slot.row.id}
+              // 對白列的 id 可以留空，兩個相鄰的無名列會拿到同一個 undefined——
+              // 而 slots 管的正是換頁動畫中的前後頁，接錯會把上一頁留在畫面上
+              key={keyOf(slot.row)}
               // inert：預覽那一頁裡有真的輸入框與按鈕。整棵子樹不可聚焦也不可互動，
               // 所以 Tab 不會走進去、按鈕按不到，未來哪個元件又加了 autoFocus 也搶不走
               // 玩家的游標。它是 attribute，切換不會讓 React 重掛這棵樹。

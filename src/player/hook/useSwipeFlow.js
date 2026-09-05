@@ -126,6 +126,16 @@ const useSwipeFlow = ({
   //      使用者在 500ms 內又按下去，拆監聽器的那個 timer 就被清掉了，監聽器**永遠留著**，
   //      直到吃掉某一次點擊為止。
   // 現在沒有任何 timer：窗口靠時間戳自己過期，關不掉也漏不掉。
+  // 判準是「**這一次手勢之後、下一次觸碰之前**」，不是一段時間。
+  //
+  // 尾隨的那一下 click 是瀏覽器在 pointerup 之後立刻補的，一定早於使用者的下一次
+  // 觸碰。所以只要有新的 pointerdown，窗口就作廢——之後那一下 click 屬於新的動作。
+  //
+  // 這個判準換過兩次，兩次都是因為它吃掉了真的點擊：
+  //   2026-08-28（Quiz 選項）：窗口 500ms → 120ms。只是縮短，判準沒換。
+  //   2026-09-05（放大鈕）：加了「目標是不是手勢起點」，**但那個比對用 contains()，
+  //     而放大鈕正好是手勢起點那棵子樹裡的元素**，於是照樣被吃。
+  // ⇒ 時間與位置都不是這件事的本質，「有沒有開始新的一次觸碰」才是。
   const swallowUntil = useRef(0);
   useEffect(() => {
     const onClick = (e) => {
@@ -134,8 +144,16 @@ const useSwipeFlow = ({
       e.preventDefault();
       e.stopPropagation();
     };
+    // 捕獲階段、掛在 window：新的觸碰一開始就讓上一次的窗口失效
+    const onAnyDown = () => {
+      swallowUntil.current = 0;
+    };
     window.addEventListener('click', onClick, true);
-    return () => window.removeEventListener('click', onClick, true);
+    window.addEventListener('pointerdown', onAnyDown, true);
+    return () => {
+      window.removeEventListener('click', onClick, true);
+      window.removeEventListener('pointerdown', onAnyDown, true);
+    };
   }, []);
   const swallowNextClick = useCallback(() => {
     swallowUntil.current = performance.now() + CLICK_TAIL_MS;

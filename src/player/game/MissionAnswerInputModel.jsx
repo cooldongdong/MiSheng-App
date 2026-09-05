@@ -27,6 +27,7 @@ const MissionAnswerInputModel = ({
     getMissionById,
     playerMissionData,
     updateMissionStatus,
+    record,
   } = useContext(GameContext);
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -98,12 +99,17 @@ const MissionAnswerInputModel = ({
       (simiAnswer) => normalize(simiAnswer) === normalize(value)
     );
 
+    // 玩家打了什麼，是這批資料裡最有價值的一項——`similarAnswer` 那一欄現在靠猜
+    // 和試玩填，有真資料它就變成填空題。「我放棄了」是指令不是答案，不記成答錯。
     if (isCorrect) {
+      record('answer_right', { missionId: currentMission.id, value });
       updateMissionStatus(currentMission.id, 'complete');
       setFeedback(currentMission.successText);
       setIsAnswerCorrect(true);
       setOpenDialog(true); // 打開彈出視窗
     } else if (similarKey) {
+      // 命中 similarAnswer 仍然是答錯，只是有客製回饋——分不分開留給分析時決定
+      record('answer_wrong', { missionId: currentMission.id, value });
       setFeedback(similarAnswers[similarKey]);
       setOpenDialog(true);
     } else if (value.trim() === '我放棄了') {
@@ -111,6 +117,7 @@ const MissionAnswerInputModel = ({
         setConfirmGiveUpText(currentMission.confirmGiveUpText);
       setOpenConfirmDialog(true); // 顯示確認放棄的對話框
     } else {
+      record('answer_wrong', { missionId: currentMission.id, value });
       setFeedback('答案錯誤，請再試一次。');
       setIsAnswerCorrect(false);
       if (giveupCountdown > 0) {
@@ -142,6 +149,7 @@ const MissionAnswerInputModel = ({
   });
 
   const confirmGiveUp = () => {
+    record('give_up', { missionId: currentMission.id });
     updateMissionStatus(currentMission.id, 'complete');
     setFeedback(currentMission.giveUpText);
     setIsGiveUp(true);

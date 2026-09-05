@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Skeleton } from '@mui/material';
 import {
   useImageRatio,
@@ -22,19 +23,66 @@ import {
 const SkeletonImage = ({
   src,
   alt,
-  fillHeight = false, // 外層已經給了固定高度（ImgModel），這時不要再用長寬比撐
+  fillHeight = false, // 高度來自外層（ImgModel），寬度改由長寬比算
   style,
   ...imgProps
 }) => {
   const { ref, loaded, ratio, onLoad, onError } = useImageRatio(src);
   const reduceMotion = useReduceMotion();
 
+  // fillHeight 模式用量到的高度回推寬度（理由見下面外框的註解）。
+  // 高度不依賴寬度（外層 Paper 是固定高度），所以這裡沒有循環。
+  const boxRef = useRef(null);
+  const [box, setBox] = useState({ h: 0, maxW: 0 });
+  useEffect(() => {
+    if (!fillHeight) return undefined;
+    const el = boxRef.current;
+    if (!el) return undefined;
+    // 可用寬度取「Paper 的外層」——Paper 自己是 shrink-to-fit（寬度由我們決定），
+    // 拿它當上限會變成循環。fillHeight 只有 ImgModel 在用，那一層是固定的 76%。
+    const outer = el.parentElement?.parentElement;
+    const measure = () =>
+      setBox({
+        h: el.getBoundingClientRect().height,
+        maxW: outer?.clientWidth || 0,
+      });
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (outer) ro.observe(outer);
+    return () => ro.disconnect();
+  }, [fillHeight]);
+
+  const fixedWidth =
+    fillHeight && box.h
+      ? Math.min(box.h * ratio, box.maxW || Number.POSITIVE_INFINITY)
+      : null;
+
   return (
     <Box
+      ref={boxRef}
       sx={{
         position: 'relative',
-        width: '100%',
-        ...(fillHeight ? { height: '100%' } : { aspectRatio: String(ratio) }),
+        // 兩種模式都由**外框**決定版面，圖片絕對定位疊上去——骨架才有位子可以佔。
+        // 差別只在外框的寬度從哪來：
+        //
+        //   一般（道具／故事／提示的清單）：寬度來自外層，高度用長寬比算。
+        //   fillHeight（ImgModel）：高度來自外層，**寬度用量到的高度乘以比例**。
+        //
+        // fillHeight 為什麼是量的，不是算的：
+        //   ① 一度寫 `width: '100%'`，在 ImgModel 會塌成 0 寬——它的容器是
+        //      `alignItems: 'center'`，flex 子項不會被拉滿，於是 Paper 的寬度只能由
+        //      內容決定，而內容又反過來要求「父層的 100%」。循環的百分比寬度在 CSS
+        //      裡的答案就是 0，圖片變成畫面上一條線。
+        //   ② 改成 `aspect-ratio` ＋ `width: auto` 之後 Chrome 好了，**Safari 還是
+        //      一條線**——被拉伸的 flex 子項上，Safari 不用長寬比回推寬度。
+        //   ③ 改成讓 <img> 自己撐，兩邊都對了，但**版面要等圖載進來才成形**，
+        //      於是放大鈕會先在一個位置再跳到另一個（Dong 在 iOS 上回報）。
+        //   ⇒ 量出來的 px 沒有這三個問題：每個瀏覽器都認，而且圖還沒到就已經定位。
+        ...(fillHeight
+          ? { height: '100%', width: fixedWidth ? `${fixedWidth}px` : 'auto' }
+          : { width: '100%', aspectRatio: String(ratio) }),
         borderRadius: 'inherit',
         overflow: 'hidden',
         ...stillSkeletonSx(reduceMotion),
@@ -53,10 +101,11 @@ const SkeletonImage = ({
         onLoad={onLoad}
         onError={onError}
         style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
+          // 版面由外框決定，圖片疊上去。還沒量到高度的那一瞬間退回「讓圖自己撐」，
+          // 免得外框 0 寬什麼都看不到。
+          ...(fillHeight && !fixedWidth
+            ? { display: 'block', height: '100%', width: 'auto' }
+            : { position: 'absolute', inset: 0, width: '100%', height: '100%' }),
           objectFit: 'scale-down',
           borderRadius: 'inherit',
           opacity: loaded ? 1 : 0,

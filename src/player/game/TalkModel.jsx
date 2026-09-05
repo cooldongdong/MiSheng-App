@@ -1,7 +1,5 @@
-import { useState, useEffect, useContext, useRef } from 'react';
-import { Typography } from '@mui/material';
+import { useContext } from 'react';
 import PropTypes from 'prop-types'; // 引入 PropTypes
-import { useTypewriterEffect } from '../animation/useTypewriterEffect';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
 import Layer from '../component/layer/Layer';
 import GradientLayer from '../component/layer/GradientLayer';
@@ -33,8 +31,6 @@ const Talk = ({
     customPairs,
   } = useContext(GameContext);
   const currentMission = getMissionById(currentMissionId);
-  const textContainerRef = useRef(null);
-  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
   // 講者、底圖、「要不要給全文鈕」三個都是從 currentRow 推導出來的，**推導值就用推導的**。
   //
@@ -55,44 +51,9 @@ const Talk = ({
     }
   );
 
-  const displayText = useTypewriterEffect(
-    processedText || '', // Pass the dialogue text to the hook
-    50, // Typing speed in milliseconds
-    textMode // 見 useTypewriterEffect：往回走給全文、正在滑過來的先不給字
-  );
-
-  // 監聽滾動行為
-  useEffect(() => {
-    const container = textContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const isAtBottom =
-        container.scrollTop + container.clientHeight >=
-        container.scrollHeight - 5;
-
-      if (!isAtBottom) {
-        setIsUserScrolling(true); // 只有當使用者沒滾到底時，才視為手動滾動
-      }
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  // 當文字更新時，自動滾動到底部（如果使用者沒有手動滾動）
-  useEffect(() => {
-    const container = textContainerRef.current;
-    if (!container || isUserScrolling) return; // 如果使用者正在手動滾動，就不執行
-
-    container.scrollTop = container.scrollHeight;
-  }, [displayText]);
-
-  if (!currentRow) {
-    return <Typography>Loading...</Typography>;
-  }
+  // GameController 已經擋過 currentRow，正常路徑到不了這裡。
+  // 真的到了就什麼都不畫——閃一行英文字比空白更像壞掉。
+  if (!currentRow) return null;
 
   return (
     <ThemeColorLayer>
@@ -120,9 +81,9 @@ const Talk = ({
         <Layer>
           <TalkBox
             title={currentRow?.title || currentRow.speaker}
-            text={displayText}
+            text={processedText}
             fullText={currentRow?.text}
-            textContainerRef={textContainerRef}
+            typeMode={textMode}
             onNext={onNext}
             canProceed={canProceed}
             showIcon={showFullTextIcon}

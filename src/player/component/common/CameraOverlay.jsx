@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useContext, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Box, Fab, Slider, Typography } from '@mui/material';
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded';
 import PauseRoundedIcon from '@mui/icons-material/PauseRounded';
@@ -32,6 +32,14 @@ const BLOCKED_MESSAGE = {
 
 const CameraStage = ({ src, title, onClose }) => {
   const [frozen, setFrozen] = useState(false);
+
+  // 這一頁蓋滿畫面，底部導覽列要收起來（同放大的圖，見 game-provider 的 overlayCount）
+  const { openOverlay, closeOverlay } = useContext(GameContext);
+  useEffect(() => {
+    openOverlay?.();
+    return () => closeOverlay?.();
+  }, [openOverlay, closeOverlay]);
+
   const [opacity, setOpacity] = useState(0.5);
   const canvasRef = useRef(null);
 

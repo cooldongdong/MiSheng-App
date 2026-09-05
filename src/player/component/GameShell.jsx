@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Container, Stack } from '@mui/material';
 import RestartButton from './common/RestartButton';
+import ExportEventsButton from './common/ExportEventsButton';
 import { GameProvider } from '../store/game-provider';
 import FixedBottomNavigation from './BottomNavigation';
 import MissionPage from './page/MissionPage';
@@ -9,6 +10,19 @@ import PropPage from './page/PropPage';
 import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
+import GameLoading from './common/GameLoading';
+import DiagOverlay from './common/DiagOverlay';
+import { useTouchClickRecovery } from '../hook/useTouchClickRecovery';
+
+// 現場量測面板：網址帶 ?diag=1 才出現（見 DiagOverlay）
+const wantsDiag = () => {
+  try {
+    return new URLSearchParams(window.location.search).get('diag') === '1';
+  } catch {
+    return false;
+  }
+};
+import ChromeFade from './common/ChromeFade';
 
 // 中間那一欄預設就是「一支手機」。
 //
@@ -62,6 +76,9 @@ const GameShell = ({
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
   resizable = true,
 }) => {
+  // Chrome 在滑動翻頁後會吞掉下一次觸控的 click（見 hook 檔頭的證據）
+  useTouchClickRecovery();
+
   const [value, setValue] = useState(2);
   // 兩條分隔線：左面板寬度、遊戲那欄的寬度
   const [leftW, setLeftW] = useState(268);
@@ -136,7 +153,7 @@ const GameShell = ({
   };
 
   const renderMainContainer = () => {
-    if (!gameData) return <div>載入中...</div>;
+    if (!gameData) return <GameLoading />;
 
     switch (value) {
       case 0:
@@ -215,6 +232,24 @@ const GameShell = ({
               zIndex: 550,
               top: 0,
               left: 0,
+              // **關掉文字選取。這是「翻頁後第一下按不動」的成因。**
+              //
+              // 翻頁是在對白文字上拖曳兩百多像素，而 Android Chrome 會把那個
+              // 拖曳當成「選字」。選取一旦存在，**下一次點擊就被瀏覽器用來取消
+              // 選取，不會產生 click**——所以第一下沒反應、第二下才行。
+              //
+              // 這一條解釋了五輪量測的每一項：事件都在（down／up 正常）、沒人
+              // preventDefault、不在 inert 裡、位移 0px、目標同一顆、主執行緒
+              // 也不忙（long 155ms）——因為問題根本不在頁面裡，是瀏覽器層級的
+              // 手勢。也解釋了為什麼連量測面板自己的按鈕都中招。
+              //
+              // 遊戲不是文件，選字在這裡沒有用途；輸入框另外開回來。
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              '& input, & textarea': {
+                userSelect: 'text',
+                WebkitUserSelect: 'text',
+              },
               // 全螢幕道具（放大的圖、Wheel、Camera）都是 position: fixed——在 /demo
               // 整個視窗就是遊戲，所以剛好正確；但嵌在 /create 的三欄裡時，fixed 是
               // 相對「視窗」而不是「遊戲那一欄」，它們會蓋掉整個畫面。
@@ -241,10 +276,12 @@ const GameShell = ({
           {/* 左上角＝身分與出口，右上角＝這一頁的控制項。
               兩邊都只在 !devTools 時出現：/create 的三欄有自己的導覽列（左欄頂端），
               不需要在遊戲畫面上再疊一顆。 */}
+          {wantsDiag() && <DiagOverlay />}
+
           {!devTools && brand && (
-            <Box sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
+            <ChromeFade sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
               {brand}
-            </Box>
+            </ChromeFade>
           )}
 
           {/* 右上角那組控制項。掛在這裡（Provider 內）而不是 App.jsx，是因為重啟鈕
@@ -252,10 +289,7 @@ const GameShell = ({
               算座標。/create 不給——那邊右上角已經有面板按鈕，而且重啟鈕在
               previewMode 下只會把試算表一起丟掉。 */}
           {!devTools && (
-            <Stack
-              direction="row"
-              spacing={0.5}
-              alignItems="center"
+            <ChromeFade
               sx={{
                 position: 'absolute',
                 top: 8,
@@ -265,13 +299,27 @@ const GameShell = ({
                 bgcolor: 'background.overlay',
               }}
             >
-              <RestartButton />
-              {headerActions}
-            </Stack>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <ExportEventsButton />
+                <RestartButton />
+                {headerActions}
+              </Stack>
+            </ChromeFade>
           )}
 
-          <Box
+          {/* 有東西蓋滿畫面時整條淡掉：一是避免玩家想關圖卻誤按分頁，
+              二是放大的圖本來就不該被導覽列壓在上面。**只能用淡掉，不能調
+              z-index**——理由見下面那段。 */}
+          {/* 兩邊一律收起來（Dong 2026-09-05：/create 的作動要跟手機版一樣）。
+              /create 曾經例外過一次，因為那邊的舞台只有預覽欄、導覽列坐在欄位下方
+              那 56px，收起來會留下一條空白——但那是**舞台不夠大**，不是不該收。
+              舞台現在往下多蓋 NAV_HEIGHT，例外就不需要了。
+              instantExit：見 chromeMotionSx——它的消失不該被看見。 */}
+          <ChromeFade
             id="TabBar"
+            hideWithOverlay
+            instantExit
+            from="bottom"
             sx={{
               width: '100%',
               position: sidePanel || leftPanel ? 'absolute' : 'fixed',
@@ -284,8 +332,15 @@ const GameShell = ({
               // 凸進遊戲區的範圍就會被對白框那些東西蓋住（Dong 2026-09-02 回報）。
               // 兩個都是定位元素，有明確 z-index 的那個贏，而這裡原本沒設。
               //
-              // 停在 700：要蓋過遊戲內容（550）與分隔線（600），但**必須低於全螢幕
-              // 道具**（放大的圖 1000–1102、Camera 1200）——那些東西蓋住導覽列是對的。
+              // 停在 700：要蓋過遊戲內容（550）與分隔線（600）。
+              //
+              // ⚠️ **原本這裡寫「必須低於全螢幕道具（放大的圖 1000–1102、Camera 1200），
+              // 那些東西蓋住導覽列是對的」——那句話是錯的。** 那些元素活在
+              // #main-container（550＋transform）建立的堆疊脈絡**裡面**，對外只值 550，
+              // 不管自己標多少都贏不了這裡的 700。實測：放大圖片的縮小鈕標 1102，
+              // 照樣被「解謎」的圖示蓋掉（Dong 2026-09-05 回報）。
+              // ⇒ 要蓋過導覽列的東西不能靠調 z-index。現在的作法是**全螢幕時整條
+              //   淡掉**（hideWithOverlay），所以縮小鈕不必再閃避它的位置。
               zIndex: 700,
             }}
           >
@@ -293,7 +348,7 @@ const GameShell = ({
               value={value}
               onChange={(event, newValue) => setValue(newValue)}
             />
-          </Box>
+          </ChromeFade>
         </Container>
 
         {sidePanel && (

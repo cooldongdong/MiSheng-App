@@ -66,13 +66,20 @@ const DiagOverlay = () => {
       push('down', label(e.target));
       const sel = window.getSelection?.();
       const vv = window.visualViewport;
+      // **文件本身捲不捲得動。** 如果捲得動，一次拖曳就可能在瀏覽器那邊留下一段
+      // 慣性滑動（fling），而 Chrome 會把「停止慣性的那一下」整個吃掉——包含它的
+      // 相容性滑鼠事件。那正好是我們看到的症狀：touch 有、mouse 沒有。
+      const se = document.scrollingElement || document.documentElement;
+      const canScroll =
+        se.scrollHeight > se.clientHeight + 1 || se.scrollWidth > se.clientWidth + 1;
       setState((s) => ({
         ...s,
         env:
           `選取${sel && !sel.isCollapsed ? sel.toString().length + '字' : '無'}` +
           ` 縮放${vv ? vv.scale.toFixed(2) : '?'}` +
           ` 網址列${vv ? Math.round(vv.offsetTop) : '?'}` +
-          ` 焦點${document.activeElement?.tagName?.toLowerCase() || '?'}`,
+          ` 焦點${document.activeElement?.tagName?.toLowerCase() || '?'}` +
+          ` 文件${canScroll ? `可捲(${se.scrollHeight}/${se.clientHeight})` : '不可捲'}`,
       }));
     };
     // 有 up 沒有 click ⇒ 按下與放開之間，那個元素被換掉了（React 重掛），

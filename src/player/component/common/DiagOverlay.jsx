@@ -203,6 +203,7 @@ inert ${state.inert}
 自測鈕 ${state.self}
 gap  ${state.lastGap}
 long ${state.longTask} (累計 ${state.longTotal}ms)
+${state.log.join('\n')}
 （點我歸零）`}
     </Box>
   );

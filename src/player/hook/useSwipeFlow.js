@@ -126,19 +126,33 @@ const useSwipeFlow = ({
   //      使用者在 500ms 內又按下去，拆監聽器的那個 timer 就被清掉了，監聽器**永遠留著**，
   //      直到吃掉某一次點擊為止。
   // 現在沒有任何 timer：窗口靠時間戳自己過期，關不掉也漏不掉。
+  // **除了時間，還要看目標。** 尾隨的那一下 click 一定落在手勢起點那個元素上；
+  // 使用者「翻完頁馬上去點放大鈕」的那一下落在別的地方。只用時間窗判斷的話，
+  // Android 上的 click 有時晚到，就把真的點擊吃掉了——症狀是「第一下沒反應、
+  // 第二下才行」（Dong 2026-09-05 回報。同一種症狀 2026-08-28 在 Quiz 選項上出現過，
+  // 那次只把窗口從 500ms 縮到 120ms，沒有換判準，所以病根還在）。
   const swallowUntil = useRef(0);
+  const swallowTarget = useRef(null);
   useEffect(() => {
     const onClick = (e) => {
       if (performance.now() > swallowUntil.current) return;
+      const origin = swallowTarget.current;
+      const sameOrigin =
+        origin instanceof Element &&
+        (origin === e.target ||
+          (e.target instanceof Node && origin.contains(e.target)));
+      if (!sameOrigin) return; // 不是這一次手勢的尾巴，放行
       swallowUntil.current = 0; // 只吃一下
+      swallowTarget.current = null;
       e.preventDefault();
       e.stopPropagation();
     };
     window.addEventListener('click', onClick, true);
     return () => window.removeEventListener('click', onClick, true);
   }, []);
-  const swallowNextClick = useCallback(() => {
+  const swallowNextClick = useCallback((origin) => {
     swallowUntil.current = performance.now() + CLICK_TAIL_MS;
+    swallowTarget.current = origin ?? null;
   }, []);
 
   // 翻頁＝整頁滑滿一個容器高度，讓底下那張預覽剛好就位，然後把位移歸零、換頁。
@@ -199,7 +213,7 @@ const useSwipeFlow = ({
       // 拉得夠遠就不是點擊——**用 downY 不用 startY**，而且要在 locked 的早退之前。
       // 只捲了對白框、沒翻頁的那種手勢也算：原生捲動會自己壓掉尾隨的 click，
       // 但我們是自己捲的，不壓就會在放開時點到底下的東西。
-      if (Math.abs(d.lastY - d.downY) > CLICK_GUARD) swallowNextClick();
+      if (Math.abs(d.lastY - d.downY) > CLICK_GUARD) swallowNextClick(d.target);
       if (!d.locked) return;
 
       const dy = d.lastY - d.startY;

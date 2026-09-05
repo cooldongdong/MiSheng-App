@@ -156,39 +156,47 @@ const ZoomableImage = ({
 
       {/* 當圖片放大時 */}
       {isFullScreen && (
-        <>
-          {/* 半透明背景，點擊可縮小。
-              data-no-swipe：放大的圖蓋滿整個遊戲區，這時上下滑該是「看圖」而不是
-              翻頁——玩家端的滑動手勢（useSwipeFlow）看到這個標記就整個不接手。 */}
+        <Box
+          data-no-swipe
+          sx={{
+            // **這一層是「舞台」，而且會裁切。**
+            //
+            // 自己接管縮放之後，放大的圖會超出原本的框——玩家端只是超出畫面看不到，
+            // 但 /create 的預覽只是三欄裡的中間那一欄，圖就整個蓋到左欄與流程圖上
+            //（Dong 2026-09-05 附圖）。所以要有一個會裁的容器。
+            //
+            // 裡面三個東西改成 absolute（原本各自 fixed）：overflow:hidden 裁不到
+            // position:fixed 的子孫，除非裁切的那一層剛好是它們的定位基準。改成
+            // absolute 就沒有這個但書了。
+            //
+            // 100vw/100vh 會量到「視窗」，嵌在 /create 的欄位裡時會溢出去；
+            // fixed ＋ inset:0 才是填滿定位基準（見 GameShell #main-container 的 transform）。
+            //
+            // data-no-swipe 掛在這一層就夠：useSwipeFlow 是用 closest() 往上找的。
+            position: 'fixed',
+            inset: 0,
+            m: '0 !important',
+            overflow: 'hidden',
+            zIndex: 1000,
+          }}
+        >
+          {/* 背景，點擊可縮小。
+              **不透明**：一度是 0.9，於是底下那一頁的介面會隱約透出來——平常被圖片
+              蓋住看不到，但往下拖曳時上緣露出來，NEXT 鈕就浮在那裡（Dong 附圖）。
+              看謎面的時候不該看到別的東西。 */}
           <Box
-            data-no-swipe
             onClick={onToggle}
             sx={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              m: '0 !important',
-              // 100vw/100vh 會量到「視窗」，嵌在 /create 的欄位裡時會溢出去；
-              // 100% 才是填滿定位基準（見 GameShell #main-container 的 transform）
-              width: '100%',
-              height: '100%',
-              // **不透明。** 一度是 0.9，於是底下那一頁的介面會**隱約透出來**——
-              // 平常被圖片蓋住看不到，但往下拖曳時上緣露出來，NEXT 鈕就浮在那裡
-              //（Dong 2026-09-05 附圖）。看謎面的時候不該看到別的東西。
+              position: 'absolute',
+              inset: 0,
               backgroundColor: 'rgb(200, 200, 200)',
-              // **拖曳時不要跟著變透明。** 一度做成「拉得愈遠背景愈透」當作即將關閉的
-              // 回饋，但透出來的不是相簿那種有意義的來源畫面，而是底下那一頁的遊戲介面
-              //——玩家會看到 NEXT 鈕突然浮在圖片上方（Dong 2026-09-05 回報）。
-              // 圖片自己的位移＋縮小已經夠說明「它要離開了」。
-              zIndex: 1000,
             }}
           />
 
-          {/* 放大的圖片 */}
-          {/* 放大這一份不疊骨架：要點放大就一定先看過縮圖，瀏覽器已經有快取、
-              比例也在那一次記過了，疊上去只會閃一下。 */}
+          {/* 放大的圖片。
+              不疊骨架：要點放大就一定先看過縮圖，瀏覽器已經有快取、比例也記過了，
+              疊上去只會閃一下。 */}
           <img
-            data-no-swipe
             src={src}
             alt={alt}
             ref={imgRef}
@@ -197,7 +205,7 @@ const ZoomableImage = ({
               width: '100%',
               maxWidth: '600px',
               maxHeight: '100%',
-              position: 'fixed',
+              position: 'absolute',
               top: '50%',
               left: '50%',
               margin: 0,
@@ -212,37 +220,32 @@ const ZoomableImage = ({
               // 左上角的品牌標與右上角那排按鈕會跟著一起變大（Dong 2026-09-05 回報）。
               touchAction: 'none',
               objectFit: 'scale-down',
-              zIndex: 1101, // 確保圖片在最上層
+              zIndex: 1,
             }}
           />
 
-          {/* 縮小按鈕 */}
           {/* 縮小鈕留在**下方正中**，不搬去右上角——實境解謎是單手在戶外玩的，
-              右上角是拇指最難搆到的位置之一（Dong 2026-09-05）。它會蓋到圖片
-              底部的問題，改用「點一下收起介面」解決，不用搬家。
-              全螢幕時導覽列已經收起來了，所以這裡可以回到 bottom:20。 */}
-          {/* 動作樣式**下在 Fab 自己身上**，不是包一層外框——這顆是 position:fixed，
-              外框只要有 transform 就會變成它的定位基準，bottom:20 會整個跑掉。
-              置中用的 translateX(-50%) 當成 base 傳進去，讓兩個 transform 疊起來。 */}
+              右上角是拇指最難搆到的位置之一（Dong 2026-09-05）。它會蓋到圖片底部的
+              問題，改用「點一下收起介面」解決，不用搬家。
+              動作樣式下在 Fab 自己身上：外框只要有 transform 就會變成定位基準。 */}
           <Fab
-            data-no-swipe
             onClick={onToggle}
             sx={{
               ...chromeMotionSx(chromeHidden, {
                 from: 'bottom',
                 base: 'translateX(-50%)',
               }),
-              position: 'fixed',
+              position: 'absolute',
               bottom: 20,
               left: '50%',
-              zIndex: 1102, // 確保按鈕在圖片之上
+              zIndex: 2, // 在圖片之上
               backgroundColor: '#fff',
               color: '#37474F',
             }}
           >
             <CloseFullscreenRoundedIcon />
           </Fab>
-        </>
+        </Box>
       )}
     </>
   );

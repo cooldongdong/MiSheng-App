@@ -1,9 +1,10 @@
 import PropTypes from 'prop-types';
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useLayoutEffect } from 'react';
 import { Box, Fab, Paper } from '@mui/material';
 import { GameContext } from '../../store/game-context';
 import { usePhotoGestures } from '../../hook/usePhotoGestures';
 import { chromeMotionSx, useChromeHidden } from '../../hook/useChromeMotion';
+import { NAV_HEIGHT } from './layout';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import SkeletonImage from './SkeletonImage';
@@ -52,7 +53,11 @@ const ZoomableImage = ({
   useEffect(() => {
     if (isFullScreen) setChromeVisible?.(true);
   }, [isFullScreen, setChromeVisible]);
-  useEffect(() => {
+  // **useLayoutEffect 不是 useEffect。** 用後者的順序是「先畫出放大的背景 → 下一輪
+  // 才把導覽列收掉」，中間隔了一次繪製，導覽列就會在背景上被看到一格
+  //（Dong 2026-09-05 在 Android 回報「導覽列還是慢了一點消失」）。
+  // useLayoutEffect 在瀏覽器繪製前跑完，兩件事落在同一格。
+  useLayoutEffect(() => {
     if (!isFullScreen) return undefined;
     openOverlay?.();
     return () => closeOverlay?.();
@@ -174,7 +179,13 @@ const ZoomableImage = ({
             //
             // data-no-swipe 掛在這一層就夠：useSwipeFlow 是用 closest() 往上找的。
             position: 'fixed',
-            inset: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            // **往下多蓋一條導覽列。** /create 的舞台只有預覽欄（導覽列坐在欄位
+            // 下方那 56px），導覽列收起來之後那一條會變成空白（Dong 2026-09-05）。
+            // 玩家端多出來的部分落在視窗外，看不到也不影響。
+            bottom: -NAV_HEIGHT,
             m: '0 !important',
             overflow: 'hidden',
             zIndex: 1000,

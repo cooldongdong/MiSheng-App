@@ -5,6 +5,7 @@ import PageContainer from '../common/PageContainer';
 import PageTitleText from '../common/PageTitleText';
 import MissionList from '../common/MissionList';
 import ConfirmDialog from '../common/ConfirmDialog';
+import { TAB } from '../common/layout';
 
 // 舊試算表的封面關。
 //
@@ -27,6 +28,7 @@ const MissionPage = () => {
     goToId,
     setCurrentMissionId,
     updateMissionStatus,
+    goToTab,
   } = useContext(GameContext);
   const [displayMissions, setDisplayMissions] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -86,6 +88,12 @@ const MissionPage = () => {
       goToId(keyOf(missionStartRow));
       setCurrentMissionId(missionStartRow.missionId);
       updateMissionStatus(missionStartRow.missionId, 'solving');
+      // 按下「確定」的意思就是「我要去那一關」。以前跳完畫面還停在這張清單上，
+      // 玩家得自己再點一次左下角的「解謎」才看得到結果——中間那一步是多的。
+      //
+      // 只有真的跳成功才切頁：missionStartRow 找不到時什麼都沒發生，
+      // 把人丟到解謎頁只會讓他更困惑。
+      goToTab(TAB.PLAY);
     }
 
     setDialogOpen(false);

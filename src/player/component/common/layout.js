@@ -6,3 +6,19 @@
 //
 // 值來自 MUI BottomNavigation 的預設高度。
 export const NAV_HEIGHT = 56;
+
+// 底部導覽列的五個分頁。
+//
+// 抽成常數是因為它從「只有 GameShell 自己看得懂的 useState(2)」變成了跨檔案的約定：
+// 關卡頁按下跳關之後要把畫面切到解謎頁（COO-188），而那段 code 在 MissionPage。
+// 裸數字在同一個檔案裡還讀得懂，跨檔案就只是 magic number——`goToTab(2)` 沒有人
+// 看得出來是哪一頁。
+//
+// **順序跟著 BottomNavigation 裡的 BottomNavigationAction 走**，改那邊就要改這裡。
+export const TAB = {
+  MISSIONS: 0,
+  PROPS: 1,
+  PLAY: 2,
+  HINTS: 3,
+  STORIES: 4,
+};

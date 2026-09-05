@@ -27,6 +27,14 @@ export const GameProvider = ({
   // 把 src/gameFile/ 的圖整包打進 bundle。
   imgLookup = null,
   onPositionLost = null,
+  // 切換底部導覽列的分頁。**狀態不歸 provider 所有**——它住在 GameShell 的
+  // useState，這裡只當傳聲筒。
+  //
+  // 為什麼要繞這一圈：GameShell 是 <GameProvider> 的**外層**，讀不到自己提供的
+  // context，而需要切頁的是 provider 底下的 MissionPage（跳關之後要跳去解謎頁）。
+  // 把 setter 往下遞是最小的作法；把分頁索引整個搬進 provider 會讓「玩家在看哪一頁」
+  // 變成遊戲狀態的一部分，而它不是——它是外框的事（見 COO-185 的播放器／宿主分界）。
+  goToTab = null,
 }) => {
   // 只需匯入一次的遊戲資料
   const [characterData, setCharacterData] = useState(null);
@@ -586,6 +594,9 @@ export const GameProvider = ({
         missionStartedAt,
         startMission,
         updateMissionStatus,
+        // 由 GameShell 往下遞（見上面 props 的說明）。沒有宿主提供時是 noop，
+        // 這樣呼叫端不必每次都判斷有沒有。
+        goToTab: goToTab ?? (() => {}),
         customPairs,
         updateCustomPairs,
 
@@ -614,4 +625,5 @@ GameProvider.propTypes = {
   imgBase: PropTypes.string,
   imgLookup: PropTypes.func,
   onPositionLost: PropTypes.func,
+  goToTab: PropTypes.func,
 };

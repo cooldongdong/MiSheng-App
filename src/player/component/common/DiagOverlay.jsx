@@ -17,24 +17,43 @@ import { Box } from '@mui/material';
 const DiagOverlay = () => {
   const [state, setState] = useState({
     down: 0,
+    up: 0,
+    cancel: 0,
     click: 0,
     lastGap: '-',
+    fate: '-',
     longTask: '-',
     longTotal: 0,
   });
   const downAt = useRef(0);
+  const downTarget = useRef(null);
 
   useEffect(() => {
-    const onDown = () => {
+    const onDown = (e) => {
       downAt.current = performance.now();
+      downTarget.current = e.target;
       setState((s) => ({ ...s, down: s.down + 1 }));
     };
+    // 有 up 沒有 click ⇒ 按下與放開之間，那個元素被換掉了（React 重掛），
+    // 瀏覽器就不會生 click。有 cancel ⇒ 手勢被瀏覽器接管（捲動／下拉更新）。
+    const onUp = () => {
+      const t = downTarget.current;
+      const still = t instanceof Node ? t.isConnected : null;
+      setState((s) => ({
+        ...s,
+        up: s.up + 1,
+        fate: still === null ? '?' : still ? '元素還在' : '元素已被換掉',
+      }));
+    };
+    const onCancel = () => setState((s) => ({ ...s, cancel: s.cancel + 1 }));
     const onClick = (e) => {
       const gap = downAt.current ? Math.round(performance.now() - downAt.current) : -1;
       const tag = `${e.target?.tagName || '?'}`.toLowerCase();
       setState((s) => ({ ...s, click: s.click + 1, lastGap: `${gap}ms ${tag}` }));
     };
     window.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
     window.addEventListener('click', onClick, true);
 
     // 長任務＝主執行緒被佔住超過 50ms 的那一段。Chrome／Android 支援，Safari 沒有。
@@ -56,6 +75,8 @@ const DiagOverlay = () => {
     }
     return () => {
       window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
       window.removeEventListener('click', onClick, true);
       obs?.disconnect();
     };
@@ -64,7 +85,16 @@ const DiagOverlay = () => {
   return (
     <Box
       onClick={() =>
-        setState({ down: 0, click: 0, lastGap: '-', longTask: '-', longTotal: 0 })
+        setState({
+          down: 0,
+          up: 0,
+          cancel: 0,
+          click: 0,
+          lastGap: '-',
+          fate: '-',
+          longTask: '-',
+          longTotal: 0,
+        })
       }
       sx={{
         position: 'fixed',
@@ -81,7 +111,8 @@ const DiagOverlay = () => {
         pointerEvents: 'auto',
       }}
     >
-      {`down ${state.down}  click ${state.click}
+      {`down ${state.down} up ${state.up} cancel ${state.cancel} click ${state.click}
+放開時 ${state.fate}
 gap  ${state.lastGap}
 long ${state.longTask} (累計 ${state.longTotal}ms)
 （點我歸零）`}

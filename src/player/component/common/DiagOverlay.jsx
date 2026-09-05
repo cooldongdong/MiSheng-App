@@ -28,6 +28,7 @@ const DiagOverlay = () => {
     inert: '-',
     self: 0,
     log: [],
+    env: '-',
     longTask: '-',
     longTotal: 0,
   });
@@ -63,6 +64,16 @@ const DiagOverlay = () => {
       downPos.current = { x: e.clientX, y: e.clientY };
       setState((s) => ({ ...s, down: s.down + 1 }));
       push('down', label(e.target));
+      const sel = window.getSelection?.();
+      const vv = window.visualViewport;
+      setState((s) => ({
+        ...s,
+        env:
+          `選取${sel && !sel.isCollapsed ? sel.toString().length + '字' : '無'}` +
+          ` 縮放${vv ? vv.scale.toFixed(2) : '?'}` +
+          ` 網址列${vv ? Math.round(vv.offsetTop) : '?'}` +
+          ` 焦點${document.activeElement?.tagName?.toLowerCase() || '?'}`,
+      }));
     };
     // 有 up 沒有 click ⇒ 按下與放開之間，那個元素被換掉了（React 重掛），
     // 瀏覽器就不會生 click。有 cancel ⇒ 手勢被瀏覽器接管（捲動／下拉更新）。
@@ -126,6 +137,13 @@ const DiagOverlay = () => {
       setState((s) => ({ ...s, click: s.click + 1, lastGap: `${gap}ms ${tag}` }));
       push('CLICK', tag);
     };
+    // touch 與相容性滑鼠事件也記下來。**click 在觸控裝置上是相容性事件**——
+    // 如果連 mousedown 都沒發生，代表瀏覽器把這次觸控的整組相容事件都抑制了，
+    // 那跟「click 被誰吃掉」是完全不同的問題。
+    const onRaw = (e) => push(e.type);
+    ['touchstart', 'touchend', 'mousedown', 'mouseup'].forEach((t) =>
+      window.addEventListener(t, onRaw, true)
+    );
     window.addEventListener('pointerdown', onDown, true);
     window.addEventListener('pointerup', onUp, true);
     window.addEventListener('pointercancel', onCancel, true);
@@ -149,6 +167,9 @@ const DiagOverlay = () => {
       // 不支援就算了（Safari）
     }
     return () => {
+      ['touchstart', 'touchend', 'mousedown', 'mouseup'].forEach((t) =>
+        window.removeEventListener(t, onRaw, true)
+      );
       window.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('pointerup', onUp, true);
       window.removeEventListener('pointercancel', onCancel, true);
@@ -177,6 +198,7 @@ const DiagOverlay = () => {
           inert: '-',
           self: 0,
           log: [],
+          env: '-',
           longTask: '-',
           longTotal: 0,
         })
@@ -222,6 +244,7 @@ const DiagOverlay = () => {
 目標 ${state.target}
 擋掉 ${state.blocked}
 inert ${state.inert}
+${state.env}
 自測鈕 ${state.self}
 gap  ${state.lastGap}
 long ${state.longTask} (累計 ${state.longTotal}ms)

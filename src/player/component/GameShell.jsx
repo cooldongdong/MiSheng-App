@@ -11,33 +11,25 @@ import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
+import ChromeFade, { CHROME_FADE_MS } from './common/ChromeFade';
 import { GameContext } from '../store/game-context';
 
-// 有東西蓋滿畫面時，把包住的內容整個收起來。
+// 有東西蓋滿畫面時，把包住的內容淡掉。
 //
 // **必須是獨立元件**：GameShell 自己在 GameProvider 外面（它就是 render provider
 // 的那一層），所以它的函式本體讀不到 context——跟 RestartButton 同一個理由。
+//
+// 原本是「整條不畫」（回傳 null），於是導覽列**啪一下**消失與回來，而右上那排
+// 是淡的——同一個動作、兩種速度（Dong 2026-09-05 回報「按鈕回來的時間不一致」）。
+// 三處統一用 240ms 的 opacity。
 const HideWhileOverlay = ({ children }) => {
   const { overlayOpen } = useContext(GameContext);
-  return overlayOpen ? null : children;
-};
-
-HideWhileOverlay.propTypes = { children: PropTypes.node };
-
-// 全螢幕看圖時「點一下」要讓三個角落的介面一起消失，包含這裡的左上與右上。
-//
-// **只動 opacity，不做掛載／卸載**——那樣是「啪」一下出現與消失，淡不順。
-// 隱藏時一併關掉 pointerEvents，否則看不見的按鈕還按得到。
-// 同樣得是獨立元件（GameShell 讀不到自己 render 的 provider）。
-const ChromeFade = ({ children }) => {
-  const { overlayOpen, overlayChromeVisible } = useContext(GameContext);
-  const hidden = overlayOpen && !overlayChromeVisible;
   return (
     <Box
       sx={{
-        opacity: hidden ? 0 : 1,
-        pointerEvents: hidden ? 'none' : 'auto',
-        transition: 'opacity 240ms ease',
+        opacity: overlayOpen ? 0 : 1,
+        pointerEvents: overlayOpen ? 'none' : 'auto',
+        transition: `opacity ${CHROME_FADE_MS}ms ease`,
       }}
     >
       {children}
@@ -45,7 +37,8 @@ const ChromeFade = ({ children }) => {
   );
 };
 
-ChromeFade.propTypes = { children: PropTypes.node };
+HideWhileOverlay.propTypes = { children: PropTypes.node };
+
 
 // 中間那一欄預設就是「一支手機」。
 //

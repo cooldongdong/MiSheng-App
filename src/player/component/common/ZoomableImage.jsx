@@ -3,6 +3,7 @@ import { useContext, useEffect } from 'react';
 import { Box, Fab, Paper } from '@mui/material';
 import { GameContext } from '../../store/game-context';
 import { usePhotoGestures } from '../../hook/usePhotoGestures';
+import ChromeFade from './ChromeFade';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import SkeletonImage from './SkeletonImage';
@@ -45,7 +46,6 @@ const ZoomableImage = ({
   const {
     openOverlay,
     closeOverlay,
-    overlayChromeVisible: chromeVisible,
     setOverlayChromeVisible: setChromeVisible,
   } = useContext(GameContext);
   useEffect(() => {
@@ -214,16 +214,13 @@ const ZoomableImage = ({
               右上角是拇指最難搆到的位置之一（Dong 2026-09-05）。它會蓋到圖片
               底部的問題，改用「點一下收起介面」解決，不用搬家。
               全螢幕時導覽列已經收起來了，所以這裡可以回到 bottom:20。 */}
-          {/* **不要用掛載／卸載來切換。** 那樣按鈕是「啪」一下出現與消失；
-              一直掛著、只動 opacity，才淡得順。隱藏時要一併關掉 pointerEvents，
-              否則看不見的按鈕還按得到。 */}
+          {/* 跟左上、右上那些介面共用同一個 ChromeFade——四個角落只有一份實作，
+              才不會出現「回來的時間不一樣」。 */}
+          <ChromeFade>
           <Fab
             data-no-swipe
             onClick={onToggle}
             sx={{
-              opacity: chromeVisible ? 1 : 0,
-              pointerEvents: chromeVisible ? 'auto' : 'none',
-              transition: 'opacity 240ms ease',
               position: 'fixed',
               bottom: 20,
               left: '50%',
@@ -235,6 +232,7 @@ const ZoomableImage = ({
           >
             <CloseFullscreenRoundedIcon />
           </Fab>
+          </ChromeFade>
         </>
       )}
     </>

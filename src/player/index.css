@@ -43,3 +43,22 @@ body {
 
 /* html 的底色不寫在這裡——它必須在第一次繪製之前就決定，而這個檔案是被
    入口 import 的（dev 模式由 JS 注入，太晚）。見 vite/firstPaintGround.js。 */
+
+/* **可以按的東西一律 manipulation。**
+
+   Dong 2026-09-05 在 Android Chrome 實測：翻頁之後的第一下點擊，touchstart／
+   touchend 都有，但 mousedown／mouseup／click 全部沒有——瀏覽器整批抑制了那次
+   觸控的相容性滑鼠事件；第二下才全部出現，而且沒有延遲（mousedown 只慢 13ms）。
+
+   瀏覽器會抑制的典型理由是「這一下可能屬於某個手勢」，而在可縮放的頁面上，
+   那個手勢就是雙擊縮放。manipulation 的意思正是「這裡可以平移與捏合，但**不要
+   做雙擊縮放**」——宣告之後就沒有什麼好等的，第一下直接生效。
+
+   註：遊戲區的祖先是 touch-action:none（翻頁自己做），比 manipulation 更嚴格，
+   所以那裡本來就沒有雙擊縮放；這條規則真正救的是導覽列與右上角那些
+   **在遊戲區外面**的按鈕——而 Dong 回報的正是它們也點不動。 */
+button,
+[role='button'],
+a {
+  touch-action: manipulation;
+}

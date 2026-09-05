@@ -6,6 +6,18 @@ import PageTitleText from '../common/PageTitleText';
 import MissionList from '../common/MissionList';
 import ConfirmDialog from '../common/ConfirmDialog';
 
+// 舊試算表的封面關。
+//
+// mission id = '0' **不是哨兵值**，它是一列真的關卡列，內容是遊戲封面
+// （demo 的 mission[0].title 跟 config.title 一模一樣，而它底下 0 則提示、
+// 0 個道具、0 篇故事，rundown 只有那一列 MissionStart）。
+// 它只是借用關卡的資料結構顯示一張封面，再靠過濾器藏起來。
+//
+// 正解是新的 GameStart model、封面資料改由 config 供（COO-179）。
+// 在那之前——以及那之後，為了既有試算表——這一條要留著，
+// 但它的身分是**後路，不是規則**：新遊戲不該再有 mission 0。
+const LEGACY_COVER_MISSION_ID = '0';
+
 const MissionPage = () => {
   const {
     missionData,
@@ -35,7 +47,17 @@ const MissionPage = () => {
       console.log('missionData 不是有效的數組！');
       return;
     }
-    const filterMissions = missionData.filter((row) => row.id > 0);
+    // 原本寫 `row.id > 0`——那是「mission.id 一定是數字」的遺留。
+    // `'第三章' > 0` 是 false，於是用語意名字當關卡 id 的遊戲，
+    // 整個關卡頁會空掉（COO-178）。
+    //
+    // 這個過濾器真正要表達的是兩件事，跟數值大小無關：
+    // ① 沒有 id 的列不列出來（沒有人指得到它，validator 也會擋）
+    // ② 舊資料的封面關不列出來
+    const filterMissions = missionData.filter((row) => {
+      const id = String(row.id ?? '').trim();
+      return id !== '' && id !== LEGACY_COVER_MISSION_ID;
+    });
     const updatedFilterMissions = filterMissions.map((mission) => {
       const targetMission = playerMissionData.find(
         (playerMD) => playerMD.id === mission.id
@@ -68,11 +90,13 @@ const MissionPage = () => {
     setDialogOpen(false);
   };
 
-  const handleMultiClick = (index, title) => () => {
+  // 收到的是 mission.id（見 MissionItem 的 onMultiClick(mission.id, ...)），
+  // 不是陣列位置——原本的參數名叫 index，在 id 可以是語意名字之後特別容易誤導。
+  const handleMultiClick = (missionId, title) => () => {
     clickCountRef.current += 1;
 
     if (clickCountRef.current === 10) {
-      handleMissionSelect(index, title);
+      handleMissionSelect(missionId, title);
       clickCountRef.current = 0;
     }
 

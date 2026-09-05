@@ -57,6 +57,9 @@ const GameController = ({
     canGoBack,
     backId,
     playerMissionData,
+    startMission,
+    currentMissionId,
+    missionStartedAt,
     mapMode,
     spatialNav,
     record,
@@ -199,10 +202,40 @@ const GameController = ({
   const handleNext = useCallback(() => {
     const nextId = getNextId();
     if (nextId) {
+      // 從關卡說明頁往前走＝這一關真正開始（hint.timer 的計時起點）。
+      //
+      // **為什麼掛在這裡，不掛在「開始遊戲」那顆按鈕上。** 本來是掛在按鈕上的，
+      // 理由沒錯——說明頁可能停很久（讀說明、看導航連結），那段時間不該算進倒數。
+      // 錯的是它把「玩家往前走了」綁在**其中一種**走法上：MissionStart 在
+      // FORWARD_MODELS 裡，本來就可以用滑的翻過去，而滑過去的人計時永遠不啟動，
+      // 這一關的 hint.timer 從此形同沒填，畫面上完全看不出原因
+      //（Dong 2026-09-06 回報）。
+      //
+      // handleNext 是「往前走進下一頁」的唯一入口——按鈕、上滑、鍵盤 ↓ 都走它，
+      // 所以掛在這裡三種走法一次到齊，而時間點跟原本的按鈕完全一樣。
+      //
+      // **刻意不涵蓋「離開但沒進去」**：⌫／下滑（handleBack）、鍵盤 ↑（handlePrev）、
+      // 地圖模式方向鍵（handleMove）、流程圖跳走、關卡頁十連點跳到別關——
+      // 那些都不是進到這一關。站在第三關說明頁跳去第五關，第三關的倒數不該開始跑。
+      if (currentRow?.model === 'MissionStart' && currentRow.missionId) {
+        startMission(currentRow.missionId);
+      } else if (currentMissionId && !missionStartedAt?.[currentMissionId]) {
+        // 安全網：人已經在某一關裡，但那一關從來沒有起算過時間。
+        //
+        // 接的是「沒有經過 MissionStart 就進到關卡中段」的路徑：/create 點流程圖
+        // 直接跳到某一列、地圖模式用方向鍵走過去、或創作者用 nextId 跳關。
+        // 那些路徑不經過上面那一條，計時會永遠不啟動——而那正是本來的病。
+        //
+        // **也放在 handleNext，不放在 provider 的同步 effect 裡。** 放那邊的話它會在
+        // 元件掛載期間就開火，跟「從 localStorage 還原存檔」那條 effect 搶時序：
+        // 實測會出現「安全網寫進去了，然後還原把它蓋回空的」。放這裡就只在使用者
+        // 真的走一步時才跑，掛載期間不會有動作。
+        startMission(currentMissionId);
+      }
       setWentBack(false);
       goToId(nextId); // 設定下一個 ID（走 goToId 才記得下走過的路）
     }
-  }, [getNextId, goToId]);
+  }, [getNextId, goToId, currentRow, startMission, currentMissionId, missionStartedAt]);
 
   const handleBack = useCallback(() => {
     if (goBack()) setWentBack(true);

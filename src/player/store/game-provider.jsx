@@ -158,6 +158,9 @@ export const GameProvider = ({
   //
   // 舊存檔不受影響：存的是 '0' 就照樣讀回 '0'，舊遊戲指得到 mission 0，行為不變。
   const [currentMissionId, setCurrentMissionId] = useState('');
+  // 上一次同步時玩家在哪一列。只給上面那個「走到封面才清空關卡」的判斷用——
+  // 用來把「玩家自己走過去」跟「還原過程中的短暫落點」分開。
+  const prevIdRef = useRef(null);
   const [unlockedHints, setUnlockedHints] = useState({});
   // 玩家按下每一關 MissionStart 的「開始遊戲」的時刻（epoch ms），用來算 hint.timer。
   //
@@ -503,12 +506,31 @@ export const GameProvider = ({
     // 封面＝玩家不在任何一關。這是**唯一**會清掉 currentMissionId 的地方，
     // 而且由 model 判斷，**不是由 missionId 空白判斷**——rundown 的 missionId
     // 空白代表「沿用上一關」，demo 有 481 列是這樣（關卡中間的每一句對白）。
+    // 封面＝玩家不在任何一關。這是**唯一**會清掉 currentMissionId 的地方，
+    // 而且由 model 判斷，**不是由 missionId 空白判斷**——rundown 的 missionId
+    // 空白代表「沿用上一關」，demo 有 481 列是這樣（關卡中間的每一句對白）。
+    //
+    // ⚠️ **只有「從別的地方走過來」才算走到封面**（prevIdRef 的用途）。
+    //
+    // 位置還原時 currentId 會**短暫落在第一列**——上面那條 effect 的
+    // `setCurrentId(keyOf(missionStart) ?? firstKey)`：還原順序上 currentMissionId
+    // 可能還沒讀回來，於是找不到對應的 MissionStart，退回整場的開頭，而整場的開頭
+    // 現在正是 GameStart。少了這道判斷，**玩家在關卡中重整就會被清掉關卡**，
+    // 提示／道具／故事三頁跟著變空，而且要走到下一個 MissionStart 才會回來。
+    //
+    // 實測（2026-09-06）的 currentId 軌跡：`null → 1(GameStart) → 321(存檔的那一列)`。
+    // 中間那一格是還原過程，不是玩家走過去的。
     if (normId(row.model) === 'GameStart') {
-      setCurrentMissionId('');
+      const cameFromElsewhere =
+        prevIdRef.current !== null && prevIdRef.current !== currentId;
+      prevIdRef.current = currentId;
+      if (cameFromElsewhere) setCurrentMissionId('');
       return;
     }
+    prevIdRef.current = currentId;
 
     const mission = getMissionById(row.missionId);
+    // missionId 空白＝沿用上一關（demo 有 481 列是這樣），不是「沒有關卡」
     if (!mission) return;
     setCurrentMissionId(mission.id);
     updateMissionStatus(mission.id, 'solving');

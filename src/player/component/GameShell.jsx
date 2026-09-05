@@ -12,6 +12,7 @@ import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
 import DiagOverlay from './common/DiagOverlay';
+import { useTouchClickRecovery } from '../hook/useTouchClickRecovery';
 
 // 現場量測面板：網址帶 ?diag=1 才出現（見 DiagOverlay）
 const wantsDiag = () => {
@@ -75,6 +76,9 @@ const GameShell = ({
   sideFlex = 1, // 面板收合時傳 '0 0 auto'，讓遊戲吃滿剩下的空間
   resizable = true,
 }) => {
+  // Chrome 在滑動翻頁後會吞掉下一次觸控的 click（見 hook 檔頭的證據）
+  useTouchClickRecovery();
+
   const [value, setValue] = useState(2);
   // 兩條分隔線：左面板寬度、遊戲那欄的寬度
   const [leftW, setLeftW] = useState(268);

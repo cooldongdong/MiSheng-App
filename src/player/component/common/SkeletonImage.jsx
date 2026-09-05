@@ -33,25 +33,29 @@ const SkeletonImage = ({
     <Box
       sx={{
         position: 'relative',
-        // 兩種模式都吃長寬比，差別只在「哪一邊是被給定的」：
-        //   一般：寬度來自外層（清單是滿版的），高度由比例算
-        //   fillHeight：高度來自外層的固定高度，**寬度由比例算**
+        // 兩種模式的排版方式**不一樣**，因為被給定的那一邊不一樣：
         //
-        // fillHeight 原本是 `width: '100%'` ＋ 不給比例，那在 ImgModel 會塌成 0 寬——
-        // 它的容器是 `alignItems: 'center'`，flex 子項不會被拉滿，於是 Paper 的寬度
-        // 只能由內容決定，而內容又反過來要求「父層的 100%」。循環的百分比寬度在 CSS
-        // 裡的答案就是 0，圖片變成畫面上一條線（2026-09-05 Dong 回報）。
+        //   一般（道具／故事／提示的清單）：寬度來自外層，高度用長寬比算，
+        //     圖片絕對定位疊在上面 —— 骨架能在載入前就佔好位子。
         //
-        // fillHeight 一定要夾 maxWidth：還沒量到比例時用的是 DEFAULT_RATIO（4/3，
-        // 橫的），而這個容器是直的——照比例算會得到比框還寬的佔位，載入前那一瞬間
-        // 整張圖會凸出去。圖本身是 objectFit: scale-down，夾住不會讓它變形。
+        //   fillHeight（ImgModel）：高度來自外層，**寬度讓 <img> 自己撐**。
+        //
+        // fillHeight 為什麼不用長寬比：
+        //   ① 原本寫 `width: '100%'`，在 ImgModel 會塌成 0 寬——它的容器是
+        //      `alignItems: 'center'`，flex 子項不會被拉滿，於是 Paper 的寬度只能由
+        //      內容決定，而內容又反過來要求「父層的 100%」。循環的百分比寬度在 CSS
+        //      裡的答案就是 0，圖片變成畫面上一條線。
+        //   ② 改成 `aspect-ratio` ＋ `width: auto` 之後 Chrome 好了，**Safari 還是
+        //      一條線**（Dong 2026-09-05 回報）——被拉伸的 flex 子項上，Safari 不會
+        //      用長寬比回推寬度。
+        //   ⇒ 所以這裡改用「高度固定的替換元素，寬度自然由原圖比例決定」這條**從以前
+        //     就每個瀏覽器都認**的老路。代價是這個模式在載入前沒有佔位（外框寬度是 0，
+        //     骨架跟著看不見），換到的是它真的顯示得出來。
         ...(fillHeight
-          ? {
-              height: '100%',
-              width: 'auto',
-              maxWidth: '100%',
-              aspectRatio: String(ratio),
-            }
+          // **不要 display:flex**：flex 子項的 width:auto 是「照內容算」，替換元素的
+          // 內容寬度是原圖的 1080px，不是「高度 × 比例」，於是又量錯。普通的 block
+          // 外框才會讓 <img> 走「高度固定 → 寬度照原圖比例」那條老路。
+          ? { height: '100%', width: 'auto', maxWidth: '100%' }
           : { width: '100%', aspectRatio: String(ratio) }),
         borderRadius: 'inherit',
         overflow: 'hidden',
@@ -71,10 +75,16 @@ const SkeletonImage = ({
         onLoad={onLoad}
         onError={onError}
         style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
+          // fillHeight：留在正常流裡，讓它自己的原始比例決定外框有多寬（見上面）。
+          // 一般模式：絕對定位，版面完全由外框的長寬比決定。
+          ...(fillHeight
+            ? {
+                display: 'block',
+                height: '100%',
+                width: 'auto',
+                maxWidth: '100%',
+              }
+            : { position: 'absolute', inset: 0, width: '100%', height: '100%' }),
           objectFit: 'scale-down',
           borderRadius: 'inherit',
           opacity: loaded ? 1 : 0,

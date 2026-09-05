@@ -161,6 +161,18 @@ export const GameProvider = ({
   // 這一局記了幾則行為事件。只拿來決定「下載紀錄」那顆鈕要不要出現——
   // 讓它自己每次 render 去讀一次 localStorage 並 JSON.parse 太浪費。
   const [eventCount, setEventCount] = useState(0);
+  // 現在有幾個東西正蓋滿畫面（放大的圖、Camera 道具）。
+  //
+  // 用計數而不是布林：兩個疊在一起時，先關掉的那個不可以把導覽列放回來。
+  // **為什麼要有這個狀態**：全螢幕的東西活在 #main-container（z-index 550＋
+  // transform）的堆疊脈絡裡，對外只值 550，永遠壓不過導覽列的 700——擋住它
+  // 的唯一辦法是讓 GameShell 自己不要畫。
+  const [overlayCount, setOverlayCount] = useState(0);
+  const openOverlay = useCallback(() => setOverlayCount((n) => n + 1), []);
+  const closeOverlay = useCallback(
+    () => setOverlayCount((n) => Math.max(0, n - 1)),
+    []
+  );
 
   // 存檔裡那一筆位置（{ key, fp }）。還原只用它一次，用完就清掉——
   // 之後資料再變（/create 就地重讀）走的是「現在停在哪還在不在」那條路，
@@ -519,6 +531,9 @@ export const GameProvider = ({
         clearGameData,
         record,
         eventCount,
+        overlayOpen: overlayCount > 0,
+        openOverlay,
+        closeOverlay,
       }}
     >
       {children}

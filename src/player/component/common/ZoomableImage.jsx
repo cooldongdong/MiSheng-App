@@ -1,5 +1,8 @@
 import PropTypes from 'prop-types';
+import { useContext, useEffect, useState } from 'react';
 import { Box, Fab, Paper } from '@mui/material';
+import { GameContext } from '../../store/game-context';
+import { useDismissDrag } from '../../hook/useDismissDrag';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import SkeletonImage from './SkeletonImage';
@@ -34,6 +37,29 @@ const ZoomableImage = ({
   // ImgModel（zoomInFab='center'）的 Paper 是固定高度的，
   // 所以佔位改成「高度吃滿、寬度由長寬比算」（見 SkeletonImage）。
   const fixedHeight = zoomInFab === 'center';
+
+  // 全螢幕時的介面（縮小鈕）看不看得見。**點畫面一下就切換**——圖片本身就是謎面，
+  // 任何常駐的按鈕都可能蓋到關鍵的那一角，要能一鍵收乾淨（iPhone 相簿同一套）。
+  // 每次重新放大都回到「看得見」：唯一的出口不可以藏在一個要先發現的手勢後面。
+  const [chromeVisible, setChromeVisible] = useState(true);
+  useEffect(() => {
+    if (isFullScreen) setChromeVisible(true);
+  }, [isFullScreen]);
+
+  // 讓 GameShell 把底部導覽列收起來（避免玩家想關圖卻誤按分頁）。
+  // 只能用「不要畫」，不能調 z-index——見 game-provider 的 overlayCount 註解。
+  const { openOverlay, closeOverlay } = useContext(GameContext);
+  useEffect(() => {
+    if (!isFullScreen) return undefined;
+    openOverlay?.();
+    return () => closeOverlay?.();
+  }, [isFullScreen, openOverlay, closeOverlay]);
+
+  // 往下滑關閉；沒過門檻就彈回去
+  const { dy, dragging, handlers } = useDismissDrag({
+    onDismiss: onToggle,
+    onTap: () => setChromeVisible((v) => !v),
+  });
 
   return (
     <>
@@ -132,6 +158,9 @@ const ZoomableImage = ({
               width: '100%',
               height: '100%',
               backgroundColor: 'rgba(200, 200, 200, 0.9)',
+              // 拉得愈遠背景愈透，讓「正在離開」這件事在放開之前就看得出來
+              opacity: 1 - Math.min(dy / 260, 0.55),
+              transition: dragging ? 'none' : 'opacity 220ms ease',
               zIndex: 1000,
             }}
           />
@@ -143,6 +172,7 @@ const ZoomableImage = ({
             data-no-swipe
             src={src}
             alt={alt}
+            {...handlers}
             style={{
               width: '100%',
               maxWidth: '600px',
@@ -151,25 +181,33 @@ const ZoomableImage = ({
               top: '50%',
               left: '50%',
               margin: 0,
-              transform: 'translate(-50%, -50%)',
+              // 跟著手指走，並且愈拉愈小一點——那個縮小是「它要離開了」的回饋，
+              // 沒有的話拖曳看起來像卡住。
+              transform: `translate(-50%, -50%) translateY(${dy}px) scale(${
+                1 - Math.min(dy / 1600, 0.1)
+              })`,
+              // 拖曳中不要過場，否則跟手會有延遲；放開才要，那是彈回去的動畫
+              transition: dragging ? 'none' : 'transform 220ms ease',
+              // 單指是我們的（拖曳關閉），雙指留給瀏覽器縮放——index.html 的 viewport
+              // 沒有鎖 user-scalable，玩家本來就能放大看謎面的細節，不該被吃掉
+              touchAction: 'pinch-zoom',
               objectFit: 'scale-down',
               zIndex: 1101, // 確保圖片在最上層
             }}
           />
 
           {/* 縮小按鈕 */}
-          {/* 縮小鈕要**閃開底部導覽列**，不能靠 z-index 壓過它。
-              這顆的 z-index 是 1102、導覽列是 700，但它們不在同一個賽場上比：
-              這整棵樹活在 #main-container（z-index 550，而且有 transform）建立的
-              堆疊脈絡裡，對外只值 550，永遠輸給 700。原本 bottom:20 讓它剛好坐進
-              導覽列那 56px 裡，於是被「解謎」的圖示蓋掉（Dong 2026-09-05 回報）。
-              56（導覽列）＋ 20（原本的留白）＝ 76。 */}
+          {/* 縮小鈕留在**下方正中**，不搬去右上角——實境解謎是單手在戶外玩的，
+              右上角是拇指最難搆到的位置之一（Dong 2026-09-05）。它會蓋到圖片
+              底部的問題，改用「點一下收起介面」解決，不用搬家。
+              全螢幕時導覽列已經收起來了，所以這裡可以回到 bottom:20。 */}
+          {chromeVisible && (
           <Fab
             data-no-swipe
             onClick={onToggle}
             sx={{
               position: 'fixed',
-              bottom: 76,
+              bottom: 20,
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 1102, // 確保按鈕在圖片之上
@@ -179,6 +217,7 @@ const ZoomableImage = ({
           >
             <CloseFullscreenRoundedIcon />
           </Fab>
+          )}
         </>
       )}
     </>

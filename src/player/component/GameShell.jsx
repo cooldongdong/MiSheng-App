@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useContext, useEffect, useRef } from 'react';
 import { Box, Container, Stack } from '@mui/material';
 import RestartButton from './common/RestartButton';
 import ExportEventsButton from './common/ExportEventsButton';
@@ -10,6 +10,18 @@ import PropPage from './page/PropPage';
 import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
+import { GameContext } from '../store/game-context';
+
+// 有東西蓋滿畫面時，把包住的內容整個收起來。
+//
+// **必須是獨立元件**：GameShell 自己在 GameProvider 外面（它就是 render provider
+// 的那一層），所以它的函式本體讀不到 context——跟 RestartButton 同一個理由。
+const HideWhileOverlay = ({ children }) => {
+  const { overlayOpen } = useContext(GameContext);
+  return overlayOpen ? null : children;
+};
+
+HideWhileOverlay.propTypes = { children: PropTypes.node };
 
 // 中間那一欄預設就是「一支手機」。
 //
@@ -272,6 +284,10 @@ const GameShell = ({
             </Stack>
           )}
 
+          {/* 有東西蓋滿畫面時整條收起來：一是避免玩家想關圖卻誤按分頁，
+              二是放大的圖本來就不該被導覽列壓在上面。**只能用「不要畫」，
+              不能調 z-index**——理由見下面那段。 */}
+          <HideWhileOverlay>
           <Box
             id="TabBar"
             sx={{
@@ -303,6 +319,7 @@ const GameShell = ({
               onChange={(event, newValue) => setValue(newValue)}
             />
           </Box>
+          </HideWhileOverlay>
         </Container>
 
         {sidePanel && (

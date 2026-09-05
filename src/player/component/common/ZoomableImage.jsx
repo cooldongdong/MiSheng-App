@@ -158,12 +158,18 @@ const ZoomableImage = ({
           />
 
           {/* 縮小按鈕 */}
+          {/* 縮小鈕要**閃開底部導覽列**，不能靠 z-index 壓過它。
+              這顆的 z-index 是 1102、導覽列是 700，但它們不在同一個賽場上比：
+              這整棵樹活在 #main-container（z-index 550，而且有 transform）建立的
+              堆疊脈絡裡，對外只值 550，永遠輸給 700。原本 bottom:20 讓它剛好坐進
+              導覽列那 56px 裡，於是被「解謎」的圖示蓋掉（Dong 2026-09-05 回報）。
+              56（導覽列）＋ 20（原本的留白）＝ 76。 */}
           <Fab
             data-no-swipe
             onClick={onToggle}
             sx={{
               position: 'fixed',
-              bottom: 20,
+              bottom: 76,
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 1102, // 確保按鈕在圖片之上

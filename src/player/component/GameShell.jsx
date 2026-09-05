@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState, useCallback, useContext, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Container, Stack } from '@mui/material';
 import RestartButton from './common/RestartButton';
 import ExportEventsButton from './common/ExportEventsButton';
@@ -11,39 +11,7 @@ import HintPage from './page/HintPage';
 import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
-import ChromeFade, {
-  CHROME_FADE_MS,
-  CHROME_FADE_OUT_MS,
-} from './common/ChromeFade';
-import { GameContext } from '../store/game-context';
-
-// 有東西蓋滿畫面時，把包住的內容淡掉。
-//
-// **必須是獨立元件**：GameShell 自己在 GameProvider 外面（它就是 render provider
-// 的那一層），所以它的函式本體讀不到 context——跟 RestartButton 同一個理由。
-//
-// 原本是「整條不畫」（回傳 null），於是導覽列**啪一下**消失與回來，而右上那排
-// 是淡的——同一個動作、兩種速度（Dong 2026-09-05 回報「按鈕回來的時間不一致」）。
-// 三處統一用 240ms 的 opacity。
-const HideWhileOverlay = ({ children }) => {
-  const { overlayOpen } = useContext(GameContext);
-  return (
-    <Box
-      sx={{
-        opacity: overlayOpen ? 0 : 1,
-        pointerEvents: overlayOpen ? 'none' : 'auto',
-        transition: overlayOpen
-          ? `opacity ${CHROME_FADE_OUT_MS}ms cubic-bezier(0.4, 0, 1, 1)`
-          : `opacity ${CHROME_FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-      }}
-    >
-      {children}
-    </Box>
-  );
-};
-
-HideWhileOverlay.propTypes = { children: PropTypes.node };
-
+import ChromeFade from './common/ChromeFade';
 
 // 中間那一欄預設就是「一支手機」。
 //
@@ -277,10 +245,8 @@ const GameShell = ({
               兩邊都只在 !devTools 時出現：/create 的三欄有自己的導覽列（左欄頂端），
               不需要在遊戲畫面上再疊一顆。 */}
           {!devTools && brand && (
-            <ChromeFade>
-              <Box sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
-                {brand}
-              </Box>
+            <ChromeFade sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>
+              {brand}
             </ChromeFade>
           )}
 
@@ -289,11 +255,7 @@ const GameShell = ({
               算座標。/create 不給——那邊右上角已經有面板按鈕，而且重啟鈕在
               previewMode 下只會把試算表一起丟掉。 */}
           {!devTools && (
-            <ChromeFade>
-            <Stack
-              direction="row"
-              spacing={0.5}
-              alignItems="center"
+            <ChromeFade
               sx={{
                 position: 'absolute',
                 top: 8,
@@ -303,19 +265,21 @@ const GameShell = ({
                 bgcolor: 'background.overlay',
               }}
             >
-              <ExportEventsButton />
-              <RestartButton />
-              {headerActions}
-            </Stack>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <ExportEventsButton />
+                <RestartButton />
+                {headerActions}
+              </Stack>
             </ChromeFade>
           )}
 
-          {/* 有東西蓋滿畫面時整條收起來：一是避免玩家想關圖卻誤按分頁，
-              二是放大的圖本來就不該被導覽列壓在上面。**只能用「不要畫」，
-              不能調 z-index**——理由見下面那段。 */}
-          <HideWhileOverlay>
-          <Box
+          {/* 有東西蓋滿畫面時整條淡掉：一是避免玩家想關圖卻誤按分頁，
+              二是放大的圖本來就不該被導覽列壓在上面。**只能用淡掉，不能調
+              z-index**——理由見下面那段。 */}
+          <ChromeFade
             id="TabBar"
+            hideWithOverlay
+            from="bottom"
             sx={{
               width: '100%',
               position: sidePanel || leftPanel ? 'absolute' : 'fixed',
@@ -335,8 +299,8 @@ const GameShell = ({
               // #main-container（550＋transform）建立的堆疊脈絡**裡面**，對外只值 550，
               // 不管自己標多少都贏不了這裡的 700。實測：放大圖片的縮小鈕標 1102，
               // 照樣被「解謎」的圖示蓋掉（Dong 2026-09-05 回報）。
-              // ⇒ 要蓋過導覽列的東西不能靠調 z-index，只能**避開它的位置**
-              //   （見 ZoomableImage 的縮小鈕 bottom:76）。
+              // ⇒ 要蓋過導覽列的東西不能靠調 z-index。現在的作法是**全螢幕時整條
+              //   淡掉**（hideWithOverlay），所以縮小鈕不必再閃避它的位置。
               zIndex: 700,
             }}
           >
@@ -344,8 +308,7 @@ const GameShell = ({
               value={value}
               onChange={(event, newValue) => setValue(newValue)}
             />
-          </Box>
-          </HideWhileOverlay>
+          </ChromeFade>
         </Container>
 
         {sidePanel && (

@@ -3,7 +3,7 @@ import { useContext, useEffect } from 'react';
 import { Box, Fab, Paper } from '@mui/material';
 import { GameContext } from '../../store/game-context';
 import { usePhotoGestures } from '../../hook/usePhotoGestures';
-import ChromeFade from './ChromeFade';
+import { chromeMotionSx, useChromeHidden } from '../../hook/useChromeMotion';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import SkeletonImage from './SkeletonImage';
@@ -48,6 +48,7 @@ const ZoomableImage = ({
     closeOverlay,
     setOverlayChromeVisible: setChromeVisible,
   } = useContext(GameContext);
+  const { chromeHidden } = useChromeHidden();
   useEffect(() => {
     if (isFullScreen) setChromeVisible?.(true);
   }, [isFullScreen, setChromeVisible]);
@@ -220,17 +221,20 @@ const ZoomableImage = ({
               右上角是拇指最難搆到的位置之一（Dong 2026-09-05）。它會蓋到圖片
               底部的問題，改用「點一下收起介面」解決，不用搬家。
               全螢幕時導覽列已經收起來了，所以這裡可以回到 bottom:20。 */}
-          {/* 跟左上、右上那些介面共用同一個 ChromeFade——四個角落只有一份實作，
-              才不會出現「回來的時間不一樣」。 */}
-          <ChromeFade>
+          {/* 動作樣式**下在 Fab 自己身上**，不是包一層外框——這顆是 position:fixed，
+              外框只要有 transform 就會變成它的定位基準，bottom:20 會整個跑掉。
+              置中用的 translateX(-50%) 當成 base 傳進去，讓兩個 transform 疊起來。 */}
           <Fab
             data-no-swipe
             onClick={onToggle}
             sx={{
+              ...chromeMotionSx(chromeHidden, {
+                from: 'bottom',
+                base: 'translateX(-50%)',
+              }),
               position: 'fixed',
               bottom: 20,
               left: '50%',
-              transform: 'translateX(-50%)',
               zIndex: 1102, // 確保按鈕在圖片之上
               backgroundColor: '#fff',
               color: '#37474F',
@@ -238,7 +242,6 @@ const ZoomableImage = ({
           >
             <CloseFullscreenRoundedIcon />
           </Fab>
-          </ChromeFade>
         </>
       )}
     </>

@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import { useContext, useEffect, useState } from 'react';
 import { Box, Fab, Paper } from '@mui/material';
 import { GameContext } from '../../store/game-context';
-import { useDismissDrag } from '../../hook/useDismissDrag';
+import { usePhotoGestures } from '../../hook/usePhotoGestures';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import SkeletonImage from './SkeletonImage';
@@ -55,11 +55,17 @@ const ZoomableImage = ({
     return () => closeOverlay?.();
   }, [isFullScreen, openOverlay, closeOverlay]);
 
-  // 往下滑關閉；沒過門檻就彈回去
-  const { dy, dragging, handlers } = useDismissDrag({
-    onDismiss: onToggle,
-    onTap: () => setChromeVisible((v) => !v),
-  });
+  // 全螢幕看圖的手勢：雙指縮放、雙擊放大、放大後平移、未放大時下滑關閉、單擊收介面
+  const { ref: imgRef, transform, dy, dragging, reset, handlers } =
+    usePhotoGestures({
+      onDismiss: onToggle,
+      onTap: () => setChromeVisible((v) => !v),
+    });
+
+  // 每次重新放大都從 1 倍開始。留著上一次的縮放，下次打開會是一張看不懂的局部。
+  useEffect(() => {
+    if (isFullScreen) reset();
+  }, [isFullScreen, reset]);
 
   return (
     <>
@@ -157,7 +163,10 @@ const ZoomableImage = ({
               // 100% 才是填滿定位基準（見 GameShell #main-container 的 transform）
               width: '100%',
               height: '100%',
-              backgroundColor: 'rgba(200, 200, 200, 0.9)',
+              // **不透明。** 一度是 0.9，於是底下那一頁的介面會**隱約透出來**——
+              // 平常被圖片蓋住看不到，但往下拖曳時上緣露出來，NEXT 鈕就浮在那裡
+              //（Dong 2026-09-05 附圖）。看謎面的時候不該看到別的東西。
+              backgroundColor: 'rgb(200, 200, 200)',
               // **拖曳時不要跟著變透明。** 一度做成「拉得愈遠背景愈透」當作即將關閉的
               // 回饋，但透出來的不是相簿那種有意義的來源畫面，而是底下那一頁的遊戲介面
               //——玩家會看到 NEXT 鈕突然浮在圖片上方（Dong 2026-09-05 回報）。
@@ -173,6 +182,7 @@ const ZoomableImage = ({
             data-no-swipe
             src={src}
             alt={alt}
+            ref={imgRef}
             {...handlers}
             style={{
               width: '100%',
@@ -182,16 +192,16 @@ const ZoomableImage = ({
               top: '50%',
               left: '50%',
               margin: 0,
-              // 跟著手指走，並且愈拉愈小一點——那個縮小是「它要離開了」的回饋，
-              // 沒有的話拖曳看起來像卡住。
-              transform: `translate(-50%, -50%) translateY(${dy}px) scale(${
-                1 - Math.min(dy / 1600, 0.1)
-              })`,
+              // 縮放／平移（我們自己算的）＋ 下滑關閉的位移。
+              // 下滑時順便縮小一點——那是「它要離開了」的回饋，沒有的話看起來像卡住。
+              transform: `translate(-50%, -50%) translate(${transform.x}px, ${
+                transform.y + dy
+              }px) scale(${transform.scale * (1 - Math.min(dy / 1600, 0.1))})`,
               // 拖曳中不要過場，否則跟手會有延遲；放開才要，那是彈回去的動畫
               transition: dragging ? 'none' : 'transform 220ms ease',
-              // 單指是我們的（拖曳關閉），雙指留給瀏覽器縮放——index.html 的 viewport
-              // 沒有鎖 user-scalable，玩家本來就能放大看謎面的細節，不該被吃掉
-              touchAction: 'pinch-zoom',
+              // **全部的觸控都歸我們**。交給瀏覽器的話它縮放的是整個頁面，
+              // 左上角的品牌標與右上角那排按鈕會跟著一起變大（Dong 2026-09-05 回報）。
+              touchAction: 'none',
               objectFit: 'scale-down',
               zIndex: 1101, // 確保圖片在最上層
             }}

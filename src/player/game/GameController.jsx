@@ -62,7 +62,6 @@ const GameController = ({
     mapMode,
     spatialNav,
     record,
-    overlayOpen,
   } = useContext(GameContext);
   // 目前這一列直接從 currentId 算，不再存成 state。
   //
@@ -453,11 +452,10 @@ const GameController = ({
           //   none  — 由 useSwipeFlow 自己捲，捲到底再把剩下的位移轉成翻頁。
           //           沒有慣性，適合只溢出一點的小框（對白框走這條）。
           //
-          // **有東西全螢幕時要整個放開。** touch-action 是由元素往上找祖先算出來的，
-          // 這一層寫死 none 的話，底下放大的圖不管自己標什麼，雙指縮放都不會發生
-          //（Dong 2026-09-05 在手機上回報「無法用雙指縮放」）。而全螢幕的時候本來
-          // 就不該翻頁——那正是 none 存在的唯一理由，所以這時放開它沒有副作用。
-          touchAction: overlayOpen ? 'auto' : 'none',
+          // 曾經改成「全螢幕時放開，讓瀏覽器接手雙指縮放」，但那會**連介面一起放大**
+          //（瀏覽器縮放的是整個頁面）。改成放大的圖自己接管所有觸控之後，這裡就該
+          // 維持 none——不要讓瀏覽器也插一腳。
+          touchAction: 'none',
           // **這一層不要上底色。** 一度鋪過 dialogue.surface 當「露縫時不要白閃」的保險，
           // 但那反而製造了真正的 bug：Img 沒有色層、MissionStart 是一張 MUI Paper 白卡，
           // 這兩種頁面的底本來就是 GameShell 的 game.bg（淺色下近白），鋪深色等於把它們

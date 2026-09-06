@@ -167,20 +167,41 @@ export const canShareExport = () => {
 // 叫出系統的分享單，把紀錄當**檔案**送出去（不是一長串文字）——這樣它可以
 // AirDrop 給自己的電腦、存進檔案 App、或在聊天軟體裡當附件。
 // 回傳有沒有真的送出；使用者按取消也算 false，呼叫端不必把取消當錯誤。
-export const shareEvents = async (gameId) => {
-  if (!canShareExport()) return false;
-  const payload = buildExport(gameId);
-  const name = exportFileName(gameId, payload.sid);
-  const file = new File([JSON.stringify(payload, null, 2)], name, {
-    type: 'application/json',
-  });
+//
+// **送兩種型別，因為 canShare() 說得不準。** 實測（Dong 2026-09-06，部署在
+// Cloudflare 上）：
+//
+// | 環境 | 結果 |
+// | iOS | 分享單跳出來，正常 |
+// | Android Chrome | canShare() 回 true，但實際 share 失敗，退回下載 |
+// | Firefox（Android）| 沒有這個 API，直接是下載 |
+//
+// Android 那格的成因八成是 Chrome 對可分享的檔案型別有白名單，而
+// `application/json` 不在裡面——**探測說可以、真的送才擋**。所以第一次用 json
+// 送（收到的人拿到的是 .json，後續處理最方便），被擋掉就改用 text/plain ＋ .txt
+// 再送一次：內容一模一樣，只是換一件外衣。
+const shareOnce = async (file, title) => {
   try {
-    await navigator.share({ files: [file], title: name });
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
+    await navigator.share({ files: [file], title });
     return true;
   } catch {
     // 使用者取消，或這台裝置臨時不給——兩種都退回別條路，不要對他報錯
     return false;
   }
+};
+
+export const shareEvents = async (gameId) => {
+  if (!canShareExport()) return false;
+  const payload = buildExport(gameId);
+  const name = exportFileName(gameId, payload.sid);
+  const text = JSON.stringify(payload, null, 2);
+
+  if (await shareOnce(new File([text], name, { type: 'application/json' }), name))
+    return true;
+
+  const txtName = name.replace(/\.json$/, '.txt');
+  return shareOnce(new File([text], txtName, { type: 'text/plain' }), txtName);
 };
 
 // 複製到剪貼簿。**兩條路都要留**：

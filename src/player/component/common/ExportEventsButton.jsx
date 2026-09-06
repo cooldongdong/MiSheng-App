@@ -1,8 +1,19 @@
-import { useContext, useState } from 'react';
-import { IconButton, Snackbar, Tooltip } from '@mui/material';
+import { useContext, useEffect, useState } from 'react';
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import IosShareRoundedIcon from '@mui/icons-material/IosShareRounded';
-import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
+import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded';
 import { GameContext } from '../../store/game-context';
 import {
   canShareExport,
@@ -11,79 +22,141 @@ import {
   shareEvents,
 } from '../../game/telemetry';
 
-// 把這一場的行為紀錄交出去。
+// 這一場的遊戲紀錄——一顆圖示，點開是一張小面板。
 //
-// **為什麼是「下載」而不是「上傳」**：試玩階段要的是完整保真——五個人、五個檔，
-// 零基礎設施、零廠商、零個資問題，而且不必擔心哪一則事件沒送到。正式活動要的
-// 「大量但殘缺」是另一條路（Worker 中繼到創作者的試算表），兩者站在同一塊地基上。
+// **為什麼收成一顆。** 上一版把「分享」與「複製」拆成兩顆平行的圖示放在頂部，
+// 那是用兩個位置去講一件次要的事——它是遊戲結束才用得到的東西，不該跟「重新開始」
+// 「切換外觀」搶同一排（Dong 2026-09-06：「右上的按鈕變得太多了」）。
 //
-// **為什麼有兩顆鈕**：原本只有下載，而它在 app 內建的瀏覽器裡是死的——Dong
-// 2026-09-06 實測 iOS 的 Google app 按了完全沒反應（Safari 與 Android Chrome 正常）。
-// 那正是活動當天最可能的環境：玩家從 LINE 或 QR 進來，iOS 上就是內建瀏覽器。
+// **為什麼不用分享圖示當入口。** 分享符號在遊戲畫面上會被讀成「把這個遊戲分享給
+// 朋友」，而不是「交出我的紀錄」（同上）。所以入口用收據，分享只是面板裡的一個動作。
 //
-//   左邊那顆＝**分享**（手機）或**下載**（桌機），看這台裝置給不給 navigator.share
-//   右邊那顆＝**複製**，一定會動的保底
+// **為什麼三個動作都攤開來給他看，而不是自動挑一個。** 因為沒有一條路在每個環境
+// 都會動，而失敗是安靜的：
 //
-// 複製留著而不是只做分享，是因為分享需要 https，而區網測試與部分內建瀏覽器都沒有。
-// 一條「比較好但不一定在」的路，不能取代一條「難看但一定在」的路。
+// | 環境 | 分享 | 下載 |
+// | iOS Safari | ✅ | ✅ |
+// | iOS app 內建瀏覽器 | ？ | ❌ 按了完全沒反應 |
+// | Android Chrome | ❌ 探測說可以、實際被擋 | ✅ |
+// | Firefox（Android）| ❌ 沒有這個 API | ✅ |
+//
+// 上一版讓程式自己挑「最好的那條」，結果是 Android 上圖示畫著分享、按下去卻在下載
+// ——**介面說的跟做的不一樣**。攤開來反而誠實：哪一條不行，他自己按下一條。
+//
+// 複製永遠留著，它是唯一在每個環境都會動的（clipboard API 加 execCommand 兩條路）。
+//
+// **回饋寫在面板裡，不用 Snackbar。** 上一版用 Snackbar，實測在手機上根本沒出現
+// （Dong 2026-09-06：複製成功、貼出來是完整的 JSON，但沒有跳訊息）——它得跟導覽列
+// 搶位置與堆疊脈絡。面板本來就在畫面正中間，把結果寫在按鈕底下最穩。
 //
 // **沒有事件就不顯示**：一顆按下去得到空檔的按鈕只會讓人以為壞了。而 previewMode
 // （/create）本來就不記錄，所以那邊自然也不會出現——不必另外判斷。
-//
-// 不給確認對話框：把自己的紀錄交出去，不可逆的地方是零。
 const ExportEventsButton = () => {
   const { gameId, eventCount } = useContext(GameContext);
-  const [toast, setToast] = useState('');
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+  // 探測會 new 一個 File 出來，不該每次重繪都跑；而它的答案在一次開啟裡不會變
+  const [canShare, setCanShare] = useState(false);
+
+  useEffect(() => {
+    if (open) setCanShare(canShareExport());
+  }, [open]);
 
   if (!gameId || !eventCount) return null;
 
-  // 每次點擊都重問一次，不在 render 時算：使用者可能中途才裝好支援，
-  // 而且這個判斷會 new 一個 File 出來探測，不該每次重繪都跑。
-  const handlePrimary = async () => {
-    if (canShareExport()) {
-      const shared = await shareEvents(gameId);
-      // 沒送出（取消，或這台裝置臨時不給）就安靜退回下載，不要對他報錯
-      if (shared) return;
+  const run = async (fn, okText, failText) => {
+    setBusy(true);
+    try {
+      setStatus((await fn()) ? okText : failText);
+    } finally {
+      setBusy(false);
     }
-    downloadEvents(gameId);
   };
 
-  const handleCopy = async () => {
-    const ok = await copyEvents(gameId);
-    // **複製一定要給回饋**：它是唯一按下去畫面完全沒有變化的動作，
-    // 沒有回饋的話「成功」跟「壞掉」長得一模一樣。
-    setToast(ok ? '紀錄已複製，可以直接貼上' : '複製失敗，改用左邊那顆試試');
+  const close = () => {
+    setOpen(false);
+    setStatus('');
   };
-
-  const primaryLabel = canShareExport() ? '分享' : '下載';
 
   return (
     <>
-      <Tooltip title={`${primaryLabel}這場的紀錄（${eventCount} 筆）`}>
-        <IconButton size="small" color="inherit" onClick={handlePrimary}>
-          {canShareExport() ? (
-            <IosShareRoundedIcon fontSize="small" />
-          ) : (
-            <FileDownloadRoundedIcon fontSize="small" />
+      <Tooltip title={`這場的遊戲紀錄（${eventCount} 筆）`}>
+        <IconButton size="small" color="inherit" onClick={() => setOpen(true)}>
+          <ReceiptLongRoundedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+
+      {/* data-no-swipe：面板開著的時候上下滑不該翻頁（同 FullTextDialog） */}
+      <Dialog data-no-swipe open={open} onClose={close} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 0.5 }}>這場的遊戲紀錄</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {eventCount} 筆 · 只存在這台裝置上，換一支手機或清掉瀏覽器資料就不見了
+          </Typography>
+
+          <Stack spacing={1}>
+            {canShare && (
+              <Button
+                variant="contained"
+                disabled={busy}
+                startIcon={<IosShareRoundedIcon />}
+                onClick={() =>
+                  run(
+                    () => shareEvents(gameId),
+                    '已送出',
+                    '這台裝置擋掉了分享，改用下面兩個'
+                  )
+                }
+              >
+                傳送檔案
+              </Button>
+            )}
+            <Button
+              variant={canShare ? 'outlined' : 'contained'}
+              disabled={busy}
+              startIcon={<ContentCopyRoundedIcon />}
+              onClick={() =>
+                run(
+                  () => copyEvents(gameId),
+                  '已複製，可以直接貼上',
+                  '複製失敗，改用「存成檔案」'
+                )
+              }
+            >
+              複製
+            </Button>
+            <Button
+              variant="outlined"
+              disabled={busy}
+              startIcon={<FileDownloadRoundedIcon />}
+              onClick={() =>
+                run(
+                  async () => {
+                    downloadEvents(gameId);
+                    // 下載沒有辦法知道成不成功——瀏覽器不會回報，被擋掉時也是安靜的。
+                    // 所以這裡不敢說「已下載」，只講我們做了什麼。
+                    return true;
+                  },
+                  '已送出下載，找不到的話改用「複製」',
+                  ''
+                )
+              }
+            >
+              存成檔案
+            </Button>
+          </Stack>
+
+          {status && (
+            <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">
+              {status}
+            </Typography>
           )}
-        </IconButton>
-      </Tooltip>
-
-      <Tooltip title={`複製這場的紀錄（${eventCount} 筆）`}>
-        <IconButton size="small" color="inherit" onClick={handleCopy}>
-          <ContentCopyRoundedIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-
-      <Snackbar
-        open={!!toast}
-        onClose={() => setToast('')}
-        autoHideDuration={2600}
-        message={toast}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        // 導覽列在底部，訊息要浮在它上面才看得到
-        sx={{ bottom: { xs: 72 } }}
-      />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={close}>關閉</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

@@ -24,7 +24,8 @@ const HintPage = () => {
     unlockHint,
     missionStartedAt,
   } = useContext(GameContext);
-  const now = useHintTick();
+  // 同 BottomNavigation：進關時刻一變就立刻重算（見 useHintTick 的說明）
+  const now = useHintTick(missionStartedAt?.[currentMissionId]);
   const [currentHints, setCurrentHints] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false); // Dialog 的開關
   const [currentHintIndex, setCurrentHintIndex] = useState(null); // 當前選擇的提示索引

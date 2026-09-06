@@ -168,40 +168,44 @@ export const canShareExport = () => {
 // AirDrop 給自己的電腦、存進檔案 App、或在聊天軟體裡當附件。
 // 回傳有沒有真的送出；使用者按取消也算 false，呼叫端不必把取消當錯誤。
 //
-// **送兩種型別，因為 canShare() 說得不準。** 實測（Dong 2026-09-06，部署在
-// Cloudflare 上）：
+// **不再由程式替他重試或改寫型別。** 我猜過兩次都錯：先猜是 iOS 的問題（其實是
+// app 內建瀏覽器），再猜是 Chrome 對檔案型別有白名單、改送 text/plain 就會通
+// （實測還是失敗）。第二次的重試本來也不可能成功——`navigator.share` 需要
+// **使用者手勢的有效期**，而第一次失敗之後已經是另一個 task 了。
 //
-// | 環境 | 結果 |
-// | iOS | 分享單跳出來，正常 |
-// | Android Chrome | canShare() 回 true，但實際 share 失敗，退回下載 |
-// | Firefox（Android）| 沒有這個 API，直接是下載 |
+// 所以現在做的是**把真正的錯誤講出來**，而不是再猜一次：
 //
-// Android 那格的成因八成是 Chrome 對可分享的檔案型別有白名單，而
-// `application/json` 不在裡面——**探測說可以、真的送才擋**。所以第一次用 json
-// 送（收到的人拿到的是 .json，後續處理最方便），被擋掉就改用 text/plain ＋ .txt
-// 再送一次：內容一模一樣，只是換一件外衣。
-const shareOnce = async (file, title) => {
-  try {
-    if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
-    await navigator.share({ files: [file], title });
-    return true;
-  } catch {
-    // 使用者取消，或這台裝置臨時不給——兩種都退回別條路，不要對他報錯
-    return false;
-  }
-};
-
+//   - `AbortError` ＝ 使用者自己取消。這**不是失敗**，什麼都不要說——
+//     跟他講「你的裝置擋掉了」是在說謊。
+//   - 其他 ＝ 真的不行。把錯誤名稱寫在畫面上，下一次就不必再猜。
+//
+// 實測紀錄（Dong 2026-09-06，部署在 Cloudflare 上）：
+//
+// | 環境 | 分享 | 下載 |
+// | iOS | ✅ | ✅ |
+// | iOS app 內建瀏覽器 | ？ | ❌ 按了完全沒反應 |
+// | Android Chrome | ❌ canShare() 說可以，送出失敗（原因待測） | ✅ |
+// | Firefox（Android）| ❌ 沒有這個 API | ✅ |
+//
+// 回傳 { ok, reason }：reason 是 null 代表沒話要說（成功、或使用者取消）。
 export const shareEvents = async (gameId) => {
-  if (!canShareExport()) return false;
+  if (!canShareExport()) return { ok: false, reason: '這台裝置沒有分享功能' };
   const payload = buildExport(gameId);
   const name = exportFileName(gameId, payload.sid);
-  const text = JSON.stringify(payload, null, 2);
-
-  if (await shareOnce(new File([text], name, { type: 'application/json' }), name))
-    return true;
-
-  const txtName = name.replace(/\.json$/, '.txt');
-  return shareOnce(new File([text], txtName, { type: 'text/plain' }), txtName);
+  const file = new File([JSON.stringify(payload, null, 2)], name, {
+    type: 'application/json',
+  });
+  try {
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+      return { ok: false, reason: '這台裝置不收這種檔案' };
+    }
+    await navigator.share({ files: [file], title: name });
+    return { ok: true, reason: null };
+  } catch (err) {
+    // 使用者按取消——不是錯誤，不要對他報錯
+    if (err?.name === 'AbortError') return { ok: false, reason: null };
+    return { ok: false, reason: err?.name || '不明原因' };
+  }
 };
 
 // 複製到剪貼簿。**兩條路都要留**：

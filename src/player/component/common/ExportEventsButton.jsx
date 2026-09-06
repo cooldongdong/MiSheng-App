@@ -74,6 +74,23 @@ const ExportEventsButton = () => {
     }
   };
 
+  // 分享跟另外兩個不一樣：它會回傳「為什麼不行」，而且**使用者按取消不算失敗**
+  //（reason 是 null）。上一版一律說「這台裝置擋掉了分享」——對取消的人來說那是謊話。
+  //
+  // 真的不行的時候把錯誤名稱寫出來。這一格我已經猜錯兩次（先猜 iOS、再猜檔案型別
+  // 白名單），與其再猜第三次，不如讓畫面直接說它是什麼。
+  const runShare = async () => {
+    setBusy(true);
+    try {
+      const { ok, reason } = await shareEvents(gameId);
+      if (ok) setStatus('已送出');
+      else if (reason) setStatus(`分享沒有成功（${reason}），改用下面兩個`);
+      else setStatus('');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const close = () => {
     setOpen(false);
     setStatus('');
@@ -101,13 +118,7 @@ const ExportEventsButton = () => {
                 variant="contained"
                 disabled={busy}
                 startIcon={<IosShareRoundedIcon />}
-                onClick={() =>
-                  run(
-                    () => shareEvents(gameId),
-                    '已送出',
-                    '這台裝置擋掉了分享，改用下面兩個'
-                  )
-                }
+                onClick={runShare}
               >
                 傳送檔案
               </Button>

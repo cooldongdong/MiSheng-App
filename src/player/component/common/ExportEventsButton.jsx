@@ -25,6 +25,20 @@ import {
   policySnapshot,
   shareEvents,
 } from '../../game/telemetry';
+import {
+  probeShareFile,
+  probeShareText,
+  shareEnvReport,
+} from '../../game/shareDiag';
+
+// 現場診斷只在 ?diag=1 時出現（同 DiagOverlay 的慣例）
+const wantsDiag = () => {
+  try {
+    return new URLSearchParams(window.location.search).get('diag') === '1';
+  } catch {
+    return false;
+  }
+};
 
 // 這一場的遊戲紀錄——一顆圖示，點開是一張小面板。
 //
@@ -212,6 +226,38 @@ const ExportEventsButton = () => {
             <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">
               {status}
             </Typography>
+          )}
+
+          {wantsDiag() && (
+            <>
+              <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={async () => setStatus(await probeShareText())}
+                >
+                  測：分享文字
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={async () => setStatus(await probeShareFile())}
+                >
+                  測：分享檔案
+                </Button>
+                <Button size="small" onClick={() => setStatus(shareEnvReport())}>
+                  環境
+                </Button>
+              </Stack>
+              <Typography
+                variant="caption"
+                component="pre"
+                sx={{ mt: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                color="text.secondary"
+              >
+                {status}
+              </Typography>
+            </>
           )}
         </DialogContent>
         <DialogActions>

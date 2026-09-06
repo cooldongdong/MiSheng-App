@@ -174,17 +174,24 @@ const readShareBroken = () => {
 
 // 這個網頁被允許用哪些功能——由伺服器的 Permissions-Policy 回應標頭決定。
 //
-// **為什麼需要它。** Chromium 對三種完全不同的狀況都丟 NotAllowedError，只有
-// message 分得出來：「Must be handling a user gesture」＝沒有手勢，
-// 「Permission denied」＝**被權限政策擋掉**。後者跟程式怎麼寫完全無關，是部署
-// 環境把功能關了（Dong 2026-09-06 在 Cloudflare 上就是這一種）。
+// ⚠️ **`allowsFeature()` 對「不認得的功能名稱」也回 false**，而不是丟錯。所以
+// 一定要先確認名字在 `features()` 裡，否則會把「這個瀏覽器沒有這個政策項目」
+// 誤讀成「被政策擋掉」。
 //
-// 順便看 camera：Camera 道具靠它，而會關掉 web-share 的那種「安全標頭」預設
-// 通常也一起關掉 camera——**那會讓道具直接壞掉，而且沒有人會聯想到是標頭的問題。**
+// 2026-09-06 我就是這樣誤判的：看到 `allowsFeature('web-share')` 回 false 就
+// 斷定是 Cloudflare 加了安全標頭，讓 Dong 去翻部署設定——實際上那台伺服器
+// **一個 Permissions-Policy 標頭都沒送**，而 `web-share` 根本不在 Chromium 的
+// `features()` 清單裡（清單裡跟 share 有關的只有 shared-storage）。
+//
+// 順便看 camera：Camera 道具靠它，而「安全標頭」預設常把它一起關掉——那會讓
+// 道具直接壞掉，而且沒有人會聯想到是標頭的問題。camera **在**清單裡，所以那一格
+// 的答案是可信的。
 export const policySnapshot = () => {
   const fp = typeof document !== 'undefined' ? document.featurePolicy : null;
-  if (!fp?.allowsFeature) return '';
+  if (!fp?.allowsFeature || !fp?.features) return '';
+  const known = new Set(fp.features());
   const of = (name) => {
+    if (!known.has(name)) return '查不到（這個瀏覽器沒有這個政策項目）';
     try {
       return fp.allowsFeature(name) ? '可' : '被擋';
     } catch {

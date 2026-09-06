@@ -172,6 +172,28 @@ const readShareBroken = () => {
   }
 };
 
+// 這個網頁被允許用哪些功能——由伺服器的 Permissions-Policy 回應標頭決定。
+//
+// **為什麼需要它。** Chromium 對三種完全不同的狀況都丟 NotAllowedError，只有
+// message 分得出來：「Must be handling a user gesture」＝沒有手勢，
+// 「Permission denied」＝**被權限政策擋掉**。後者跟程式怎麼寫完全無關，是部署
+// 環境把功能關了（Dong 2026-09-06 在 Cloudflare 上就是這一種）。
+//
+// 順便看 camera：Camera 道具靠它，而會關掉 web-share 的那種「安全標頭」預設
+// 通常也一起關掉 camera——**那會讓道具直接壞掉，而且沒有人會聯想到是標頭的問題。**
+export const policySnapshot = () => {
+  const fp = typeof document !== 'undefined' ? document.featurePolicy : null;
+  if (!fp?.allowsFeature) return '';
+  const of = (name) => {
+    try {
+      return fp.allowsFeature(name) ? '可' : '被擋';
+    } catch {
+      return '?';
+    }
+  };
+  return `web-share ${of('web-share')}／camera ${of('camera')}`;
+};
+
 export const markShareBroken = () => {
   try {
     localStorage.setItem(SHARE_BROKEN, '1');

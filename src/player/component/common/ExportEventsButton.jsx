@@ -20,6 +20,7 @@ import {
   copyEvents,
   downloadEvents,
   markShareBroken,
+  policySnapshot,
   shareEvents,
 } from '../../game/telemetry';
 
@@ -104,9 +105,12 @@ const ExportEventsButton = () => {
       markShareBroken();
       setCanShare(false);
       downloadEvents(gameId);
+      // 「Permission denied」代表是**伺服器的權限政策**關掉的，跟裝置無關——
+      // 那句話對使用者沒有意義，但那一行政策快照對修的人有意義，所以一起印。
+      const policy = policySnapshot();
       setStatus(
-        `這台裝置擋掉了分享（${reason}${trusted ? '' : '／補發的點擊'}），` +
-          `已改用下載。找不到檔案的話用「複製」。`
+        `這台裝置擋掉了分享（${reason}${trusted ? '' : '／補發的點擊'}` +
+          `${policy ? `／${policy}` : ''}），已改用下載。找不到檔案的話用「複製」。`
       );
     } finally {
       setBusy(false);

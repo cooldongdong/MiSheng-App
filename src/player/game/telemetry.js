@@ -127,6 +127,94 @@ const dateStamp = (d = new Date()) =>
 export const exportFileName = (gameId, sid) =>
   `${gameId}-${dateStamp()}-${(sid || '').slice(0, 6) || 'nosid'}.json`;
 
+// 匯出的內容與檔名——三條出口（分享／複製／下載）共用同一份，
+// 免得哪一條哪天長出自己的格式。
+export const exportPayloadText = (gameId) =>
+  JSON.stringify(buildExport(gameId), null, 2);
+
+// ---- 三條出口 ----
+//
+// **為什麼需要三條。** 原本只有「下載」，而它在 app 內建的瀏覽器裡是死的：
+// Dong 2026-09-06 實測 iOS 的 Google app 按了完全沒反應，Safari 與 Android Chrome
+// 都正常。那類瀏覽器（WKWebView）對 `blob:` ＋ `<a download>` 沒有下載能力，
+// 而且**不報錯**。
+//
+// 危險的是失敗的那一格正是活動當天最可能發生的那一格——玩家多半從 LINE 或
+// QR 進來，iOS 上那就是內建瀏覽器，不是 Safari。而這份紀錄只存在玩家自己的
+// localStorage 裡，拿不出來就是一筆都沒有。
+//
+// 所以三條由好到保底排：
+//   1. 分享（navigator.share）——手機原生的分享單，接上玩家本來就認得的動作
+//   2. 複製——一定會動，任何瀏覽器、任何裝置
+//   3. 下載——桌機的正解
+//
+// 注意 1 與 clipboard API 都**需要 secure context**（https 或 localhost）。
+// 區網測試是 http://192.168.x.x，所以那邊只有第 3 條與複製的舊寫法會動。
+
+// 這台裝置能不能用「分享檔案」。分開判斷是因為 navigator.share 存在不代表
+// 它吃得下檔案（部分瀏覽器只支援 text/url）。
+export const canShareExport = () => {
+  if (typeof navigator === 'undefined' || !navigator.share) return false;
+  if (!navigator.canShare || typeof File === 'undefined') return false;
+  try {
+    const probe = new File(['{}'], 'probe.json', { type: 'application/json' });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+};
+
+// 叫出系統的分享單，把紀錄當**檔案**送出去（不是一長串文字）——這樣它可以
+// AirDrop 給自己的電腦、存進檔案 App、或在聊天軟體裡當附件。
+// 回傳有沒有真的送出；使用者按取消也算 false，呼叫端不必把取消當錯誤。
+export const shareEvents = async (gameId) => {
+  if (!canShareExport()) return false;
+  const payload = buildExport(gameId);
+  const name = exportFileName(gameId, payload.sid);
+  const file = new File([JSON.stringify(payload, null, 2)], name, {
+    type: 'application/json',
+  });
+  try {
+    await navigator.share({ files: [file], title: name });
+    return true;
+  } catch {
+    // 使用者取消，或這台裝置臨時不給——兩種都退回別條路，不要對他報錯
+    return false;
+  }
+};
+
+// 複製到剪貼簿。**兩條路都要留**：
+// navigator.clipboard 需要 secure context，而測試用的區網網址是 http，
+// 部分內建瀏覽器也沒有。舊的 execCommand 雖然標為過時，但正是那些環境唯一會動的。
+export const copyEvents = async (gameId) => {
+  const text = exportPayloadText(gameId);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // 落到底下的舊寫法
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    // 不能用 display:none／hidden——選不到的東西複製不了。移到畫面外即可。
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length); // iOS 只認這個
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+};
+
 export const downloadEvents = (gameId) => {
   const payload = buildExport(gameId);
   const blob = new Blob([JSON.stringify(payload, null, 2)], {

@@ -162,7 +162,10 @@ export const exportPayloadText = (gameId) =>
 //
 // 「做一個使用者按了會失敗的按鈕」比「少一個按鈕」糟：後者他還有另外兩條路，
 // 前者他會以為東西壞了，然後放棄。
-const SHARE_BROKEN = 'misheng_share_broken';
+// 換版過一次（v2）：v1 時期的分享送的是 .json，在 Android 上必定失敗，於是那些
+// 裝置都被標成「分享壞掉」。修好送法之後那個標記就是錯的——不換 key 的話，
+// 修好了但按鈕永遠不會回來。
+const SHARE_BROKEN = 'misheng_share_broken_v2';
 
 const readShareBroken = () => {
   try {
@@ -238,32 +241,46 @@ export const canShareExport = () => {
 // AirDrop 給自己的電腦、存進檔案 App、或在聊天軟體裡當附件。
 // 回傳有沒有真的送出；使用者按取消也算 false，呼叫端不必把取消當錯誤。
 //
-// **不再由程式替他重試或改寫型別。** 我猜過兩次都錯：先猜是 iOS 的問題（其實是
-// app 內建瀏覽器），再猜是 Chrome 對檔案型別有白名單、改送 text/plain 就會通
-// （實測還是失敗）。第二次的重試本來也不可能成功——`navigator.share` 需要
-// **使用者手勢的有效期**，而第一次失敗之後已經是另一個 task 了。
-//
-// 所以現在做的是**把真正的錯誤講出來**，而不是再猜一次：
+// 失敗時回傳 `{ ok, reason }`，reason 是 null 代表沒話要說（成功、或使用者取消）：
 //
 //   - `AbortError` ＝ 使用者自己取消。這**不是失敗**，什麼都不要說——
 //     跟他講「你的裝置擋掉了」是在說謊。
-//   - 其他 ＝ 真的不行。把錯誤名稱寫在畫面上，下一次就不必再猜。
+//   - 其他 ＝ 真的不行。把錯誤名稱與訊息寫在畫面上，下一次就不必猜。
 //
 // 實測紀錄（Dong 2026-09-06，部署在 Cloudflare 上）：
 //
 // | 環境 | 分享 | 下載 |
 // | iOS | ✅ | ✅ |
-// | iOS app 內建瀏覽器 | ？ | ❌ 按了完全沒反應 |
-// | Android Chrome | ❌ canShare() 說可以，送出失敗（原因待測） | ✅ |
+// | iOS app 內建瀏覽器 | ？（download 已知失敗，分享待測）| ❌ 按了完全沒反應 |
+// | Android Chrome | ✅ 改送 .txt 之後（送 .json 必定失敗）| ✅ |
 // | Firefox（Android）| ❌ 沒有這個 API | ✅ |
 //
-// 回傳 { ok, reason }：reason 是 null 代表沒話要說（成功、或使用者取消）。
 export const shareEvents = async (gameId) => {
   if (!canShareExport()) return { ok: false, reason: '這台裝置沒有分享功能' };
   const payload = buildExport(gameId);
-  const name = exportFileName(gameId, payload.sid);
+  // **送 .txt／text/plain，不送 .json。**
+  //
+  // Chromium 對可分享的檔案**副檔名有白名單**，而 `.json` 不在裡面——`canShare()`
+  // 回 true，`share()` 才丟 `NotAllowedError: Permission denied`。探測與實際執行
+  // 用的是兩套規則，所以「先問再送」在這裡沒有用。
+  //
+  // 怎麼確定的（2026-09-06，Dong 的 Android Chrome，`?diag=1` 的現場探針）：
+  //   · share／canShare 都是 true，canShare(text) 與 canShare(files) 也都是 true
+  //   · `web-share` **不在** `features()` 清單裡 ⇒ allowsFeature 的 false 沒有意義，
+  //     跟伺服器的 Permissions-Policy 無關（那台伺服器一個相關標頭都沒送）
+  //   · **兩個探針都成功彈出分享視窗**，而它們送的是 .txt／text/plain
+  //   ⇒ 差別只剩檔案型別。
+  //
+  // 中間我還錯過一次：曾經「失敗後改送 text/plain 重試」，一樣失敗，於是排除了
+  // 型別這個可能。**那次失敗的真正原因是使用者手勢已經過期**——`share()` 必須在
+  // 手勢的有效期內呼叫，而第一次失敗之後已經是另一個 task 了。用錯的方法測，
+  // 會得到看起來很確定的錯誤結論。
+  //
+  // 內容仍然是 JSON，只是換一件外衣。iOS 那邊 .json 本來就能送，改成 .txt 也一樣
+  // 收得到——一種送法涵蓋所有環境，比分平台特例可靠。
+  const name = exportFileName(gameId, payload.sid).replace(/\.json$/, '.txt');
   const file = new File([JSON.stringify(payload, null, 2)], name, {
-    type: 'application/json',
+    type: 'text/plain',
   });
   try {
     if (navigator.canShare && !navigator.canShare({ files: [file] })) {
@@ -274,7 +291,7 @@ export const shareEvents = async (gameId) => {
   } catch (err) {
     // 使用者按取消——不是錯誤，不要對他報錯
     if (err?.name === 'AbortError') return { ok: false, reason: null };
-    // **name 不夠用**：Chromium 對「沒有手勢」「權限被政策擋掉」「檔案不合法」
+    // name 不夠用：Chromium 對「沒有手勢」「權限被政策擋掉」「檔案型別不合法」
     // 都丟 NotAllowedError，只有 message 分得出來是哪一種。
     const detail = String(err?.message || '').slice(0, 80);
     return {

@@ -209,6 +209,19 @@ export const markShareBroken = () => {
   }
 };
 
+// **一定要有回頭路。** 上一版失敗一次就永久藏起那顆鈕，唯一的復原方式是清掉整站
+// 的瀏覽器資料——連帶把遊戲進度一起清掉。對測試的人是災難，對玩家也不合理：
+// 分享失敗可能是當下的狀況（沒選 app、系統忙），不是這台裝置永遠不行。
+export const clearShareBroken = () => {
+  try {
+    localStorage.removeItem(SHARE_BROKEN);
+  } catch {
+    // 清不掉也沒關係，下一次還是會照現況判斷
+  }
+};
+
+export const isShareBroken = () => readShareBroken();
+
 export const canShareExport = () => {
   if (typeof navigator === 'undefined' || !navigator.share) return false;
   if (!navigator.canShare || typeof File === 'undefined') return false;

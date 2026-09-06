@@ -19,6 +19,8 @@ import {
   canShareExport,
   copyEvents,
   downloadEvents,
+  clearShareBroken,
+  isShareBroken,
   markShareBroken,
   policySnapshot,
   shareEvents,
@@ -61,8 +63,14 @@ const ExportEventsButton = () => {
   // 探測會 new 一個 File 出來，不該每次重繪都跑；而它的答案在一次開啟裡不會變
   const [canShare, setCanShare] = useState(false);
 
+  const [shareHidden, setShareHidden] = useState(false);
+
   useEffect(() => {
-    if (open) setCanShare(canShareExport());
+    if (!open) return;
+    setCanShare(canShareExport());
+    // 「上次失敗過所以被收起來」跟「這台裝置本來就沒有分享功能」要分開：
+    // 前者要給一條回頭路，後者沒有東西可以回頭
+    setShareHidden(isShareBroken() && !!navigator.share);
   }, [open]);
 
   if (!gameId || !eventCount) return null;
@@ -183,6 +191,22 @@ const ExportEventsButton = () => {
               存成檔案
             </Button>
           </Stack>
+
+          {shareHidden && !canShare && (
+            <Button
+              size="small"
+              sx={{ mt: 1 }}
+              disabled={busy}
+              onClick={() => {
+                clearShareBroken();
+                setShareHidden(false);
+                setCanShare(canShareExport());
+                setStatus('');
+              }}
+            >
+              再試一次分享（上次失敗了）
+            </Button>
+          )}
 
           {status && (
             <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">

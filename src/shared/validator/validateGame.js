@@ -30,17 +30,16 @@ export const REQUIRED_TABLES = ['character', 'config', 'hint', 'mission', 'prop'
 export const REQUIRED_FIELDS = {
   character: ['name', 'avatar', 'straight'],
   config: ['id', 'title', 'description', 'duration', 'backgroundImg', 'developer', 'creator', 'designer', 'version', 'type', 'releaseDate', 'languagesSupported', 'contactInformation'],
-  hint: ['id', 'missionId', 'speaker', 'text', 'img'],
+  hint: ['missionId', 'speaker', 'text', 'img'],
   mission: ['id', 'subtitle', 'title', 'description', 'answer', 'similarAnswer', 'successText', 'giveUpText', 'confirmGiveUpText', 'backgroundImg', 'navigation'],
-  prop: ['id', 'missionId', 'type', 'title', 'img', 'frontImg', 'rotateImg1', 'rotateImg2'],
+  prop: ['missionId', 'type', 'title', 'img', 'frontImg', 'rotateImg1', 'rotateImg2'],
   rundown: ['id', 'nextId', 'model', 'parentId', 'missionId', 'speaker', 'title', 'text', 'textAnimation', 'url', 'backgroundImg', 'customKey'],
-  story: ['id', 'missionId', 'title', 'img'],
+  story: ['missionId', 'title', 'img'],
 };
 
 // 選填欄位：有就吃、沒有就當空字串，不報錯也不提醒。
 // prop.backImg＝Wheel 最底層的固定背景圖（見 Wheel.jsx 的圖層說明）。
 export const OPTIONAL_FIELDS = {
-  prop: ['backImg'],
   // character.id 是歷史遺毒：角色一律靠 **name** 比對（rundown.speaker、hint.speaker），
   // 沒有任何一張表指向 character.id。
   //
@@ -48,8 +47,15 @@ export const OPTIONAL_FIELDS = {
   // 每一份既有試算表跳警告——而資料在創作者的雲端硬碟裡，我們沒有 migration 的權力。
   // 放這裡的話既有試算表完全不受影響（不吭聲），新的可以整欄不要。
   character: ['id'],
+  // hint / prop / story 的 id 同理，而且比 character 更乾淨——
+  // character.id 至少曾經是指標（rundown 早期用 id 指角色），
+  // **這三張表的 id 從來沒有任何人指過**：三頁的清單都用 key={index}，
+  // 提示的解鎖狀態已改成內容指紋（hintKeyOf），流程圖只吃 rundown。
+  // 它純粹是「每張表都要有 id」那條老規則的副產品。
   // hint.timer＝進這一關之後第幾分鐘自動解鎖這一則（單位：分鐘）
-  hint: ['timer'],
+  hint: ['id', 'timer'],
+  prop: ['backImg', 'id'],
+  story: ['id'],
 };
 
 // 表頭上「兩級都不認得」的欄位。這種欄位的資料永遠不會被讀到，
@@ -60,7 +66,9 @@ const knownFieldsOf = (type) =>
   new Set([...(REQUIRED_FIELDS[type] || []), ...(OPTIONAL_FIELDS[type] || [])]);
 
 // rundown.model 合法值（見 GameController modelComponents）
-export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'MissionAnswerInput', 'Img', 'CustomValueInput'];
+// GameStart＝遊戲封面，資料取自 config（見 player/game/GameStartModel.jsx）。
+// 它是純增量的新值：既有試算表一格都不用改，照舊用 mission 0 那種假關卡當封面。
+export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'GameStart', 'MissionAnswerInput', 'Img', 'CustomValueInput'];
 // prop.type 合法值（2026-08-25 加入 Camera：相機畫面上疊半透明圖的數位透明片）
 export const VALID_PROP_TYPES = ['Img', 'Wheel', 'Camera'];
 
@@ -149,11 +157,22 @@ export function validateGame(tables) {
   // **兩者必須一起生效**——validator 放行而引擎沒有 fallback，會變成
   // 「檢查通過、遊戲卻壞掉」，跟 PR #4 那次「validator 放行、遊戲靜默卡在 Loading」
   // 是同一種錯。
-  // 只剩 mission。character 的身分是 name 不是 id（Dong 2026-09-04 拍板放寬），
-  // 而 character.id 已經移到 OPTIONAL_FIELDS——留著不吭聲、不留也不吭聲。
+  // 兩個常數，一條規則：**id 唯一的用途是被別人指到。**
+  //
+  // ID_REQUIRED＝幾乎每一列都會被指到，所以必填。只剩 mission。
+  // ID_CHECKED＝id 有可能被指到，所以「有填就得唯一」。多一個 rundown（nextId／parentId）。
+  //
+  // 落在兩個集合外的表（character / hint / prop / story）連唯一都不驗——
+  // **一個沒有人指的欄位重複了，報錯是噪音**。它們的 id 都已經在 OPTIONAL_FIELDS，
+  // 留著不吭聲、整欄不要也不吭聲。
+  //
+  // config 不在這裡不是因為它「單筆不必驗唯一」，而是它根本不走這條路：
+  // config.id 是存檔的命名空間，必填檢查寫在上面 config 那一段（2026-09-04 的教訓——
+  // 「不必驗唯一」曾經被延伸成「不必驗有沒有填」）。
   const ID_REQUIRED_TABLES = new Set(['mission']);
+  const ID_CHECKED_TABLES = new Set(['mission', 'rundown']);
   for (const type of REQUIRED_TABLES) {
-    if (!tables[type] || type === 'config') continue;
+    if (!tables[type] || !ID_CHECKED_TABLES.has(type)) continue;
     const seen = new Map();
     for (const { row, i } of rowsOf(type)) {
       if (isEmpty(row.id)) {
@@ -306,6 +325,43 @@ export function validateGame(tables) {
       for (const col of ['parentId', 'nextId']) {
         if (isEmpty(row[col])) continue;
         if (!rundownIds.has(norm(row[col]))) add('rundown', sheetRow(i), col, `${col}「${row[col]}」在 rundown 表找不到對應 id（流程會斷掉）`);
+      }
+    }
+  }
+
+  // ---- 層 2（延伸）：兩種「開始」的 missionId 規則相反 ----
+  //
+  // | | GameStart | MissionStart |
+  // | 資料來源 | config | mission 那一列 |
+  // | missionId | **必須空白** | **必須指到關卡** |
+  //
+  // MissionStart 這一條以前驗不了：封面就是一列 `missionId=0` 的 MissionStart，
+  // 而「忘了填 missionId」跟「刻意做的封面」長得一模一樣——**用空白表達意圖，
+  // 等於放棄偵測錯誤的能力**。有了 GameStart，封面不再需要借用這個位置，
+  // 這一條才驗得起來。
+  //
+  // 而它擋的是一個會整頁全黑的狀態：MissionStartModel 讀 currentMission.navigation
+  // 時沒有 null 防護，指不到關卡就直接爆掉（2026-09-04 實際撞到）。
+  if (tables.rundown) {
+    let gameStartRow = null;
+    for (const { row, i } of rowsOf('rundown')) {
+      const model = norm(row.model);
+
+      if (model === 'GameStart') {
+        if (!isEmpty(row.missionId)) {
+          add('rundown', sheetRow(i), 'missionId', 'GameStart 是遊戲封面，資料取自 config（title／description／backgroundImg），missionId 要留空。想做的是關卡開場的話，model 改成 MissionStart');
+        }
+        // 封面只會有一張：流程從第一列走起，第二個 GameStart 只會是誤複製。
+        // 不擋生成——它不會讓遊戲壞掉，只是走到那裡時關卡狀態會被清空。
+        if (gameStartRow) {
+          warn('rundown', sheetRow(i), 'model', `這是第 2 個 GameStart（第一個在第 ${gameStartRow} 列）。封面只需要一列，走到這一列時玩家的關卡狀態會被清掉`);
+        } else gameStartRow = sheetRow(i);
+        continue;
+      }
+
+      if (model !== 'MissionStart') continue;
+      if (isNoMission(row.missionId)) {
+        add('rundown', sheetRow(i), 'missionId', 'MissionStart 需要 missionId 指向這一關（關卡名、背景圖、導航都從那一列讀，指不到會整頁全黑）。這一列如果是遊戲封面，model 改成 GameStart、missionId 留空');
       }
     }
   }

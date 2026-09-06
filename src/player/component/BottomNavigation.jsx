@@ -13,7 +13,8 @@ import PropTypes from 'prop-types';
 export default function FixedBottomNavigation({ value, onChange }) {
   const { hintData, currentMissionId, unlockedHints, missionStartedAt } =
     useContext(GameContext);
-  const now = useHintTick();
+  // 進關時刻一變就立刻重算，不必等下一次心跳（見 useHintTick 的說明）
+  const now = useHintTick(missionStartedAt?.[currentMissionId]);
 
   // 「時間到了但還沒被解鎖」的數量。
   //

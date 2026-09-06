@@ -5,17 +5,30 @@ import PageContainer from '../common/PageContainer';
 import PageTitleText from '../common/PageTitleText';
 import MissionList from '../common/MissionList';
 import ConfirmDialog from '../common/ConfirmDialog';
+import { TAB } from '../common/layout';
+
+// 舊試算表的封面關。
+//
+// mission id = '0' **不是哨兵值**，它是一列真的關卡列，內容是遊戲封面
+// （demo 的 mission[0].title 跟 config.title 一模一樣，而它底下 0 則提示、
+// 0 個道具、0 篇故事，rundown 只有那一列 MissionStart）。
+// 它只是借用關卡的資料結構顯示一張封面，再靠過濾器藏起來。
+//
+// 正解是新的 GameStart model、封面資料改由 config 供（COO-179）。
+// 在那之前——以及那之後，為了既有試算表——這一條要留著，
+// 但它的身分是**後路，不是規則**：新遊戲不該再有 mission 0。
+const LEGACY_COVER_MISSION_ID = '0';
 
 const MissionPage = () => {
   const {
     missionData,
-    getMissionById,
     playerMissionData,
     rundownData,
     currentMissionId,
     goToId,
     setCurrentMissionId,
     updateMissionStatus,
+    goToTab,
   } = useContext(GameContext);
   const [displayMissions, setDisplayMissions] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -24,18 +37,30 @@ const MissionPage = () => {
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef(null);
 
-  const currentMission = getMissionById(currentMissionId);
-
+  // 這一頁**不需要** currentMission。
+  //
+  // 原本開頭有一道 `if (!currentMission) return;`——關卡清單會因為「玩家還沒進
+  // 任何一關」而整頁空白，那正好是最需要看到清單的時候。GameStart 落地後
+  // currentMissionId 會真的變成 ''，那道 guard 會讓封面上的關卡頁全空。
+  //
+  // 移除是安全的：isActive 拿 '' 去比對不會中，MissionItem 在 !mission.status
+  // 時本來就是暗的。
   useEffect(() => {
-    if (!currentMission) {
-      console.log('還沒有 currentMission！');
-      return;
-    }
     if (!Array.isArray(missionData)) {
       console.log('missionData 不是有效的數組！');
       return;
     }
-    const filterMissions = missionData.filter((row) => row.id > 0);
+    // 原本寫 `row.id > 0`——那是「mission.id 一定是數字」的遺留。
+    // `'第三章' > 0` 是 false，於是用語意名字當關卡 id 的遊戲，
+    // 整個關卡頁會空掉（COO-178）。
+    //
+    // 這個過濾器真正要表達的是兩件事，跟數值大小無關：
+    // ① 沒有 id 的列不列出來（沒有人指得到它，validator 也會擋）
+    // ② 舊資料的封面關不列出來
+    const filterMissions = missionData.filter((row) => {
+      const id = String(row.id ?? '').trim();
+      return id !== '' && id !== LEGACY_COVER_MISSION_ID;
+    });
     const updatedFilterMissions = filterMissions.map((mission) => {
       const targetMission = playerMissionData.find(
         (playerMD) => playerMD.id === mission.id
@@ -43,7 +68,7 @@ const MissionPage = () => {
       return { ...mission, status: targetMission?.status || '' };
     });
     setDisplayMissions(updatedFilterMissions);
-  }, [currentMission, currentMissionId, missionData, playerMissionData]);
+  }, [missionData, playerMissionData]);
 
   const handleMissionSelect = (missionId, title) => {
     setSelectedMissionId(missionId);
@@ -63,16 +88,24 @@ const MissionPage = () => {
       goToId(keyOf(missionStartRow));
       setCurrentMissionId(missionStartRow.missionId);
       updateMissionStatus(missionStartRow.missionId, 'solving');
+      // 按下「確定」的意思就是「我要去那一關」。以前跳完畫面還停在這張清單上，
+      // 玩家得自己再點一次左下角的「解謎」才看得到結果——中間那一步是多的。
+      //
+      // 只有真的跳成功才切頁：missionStartRow 找不到時什麼都沒發生，
+      // 把人丟到解謎頁只會讓他更困惑。
+      goToTab(TAB.PLAY);
     }
 
     setDialogOpen(false);
   };
 
-  const handleMultiClick = (index, title) => () => {
+  // 收到的是 mission.id（見 MissionItem 的 onMultiClick(mission.id, ...)），
+  // 不是陣列位置——原本的參數名叫 index，在 id 可以是語意名字之後特別容易誤導。
+  const handleMultiClick = (missionId, title) => () => {
     clickCountRef.current += 1;
 
     if (clickCountRef.current === 10) {
-      handleMissionSelect(index, title);
+      handleMissionSelect(missionId, title);
       clickCountRef.current = 0;
     }
 

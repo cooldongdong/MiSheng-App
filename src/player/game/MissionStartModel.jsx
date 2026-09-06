@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { GameContext } from '../store/game-context';
 import PropTypes from 'prop-types';
 import FloatingLayer from '../component/layer/FloatingLayer';
@@ -12,7 +12,7 @@ import AssistantDirectionRoundedIcon from '@mui/icons-material/AssistantDirectio
 import EndIconButton from '../component/common/EndIconButton';
 
 const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
-  const { getImg, getMissionById, currentMissionId, startMission } =
+  const { getImg, getMissionById, currentMissionId } =
     useContext(GameContext);
   const currentMission = getMissionById(currentMissionId);
 
@@ -63,9 +63,15 @@ const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
               )}
             </>
           ) : (
-            <Typography variant="h6" gutterBottom>
-              正在載入任務資料...
-            </Typography>
+            // 指不到關卡時什麼都不畫。
+            //
+            // 這裡原本寫「正在載入任務資料...」，但那句話有兩個問題：
+            // ① 真正指不到關卡的原因不是「還在載入」，是創作者漏填 missionId
+            //    ——而那現在是 validator 的 error，不會走到播放器來。
+            // ② 剩下唯一會走到這裡的是**同步的那一幀**：currentMissionId 的初始值
+            //    是 ''，要等 GameController 的 effect 才會跟上這一列的 missionId。
+            //    在那一幀秀出「正在載入」，等於每次開場都閃一下一句假話。
+            null
           )}
 
           <Stack direction="row" spacing={2} sx={{ mt: '10px' }}>
@@ -82,17 +88,12 @@ const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
               </EndIconButton>
             )}
             {canProceed && (
-              /* 按下這一刻＝這一關的計時起點（hint.timer 用它算「進關後幾分鐘」）。
-                 記在按鈕上而不是「走到這一列時」，是因為 MissionStart 這一頁可能
-                 停留很久——玩家在讀關卡說明、看導覽連結，那段時間不該算進去。 */
-              <EndIconButton
-                onClick={() => {
-                  startMission(currentMissionId);
-                  onNext();
-                }}
-              >
-                開始遊戲
-              </EndIconButton>
+              /* 計時起點（hint.timer 的「進關後幾分鐘」）**不在這裡**，在
+                 GameController.handleNext——理由見那邊的註解。簡短版：
+                 「停留很久的說明時間不該算進去」是對的，但這一頁本來就可以用滑的
+                 翻過去，把計時綁在這顆按鈕上等於滑過去的人永遠不會開始倒數。
+                 onNext 就是 handleNext，所以按這顆一樣會啟動，只是不再只認它。 */
+              <EndIconButton onClick={onNext}>開始遊戲</EndIconButton>
             )}
           </Stack>
         </Box>

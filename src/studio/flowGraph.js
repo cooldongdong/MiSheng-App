@@ -16,6 +16,7 @@ const norm = (v) => String(v ?? '').trim();
 
 // 這些 model 是流程的骨架，不摺疊；其餘（Talk/Img…）連續段會被摺成一個節點
 const STRUCTURAL = new Set([
+  'GameStart',
   'MissionStart',
   'Quiz',
   'MissionAnswerInput',

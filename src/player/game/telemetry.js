@@ -127,6 +127,212 @@ const dateStamp = (d = new Date()) =>
 export const exportFileName = (gameId, sid) =>
   `${gameId}-${dateStamp()}-${(sid || '').slice(0, 6) || 'nosid'}.json`;
 
+// 匯出的內容與檔名——三條出口（分享／複製／下載）共用同一份，
+// 免得哪一條哪天長出自己的格式。
+export const exportPayloadText = (gameId) =>
+  JSON.stringify(buildExport(gameId), null, 2);
+
+// ---- 三條出口 ----
+//
+// **為什麼需要三條。** 原本只有「下載」，而它在 app 內建的瀏覽器裡是死的：
+// Dong 2026-09-06 實測 iOS 的 Google app 按了完全沒反應，Safari 與 Android Chrome
+// 都正常。那類瀏覽器（WKWebView）對 `blob:` ＋ `<a download>` 沒有下載能力，
+// 而且**不報錯**。
+//
+// 危險的是失敗的那一格正是活動當天最可能發生的那一格——玩家多半從 LINE 或
+// QR 進來，iOS 上那就是內建瀏覽器，不是 Safari。而這份紀錄只存在玩家自己的
+// localStorage 裡，拿不出來就是一筆都沒有。
+//
+// 所以三條由好到保底排：
+//   1. 分享（navigator.share）——手機原生的分享單，接上玩家本來就認得的動作
+//   2. 複製——一定會動，任何瀏覽器、任何裝置
+//   3. 下載——桌機的正解
+//
+// 注意 1 與 clipboard API 都**需要 secure context**（https 或 localhost）。
+// 區網測試是 http://192.168.x.x，所以那邊只有第 3 條與複製的舊寫法會動。
+
+// 這台裝置能不能用「分享檔案」。分開判斷是因為 navigator.share 存在不代表
+// 它吃得下檔案（部分瀏覽器只支援 text/url）。
+//
+// **這台裝置的分享壞掉了。** 不綁 gameId——那是裝置的能力，不是某一場遊戲的狀態。
+//
+// 為什麼要記：`navigator.canShare()` 會說謊。Android Chrome 上它回 true，
+// 真的送出時卻丟 NotAllowedError（Dong 2026-09-06 實測，而且是真手勢）。
+// 探測既然不可信，就改用**事實**——失敗過一次，這台裝置以後就不再提供這個選項。
+//
+// 「做一個使用者按了會失敗的按鈕」比「少一個按鈕」糟：後者他還有另外兩條路，
+// 前者他會以為東西壞了，然後放棄。
+// 換版過一次（v2）：v1 時期的分享送的是 .json，在 Android 上必定失敗，於是那些
+// 裝置都被標成「分享壞掉」。修好送法之後那個標記就是錯的——不換 key 的話，
+// 修好了但按鈕永遠不會回來。
+const SHARE_BROKEN = 'misheng_share_broken_v2';
+
+const readShareBroken = () => {
+  try {
+    return localStorage.getItem(SHARE_BROKEN) === '1';
+  } catch {
+    return false;
+  }
+};
+
+// 這個網頁被允許用哪些功能——由伺服器的 Permissions-Policy 回應標頭決定。
+//
+// ⚠️ **`allowsFeature()` 對「不認得的功能名稱」也回 false**，而不是丟錯。所以
+// 一定要先確認名字在 `features()` 裡，否則會把「這個瀏覽器沒有這個政策項目」
+// 誤讀成「被政策擋掉」。
+//
+// 2026-09-06 我就是這樣誤判的：看到 `allowsFeature('web-share')` 回 false 就
+// 斷定是 Cloudflare 加了安全標頭，讓 Dong 去翻部署設定——實際上那台伺服器
+// **一個 Permissions-Policy 標頭都沒送**，而 `web-share` 根本不在 Chromium 的
+// `features()` 清單裡（清單裡跟 share 有關的只有 shared-storage）。
+//
+// 順便看 camera：Camera 道具靠它，而「安全標頭」預設常把它一起關掉——那會讓
+// 道具直接壞掉，而且沒有人會聯想到是標頭的問題。camera **在**清單裡，所以那一格
+// 的答案是可信的。
+export const policySnapshot = () => {
+  const fp = typeof document !== 'undefined' ? document.featurePolicy : null;
+  if (!fp?.allowsFeature || !fp?.features) return '';
+  const known = new Set(fp.features());
+  const of = (name) => {
+    if (!known.has(name)) return '查不到（這個瀏覽器沒有這個政策項目）';
+    try {
+      return fp.allowsFeature(name) ? '可' : '被擋';
+    } catch {
+      return '?';
+    }
+  };
+  return `web-share ${of('web-share')}／camera ${of('camera')}`;
+};
+
+export const markShareBroken = () => {
+  try {
+    localStorage.setItem(SHARE_BROKEN, '1');
+  } catch {
+    // 存不進去就算了，最多下次再失敗一次
+  }
+};
+
+// **一定要有回頭路。** 上一版失敗一次就永久藏起那顆鈕，唯一的復原方式是清掉整站
+// 的瀏覽器資料——連帶把遊戲進度一起清掉。對測試的人是災難，對玩家也不合理：
+// 分享失敗可能是當下的狀況（沒選 app、系統忙），不是這台裝置永遠不行。
+export const clearShareBroken = () => {
+  try {
+    localStorage.removeItem(SHARE_BROKEN);
+  } catch {
+    // 清不掉也沒關係，下一次還是會照現況判斷
+  }
+};
+
+export const isShareBroken = () => readShareBroken();
+
+export const canShareExport = () => {
+  if (typeof navigator === 'undefined' || !navigator.share) return false;
+  if (!navigator.canShare || typeof File === 'undefined') return false;
+  if (readShareBroken()) return false;
+  try {
+    const probe = new File(['{}'], 'probe.json', { type: 'application/json' });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+};
+
+// 叫出系統的分享單，把紀錄當**檔案**送出去（不是一長串文字）——這樣它可以
+// AirDrop 給自己的電腦、存進檔案 App、或在聊天軟體裡當附件。
+// 回傳有沒有真的送出；使用者按取消也算 false，呼叫端不必把取消當錯誤。
+//
+// 失敗時回傳 `{ ok, reason }`，reason 是 null 代表沒話要說（成功、或使用者取消）：
+//
+//   - `AbortError` ＝ 使用者自己取消。這**不是失敗**，什麼都不要說——
+//     跟他講「你的裝置擋掉了」是在說謊。
+//   - 其他 ＝ 真的不行。把錯誤名稱與訊息寫在畫面上，下一次就不必猜。
+//
+// 實測紀錄（Dong 2026-09-06，部署在 Cloudflare 上）：
+//
+// | 環境 | 分享 | 下載 |
+// | iOS | ✅ | ✅ |
+// | iOS app 內建瀏覽器 | ？（download 已知失敗，分享待測）| ❌ 按了完全沒反應 |
+// | Android Chrome | ✅ 改送 .txt 之後（送 .json 必定失敗）| ✅ |
+// | Firefox（Android）| ❌ 沒有這個 API | ✅ |
+//
+export const shareEvents = async (gameId) => {
+  if (!canShareExport()) return { ok: false, reason: '這台裝置沒有分享功能' };
+  const payload = buildExport(gameId);
+  // **送 .txt／text/plain，不送 .json。**
+  //
+  // Chromium 對可分享的檔案**副檔名有白名單**，而 `.json` 不在裡面——`canShare()`
+  // 回 true，`share()` 才丟 `NotAllowedError: Permission denied`。探測與實際執行
+  // 用的是兩套規則，所以「先問再送」在這裡沒有用。
+  //
+  // 怎麼確定的（2026-09-06，Dong 的 Android Chrome，`?diag=1` 的現場探針）：
+  //   · share／canShare 都是 true，canShare(text) 與 canShare(files) 也都是 true
+  //   · `web-share` **不在** `features()` 清單裡 ⇒ allowsFeature 的 false 沒有意義，
+  //     跟伺服器的 Permissions-Policy 無關（那台伺服器一個相關標頭都沒送）
+  //   · **兩個探針都成功彈出分享視窗**，而它們送的是 .txt／text/plain
+  //   ⇒ 差別只剩檔案型別。
+  //
+  // 中間我還錯過一次：曾經「失敗後改送 text/plain 重試」，一樣失敗，於是排除了
+  // 型別這個可能。**那次失敗的真正原因是使用者手勢已經過期**——`share()` 必須在
+  // 手勢的有效期內呼叫，而第一次失敗之後已經是另一個 task 了。用錯的方法測，
+  // 會得到看起來很確定的錯誤結論。
+  //
+  // 內容仍然是 JSON，只是換一件外衣。iOS 那邊 .json 本來就能送，改成 .txt 也一樣
+  // 收得到——一種送法涵蓋所有環境，比分平台特例可靠。
+  const name = exportFileName(gameId, payload.sid).replace(/\.json$/, '.txt');
+  const file = new File([JSON.stringify(payload, null, 2)], name, {
+    type: 'text/plain',
+  });
+  try {
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+      return { ok: false, reason: '這台裝置不收這種檔案' };
+    }
+    await navigator.share({ files: [file], title: name });
+    return { ok: true, reason: null };
+  } catch (err) {
+    // 使用者按取消——不是錯誤，不要對他報錯
+    if (err?.name === 'AbortError') return { ok: false, reason: null };
+    // name 不夠用：Chromium 對「沒有手勢」「權限被政策擋掉」「檔案型別不合法」
+    // 都丟 NotAllowedError，只有 message 分得出來是哪一種。
+    const detail = String(err?.message || '').slice(0, 80);
+    return {
+      ok: false,
+      reason: [err?.name || '不明原因', detail].filter(Boolean).join(': '),
+    };
+  }
+};
+
+// 複製到剪貼簿。**兩條路都要留**：
+// navigator.clipboard 需要 secure context，而測試用的區網網址是 http，
+// 部分內建瀏覽器也沒有。舊的 execCommand 雖然標為過時，但正是那些環境唯一會動的。
+export const copyEvents = async (gameId) => {
+  const text = exportPayloadText(gameId);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // 落到底下的舊寫法
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    // 不能用 display:none／hidden——選不到的東西複製不了。移到畫面外即可。
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length); // iOS 只認這個
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+};
+
 export const downloadEvents = (gameId) => {
   const payload = buildExport(gameId);
   const blob = new Blob([JSON.stringify(payload, null, 2)], {

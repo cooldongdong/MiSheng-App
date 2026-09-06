@@ -24,7 +24,8 @@ const HintPage = () => {
     unlockHint,
     missionStartedAt,
   } = useContext(GameContext);
-  const now = useHintTick();
+  // 同 BottomNavigation：進關時刻一變就立刻重算（見 useHintTick 的說明）
+  const now = useHintTick(missionStartedAt?.[currentMissionId]);
   const [currentHints, setCurrentHints] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false); // Dialog 的開關
   const [currentHintIndex, setCurrentHintIndex] = useState(null); // 當前選擇的提示索引
@@ -34,7 +35,11 @@ const HintPage = () => {
 
   useEffect(() => {
     if (!currentMission) {
-      // console.log('還沒有 currentMission！');
+      // 沒有關卡＝玩家在封面上（GameStart），不是「還沒載好」。
+      // **要清掉，不能只 return**——直接 return 會讓這一頁停在上一關，
+      // 於是從第三關回封面時這裡還列著第三關的東西。
+      // 今天踩不到是因為 currentMissionId 從來不會被清空；GameStart 一落地就會踩到。
+      setCurrentHints([]);
       return;
     }
     if (!Array.isArray(hintData)) {

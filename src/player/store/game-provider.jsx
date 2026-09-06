@@ -27,6 +27,14 @@ export const GameProvider = ({
   // 把 src/gameFile/ 的圖整包打進 bundle。
   imgLookup = null,
   onPositionLost = null,
+  // 切換底部導覽列的分頁。**狀態不歸 provider 所有**——它住在 GameShell 的
+  // useState，這裡只當傳聲筒。
+  //
+  // 為什麼要繞這一圈：GameShell 是 <GameProvider> 的**外層**，讀不到自己提供的
+  // context，而需要切頁的是 provider 底下的 MissionPage（跳關之後要跳去解謎頁）。
+  // 把 setter 往下遞是最小的作法；把分頁索引整個搬進 provider 會讓「玩家在看哪一頁」
+  // 變成遊戲狀態的一部分，而它不是——它是外框的事（見 COO-185 的播放器／宿主分界）。
+  goToTab = null,
 }) => {
   // 只需匯入一次的遊戲資料
   const [characterData, setCharacterData] = useState(null);
@@ -150,7 +158,17 @@ export const GameProvider = ({
   const [spatialNav, setSpatialNavRaw] = useState(null);
   // useState 存「函式」一定要包一層：直接傳函式會被當成 updater 呼叫掉
   const setSpatialNav = useCallback((fn) => setSpatialNavRaw(() => fn ?? null), []);
-  const [currentMissionId, setCurrentMissionId] = useState('0');
+  // 初始值是 ''＝「還不在任何一關」，不是 '0'。
+  //
+  // '0' 是舊資料的封面關編號（mission 表裡一列 id=0 的假關卡）。把它當初始值，
+  // 等於對每一份遊戲斷言「開場時你在第 0 關」——而那只對「剛好有 mission 0」
+  // 的遊戲成立。新遊戲的封面是 GameStart，沒有任何關卡。
+  //
+  // 舊存檔不受影響：存的是 '0' 就照樣讀回 '0'，舊遊戲指得到 mission 0，行為不變。
+  const [currentMissionId, setCurrentMissionId] = useState('');
+  // 上一次同步時玩家在哪一列。只給上面那個「走到封面才清空關卡」的判斷用——
+  // 用來把「玩家自己走過去」跟「還原過程中的短暫落點」分開。
+  const prevIdRef = useRef(null);
   const [unlockedHints, setUnlockedHints] = useState({});
   // 玩家按下每一關 MissionStart 的「開始遊戲」的時刻（epoch ms），用來算 hint.timer。
   //
@@ -197,8 +215,10 @@ export const GameProvider = ({
       localStorage.getItem(getStorageKey('currentId'))
     );
     setCurrentId(savedPosRef.current?.key || null);
+    // 用 ?? 不是 ||：'' 是一個有意義的值（玩家存檔時人在封面上），
+    // 用 || 會把它換成 '0'，也就是把「不在任何一關」誤讀成「在第 0 關」。
     setCurrentMissionId(
-      localStorage.getItem(getStorageKey('currentMissionId')) || '0'
+      localStorage.getItem(getStorageKey('currentMissionId')) ?? ''
     );
     setUnlockedHints(
       JSON.parse(localStorage.getItem(getStorageKey('unlockedHints'))) || {}
@@ -477,6 +497,53 @@ export const GameProvider = ({
     });
   };
 
+  // 走到哪一列，關卡狀態就要跟到哪。
+  //
+  // **住在 provider，不在 GameController。** GameController 只在「解謎」那一個
+  // 分頁掛載（見 GameShell 的 switch），但 currentId 在別的分頁一樣會變——
+  // /create 的三欄畫面點右邊流程圖就會 goToId，中間欄停在哪一頁完全不受影響。
+  // 放在 GameController 裡的話，停在提示分頁跳去別關，提示清單會一直是上一關的，
+  // 直到有人切回解謎分頁才更新。
+  //（Dong 2026-09-01 回報過這個症狀的一半——展開狀態沿用到新的一關。當時修的是
+  //  HintPage 自己的 expandedHints，沒發現連 currentMissionId 都還沒跟上。）
+  useEffect(() => {
+    if (!Array.isArray(rundownData) || !Array.isArray(missionData)) return;
+    const row = rundownData.find((item) => keyOf(item) === currentId);
+    if (!row) return;
+
+    // 封面＝玩家不在任何一關。這是**唯一**會清掉 currentMissionId 的地方，
+    // 而且由 model 判斷，**不是由 missionId 空白判斷**——rundown 的 missionId
+    // 空白代表「沿用上一關」，demo 有 481 列是這樣（關卡中間的每一句對白）。
+    // 封面＝玩家不在任何一關。這是**唯一**會清掉 currentMissionId 的地方，
+    // 而且由 model 判斷，**不是由 missionId 空白判斷**——rundown 的 missionId
+    // 空白代表「沿用上一關」，demo 有 481 列是這樣（關卡中間的每一句對白）。
+    //
+    // ⚠️ **只有「從別的地方走過來」才算走到封面**（prevIdRef 的用途）。
+    //
+    // 位置還原時 currentId 會**短暫落在第一列**——上面那條 effect 的
+    // `setCurrentId(keyOf(missionStart) ?? firstKey)`：還原順序上 currentMissionId
+    // 可能還沒讀回來，於是找不到對應的 MissionStart，退回整場的開頭，而整場的開頭
+    // 現在正是 GameStart。少了這道判斷，**玩家在關卡中重整就會被清掉關卡**，
+    // 提示／道具／故事三頁跟著變空，而且要走到下一個 MissionStart 才會回來。
+    //
+    // 實測（2026-09-06）的 currentId 軌跡：`null → 1(GameStart) → 321(存檔的那一列)`。
+    // 中間那一格是還原過程，不是玩家走過去的。
+    if (normId(row.model) === 'GameStart') {
+      const cameFromElsewhere =
+        prevIdRef.current !== null && prevIdRef.current !== currentId;
+      prevIdRef.current = currentId;
+      if (cameFromElsewhere) setCurrentMissionId('');
+      return;
+    }
+    prevIdRef.current = currentId;
+
+    const mission = getMissionById(row.missionId);
+    // missionId 空白＝沿用上一關（demo 有 481 列是這樣），不是「沒有關卡」
+    if (!mission) return;
+    setCurrentMissionId(mission.id);
+    updateMissionStatus(mission.id, 'solving');
+  }, [currentId, rundownData, missionData, getMissionById]);
+
   // 更新自定義鍵值對
   const updateCustomPairs = (customKey, customValue) => {
     setCustomPairs((prevPairs) => ({
@@ -527,6 +594,9 @@ export const GameProvider = ({
         missionStartedAt,
         startMission,
         updateMissionStatus,
+        // 由 GameShell 往下遞（見上面 props 的說明）。沒有宿主提供時是 noop，
+        // 這樣呼叫端不必每次都判斷有沒有。
+        goToTab: goToTab ?? (() => {}),
         customPairs,
         updateCustomPairs,
 
@@ -555,4 +625,5 @@ GameProvider.propTypes = {
   imgBase: PropTypes.string,
   imgLookup: PropTypes.func,
   onPositionLost: PropTypes.func,
+  goToTab: PropTypes.func,
 };

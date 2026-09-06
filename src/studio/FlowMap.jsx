@@ -285,7 +285,8 @@ const FlowMap = ({
                 const bad = !n.reachable;
                 const active = n.id === activeNodeId;
                 // 章節錨點：實心深底＋白字，掃過去一眼就知道「新的一關從這裡開始」
-                const anchor = n.model === 'MissionStart';
+                const anchor =
+                  n.model === 'MissionStart' || n.model === 'GameStart';
                 const flashing = n.id === flash.id;
                 return (
                   <g

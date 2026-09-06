@@ -13,6 +13,7 @@ import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
 import DiagOverlay from './common/DiagOverlay';
 import { useTouchClickRecovery } from '../hook/useTouchClickRecovery';
+import { TAB } from './common/layout';
 
 // 現場量測面板：網址帶 ?diag=1 才出現（見 DiagOverlay）
 const wantsDiag = () => {
@@ -79,7 +80,7 @@ const GameShell = ({
   // Chrome 在滑動翻頁後會吞掉下一次觸控的 click（見 hook 檔頭的證據）
   useTouchClickRecovery();
 
-  const [value, setValue] = useState(2);
+  const [value, setValue] = useState(TAB.PLAY);
   // 兩條分隔線：左面板寬度、遊戲那欄的寬度
   const [leftW, setLeftW] = useState(268);
   const [paneW, setPaneW] = useState(phonePaneWidth);
@@ -156,11 +157,11 @@ const GameShell = ({
     if (!gameData) return <GameLoading />;
 
     switch (value) {
-      case 0:
+      case TAB.MISSIONS:
         return <MissionPage />;
-      case 1:
+      case TAB.PROPS:
         return <PropPage />;
-      case 2:
+      case TAB.PLAY:
         return (
           <GameController
             {...gameData}
@@ -168,9 +169,9 @@ const GameShell = ({
             devTools={devTools}
           />
         );
-      case 3:
+      case TAB.HINTS:
         return <HintPage />;
-      case 4:
+      case TAB.STORIES:
         return <StoryPage />;
       default:
         return <div>未知頁面內容</div>;
@@ -179,6 +180,7 @@ const GameShell = ({
 
   return (
     <GameProvider
+      goToTab={setValue}
       gameFolder={gameFolder}
       previewMode={previewMode}
       imgMap={imgMap}

@@ -153,9 +153,37 @@ export const exportPayloadText = (gameId) =>
 
 // 這台裝置能不能用「分享檔案」。分開判斷是因為 navigator.share 存在不代表
 // 它吃得下檔案（部分瀏覽器只支援 text/url）。
+//
+// **這台裝置的分享壞掉了。** 不綁 gameId——那是裝置的能力，不是某一場遊戲的狀態。
+//
+// 為什麼要記：`navigator.canShare()` 會說謊。Android Chrome 上它回 true，
+// 真的送出時卻丟 NotAllowedError（Dong 2026-09-06 實測，而且是真手勢）。
+// 探測既然不可信，就改用**事實**——失敗過一次，這台裝置以後就不再提供這個選項。
+//
+// 「做一個使用者按了會失敗的按鈕」比「少一個按鈕」糟：後者他還有另外兩條路，
+// 前者他會以為東西壞了，然後放棄。
+const SHARE_BROKEN = 'misheng_share_broken';
+
+const readShareBroken = () => {
+  try {
+    return localStorage.getItem(SHARE_BROKEN) === '1';
+  } catch {
+    return false;
+  }
+};
+
+export const markShareBroken = () => {
+  try {
+    localStorage.setItem(SHARE_BROKEN, '1');
+  } catch {
+    // 存不進去就算了，最多下次再失敗一次
+  }
+};
+
 export const canShareExport = () => {
   if (typeof navigator === 'undefined' || !navigator.share) return false;
   if (!navigator.canShare || typeof File === 'undefined') return false;
+  if (readShareBroken()) return false;
   try {
     const probe = new File(['{}'], 'probe.json', { type: 'application/json' });
     return navigator.canShare({ files: [probe] });
@@ -204,7 +232,13 @@ export const shareEvents = async (gameId) => {
   } catch (err) {
     // 使用者按取消——不是錯誤，不要對他報錯
     if (err?.name === 'AbortError') return { ok: false, reason: null };
-    return { ok: false, reason: err?.name || '不明原因' };
+    // **name 不夠用**：Chromium 對「沒有手勢」「權限被政策擋掉」「檔案不合法」
+    // 都丟 NotAllowedError，只有 message 分得出來是哪一種。
+    const detail = String(err?.message || '').slice(0, 80);
+    return {
+      ok: false,
+      reason: [err?.name || '不明原因', detail].filter(Boolean).join(': '),
+    };
   }
 };
 

@@ -19,6 +19,7 @@ import {
   canShareExport,
   copyEvents,
   downloadEvents,
+  markShareBroken,
   shareEvents,
 } from '../../game/telemetry';
 
@@ -79,26 +80,34 @@ const ExportEventsButton = () => {
   //
   // 真的不行的時候把錯誤名稱寫出來。這一格我已經猜錯兩次（先猜 iOS、再猜檔案型別
   // 白名單），與其再猜第三次，不如讓畫面直接說它是什麼。
+  // 分享跟另外兩個不一樣：它會回傳「為什麼不行」，而且**使用者按取消不算失敗**
+  //（reason 是 null）。
+  //
+  // **失敗一次就不再提供這個選項，並且當場改用下載。** 理由是 Dong 2026-09-06 的
+  // 一句話：「不要做一個使用者無法用的功能」。Android Chrome 上 canShare() 回 true
+  // 但送出必定失敗——探測不可信，就改用事實：失敗過的裝置以後不再看到這顆鈕。
+  //
+  // 不讓這一按變成白費：當場接著走下載，並且**把發生的事講出來**。上一版是靜靜
+  // 退回下載（圖示畫著分享、做的卻是下載），那個問題出在沒說，不是出在退回。
   const runShare = async (event) => {
-    // **這一下是真的手指按的，還是我們自己補出來的？**
-    //
-    // navigator.share 需要「使用者手勢」，而 useTouchClickRecovery 會在 Chrome
-    // 吞掉 click 時**自己 dispatch 一個 MouseEvent 補回去**——那種 click 的
-    // isTrusted 是 false，帶不動任何需要手勢的 API。Android Chrome 回的
-    // NotAllowedError 正是「沒有手勢」的標準錯誤（Dong 2026-09-06 實測）。
-    //
-    // 所以把它一起報出來：真手勢還失敗，跟假手勢失敗，是兩個完全不同的問題，
-    // 而它們的錯誤名稱一模一樣。**與其再猜第三次，不如讓畫面直接分辨。**
     const trusted = event?.isTrusted !== false;
     setBusy(true);
     try {
       const { ok, reason } = await shareEvents(gameId);
-      if (ok) setStatus('已送出');
-      else if (reason)
-        setStatus(
-          `分享沒有成功（${reason}${trusted ? '' : '／補發的點擊'}），改用下面兩個`
-        );
-      else setStatus('');
+      if (ok) {
+        setStatus('已送出');
+        return;
+      }
+      // 取消：他自己按的，什麼都不用做也不用說
+      if (!reason) return;
+
+      markShareBroken();
+      setCanShare(false);
+      downloadEvents(gameId);
+      setStatus(
+        `這台裝置擋掉了分享（${reason}${trusted ? '' : '／補發的點擊'}），` +
+          `已改用下載。找不到檔案的話用「複製」。`
+      );
     } finally {
       setBusy(false);
     }

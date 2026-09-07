@@ -285,7 +285,13 @@ const SourcePanel = ({
               //
               // 匯出包的 README 則相反，那份文字會在創作者自己的網域下被讀到，
               // 相對網址指不到我們的站，所以那邊維持絕對網址。
-              href="/docs/collect"
+              //
+              // **路徑要含 publish/。** 這三條連結（這裡一條、exportGamePack 兩條）
+              // 曾經全部是 404 上線的：文件站改成分章節之後真正的網址是
+              // /docs/publish/collect，而 VitePress 的 ignoreDeadLinks 只檢查
+              // **文件站內部**的連結——從 app 指過去的這幾條它看不到，
+              // 所以沒有任何東西會在 build 時吵。改這裡時請一併 curl 一次。
+              href="/docs/publish/collect"
               target="_blank"
               rel="noopener"
               underline="hover"

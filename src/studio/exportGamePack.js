@@ -96,7 +96,7 @@ ${
 不需要安裝任何軟體，也不用會寫程式。
 
 其他選擇與注意事項（GitHub Pages 有一個對解謎很要命的限制）看這裡：
-https://misheng.app/docs/deploy
+https://misheng.app/docs/publish/deploy
 
 【注意】不能直接用瀏覽器打開 index.html（網址開頭是 file:// 的那種）。
 瀏覽器不允許網頁那樣讀資料，畫面會告訴你讀不到遊戲。一定要放上網站空間。
@@ -121,7 +121,7 @@ Google 試算表，還會幫你算成一張看得懂的報表。
 資料不會經過謎生的伺服器——它是你的玩家的資料，所以它應該在你手上。
 
 怎麼設定看這裡（大約十分鐘，只做一次）：
-https://misheng.app/docs/collect
+https://misheng.app/docs/publish/collect
 
 設定完之後，這個資料夾裡的 ${GAME_DIR}/config.csv 加一欄 recordUrl 就生效了，
 **不用重新匯出**——改完直接重新上傳這個資料夾。

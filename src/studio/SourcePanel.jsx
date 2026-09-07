@@ -279,7 +279,13 @@ const SourcePanel = ({
           <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             未設定 ·{' '}
             <Link
-              href="https://misheng.app/docs/collect"
+              // **相對網址，不要寫死 misheng.app。** 寫死的話在本機或區網測試時，
+              // 這條連結會把人送去線上那份（舊的）文件——Dong 2026-09-07 撞到：
+              // 「我還是無法看到最新的文件」。
+              //
+              // 匯出包的 README 則相反，那份文字會在創作者自己的網域下被讀到，
+              // 相對網址指不到我們的站，所以那邊維持絕對網址。
+              href="/docs/collect"
               target="_blank"
               rel="noopener"
               underline="hover"

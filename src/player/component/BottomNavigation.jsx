@@ -33,11 +33,15 @@ import PropTypes from 'prop-types';
 //
 // 兩個訊號用兩個不同的維度，就不會互相冒充。而「中間一顆突出的主鈕」是玩家在別的
 // app 上已經認得的語彙，不用學。
+// 「你在這」那一半（選中＝亮起來）寫在 theme.js 的 MuiBottomNavigationAction
+// override 裡，五顆共用——**它是狀態，不是身分**，不該由某一顆自己決定。
+//
+// 那條 override 原本是鏽橘，正是這次一起改掉的東西：橘色現在只講「家」。
+// 一度想在這裡用 !important 壓過它，但那只是跟自己的 theme 打架——
+// 兩個地方各講一半，下一個人改 theme 時看不到這裡的覆蓋。
 const primarySx = {
   color: 'text.disabled',
-  '&.Mui-selected': { color: 'secondary.main' },
-  '& .MuiBottomNavigationAction-label': { fontWeight: 600 },
-  // 圖示放進一顆填色的圓裡。圓本身不隨選中狀態改變——它講的是「這是家」，
+  // 圖示放進一顆填色的圓裡。**圓不隨選中狀態改變**——它講的是「這是家」，
   // 那件事跟玩家現在在哪一頁無關
   '& .MuiSvgIcon-root': {
     color: 'secondary.contrastText',
@@ -45,16 +49,12 @@ const primarySx = {
     borderRadius: '50%',
     p: '7px',
     boxSizing: 'content-box',
-    // 往上提一點，讓它看起來是浮在那一排上面而不是塞在裡面
     mt: '-10px',
     mb: '2px',
   },
 };
 
-const secondarySx = {
-  color: 'text.disabled',
-  '&.Mui-selected': { color: 'text.primary' },
-};
+const secondarySx = { color: 'text.disabled' };
 
 export default function FixedBottomNavigation({ value, onChange }) {
   const { hintData, currentMissionId, unlockedHints, missionStartedAt } =

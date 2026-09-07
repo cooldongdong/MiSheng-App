@@ -76,3 +76,23 @@
   display: table;
   width: 100%;
 }
+
+/*
+ * 「這一頁」那顆大綱鈕在窄一點的視窗才會出現（右側固定欄要 1280px 以上），
+ * 而它預設是灰的、看起來像標籤不像可以點的東西——Dong 2026-09-07 問
+ * 「有大綱可以看嗎？」時，它其實就在他畫面上。
+ *
+ * 只改顏色不改行為：讓它跟其他可點的東西同一個色，掃過去認得出來。
+ */
+.VPLocalNavOutlineDropdown > button {
+  color: var(--vp-c-brand-1);
+}
+
+/*
+ * 嵌進來的整份腳本用 <details> 收起來（見 collect.md），但 VitePress 的
+ * details 摘要預設不太像可以點的。加一點提示。
+ */
+.vp-doc details.custom-block > summary {
+  color: var(--vp-c-brand-1);
+  cursor: pointer;
+}

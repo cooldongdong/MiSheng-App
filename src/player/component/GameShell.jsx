@@ -1,8 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Container, Stack } from '@mui/material';
-import RestartButton from './common/RestartButton';
-import ExportEventsButton from './common/ExportEventsButton';
+import GameMenu from './common/GameMenu';
 import { GameProvider } from '../store/game-provider';
 import FixedBottomNavigation from './BottomNavigation';
 import MissionPage from './page/MissionPage';
@@ -302,9 +301,10 @@ const GameShell = ({
               }}
             >
               <Stack direction="row" spacing={0.5} alignItems="center">
-                <ExportEventsButton />
-                <RestartButton />
+                {/* headerActions 留著給宿主塞東西（/create 用它放外觀開關）。
+                    遊戲畫面自己的那三項已經收進 GameMenu。 */}
                 {headerActions}
+                <GameMenu />
               </Stack>
             </ChromeFade>
           )}

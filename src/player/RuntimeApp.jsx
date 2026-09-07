@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import GameShell from './component/GameShell';
-import ColorSchemeToggle from '../shared/ColorSchemeToggle';
 import BrandBadge from '../shared/BrandBadge';
 import { loadRuntimeGameData, runtimeImgBase } from './game/runtimeGame';
 
@@ -67,7 +66,6 @@ const RuntimeApp = () => {
       gameData={gameData}
       imgBase={runtimeImgBase()}
       brand={<BrandBadge qrUrl={window.location.href} />}
-      headerActions={<ColorSchemeToggle />}
     />
   );
 };

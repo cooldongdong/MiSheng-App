@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { useContext, useEffect, useState } from 'react';
 import {
   Button,
@@ -5,12 +6,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   Stack,
-  Tooltip,
   Typography,
 } from '@mui/material';
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import IosShareRoundedIcon from '@mui/icons-material/IosShareRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded';
@@ -41,14 +39,14 @@ const wantsDiag = () => {
   }
 };
 
-// 這一場的遊戲紀錄——一顆圖示，點開是一張小面板。
+// 這一場的遊戲紀錄——一張小面板，由設定選單開啟（見 GameMenu）。
 //
-// **為什麼收成一顆。** 上一版把「分享」與「複製」拆成兩顆平行的圖示放在頂部，
-// 那是用兩個位置去講一件次要的事——它是遊戲結束才用得到的東西，不該跟「重新開始」
-// 「切換外觀」搶同一排（Dong 2026-09-06：「右上的按鈕變得太多了」）。
+// **入口收過兩次。** 第一版是「分享」與「複製」兩顆平行的圖示放在頂部；第二版
+// 收成一顆收據圖示（分享符號在遊戲畫面上會被讀成「把遊戲分享給朋友」）；
+// 第三版連那顆圖示都收進設定選單——**頂部那一排本來就不該有四顆**
+//（Dong 2026-09-07：「可能要把那些設定按鈕都放進一個按鈕裡面」）。
 //
-// **為什麼不用分享圖示當入口。** 分享符號在遊戲畫面上會被讀成「把這個遊戲分享給
-// 朋友」，而不是「交出我的紀錄」（同上）。所以入口用收據，分享只是面板裡的一個動作。
+// 每一次的理由都一樣：這是遊戲結束才用得到的東西，不該跟遊戲本身搶注意力。
 //
 // **為什麼三個動作都攤開來給他看，而不是自動挑一個。** 因為沒有一條路在每個環境
 // 都會動，而失敗是安靜的：
@@ -70,9 +68,8 @@ const wantsDiag = () => {
 //
 // **沒有事件就不顯示**：一顆按下去得到空檔的按鈕只會讓人以為壞了。而 previewMode
 // （/create）本來就不記錄，所以那邊自然也不會出現——不必另外判斷。
-const ExportEventsButton = () => {
+const ExportEventsButton = ({ open, onClose }) => {
   const { gameId, eventCount, configData } = useContext(GameContext);
-  const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   // 探測會 new 一個 File 出來，不該每次重繪都跑；而它的答案在一次開啟裡不會變
@@ -145,18 +142,12 @@ const ExportEventsButton = () => {
   };
 
   const close = () => {
-    setOpen(false);
+    onClose();
     setStatus('');
   };
 
   return (
     <>
-      <Tooltip title={`這場的遊戲紀錄（${eventCount} 筆）`}>
-        <IconButton size="small" color="inherit" onClick={() => setOpen(true)}>
-          <ReceiptLongRoundedIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-
       {/* data-no-swipe：面板開著的時候上下滑不該翻頁（同 FullTextDialog） */}
       <Dialog data-no-swipe open={open} onClose={close} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ pb: 0.5 }}>這場的遊戲紀錄</DialogTitle>
@@ -288,6 +279,11 @@ const ExportEventsButton = () => {
       </Dialog>
     </>
   );
+};
+
+ExportEventsButton.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
 };
 
 export default ExportEventsButton;

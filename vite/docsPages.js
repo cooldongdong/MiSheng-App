@@ -21,9 +21,42 @@ import { GROUND } from '../src/shared/ground.js';
 //
 // 產出寫進 public/，跟 player.zip 同一個模式：它是 build 產物，不進 git。
 const PAGES = [
-  { md: '收集玩家紀錄.md', slug: 'collect', title: '收集玩家的遊戲紀錄' },
-  { md: '如何自己部署遊戲？.md', slug: 'deploy', title: '如何自己部署遊戲' },
+  {
+    md: '試算表怎麼填.md',
+    slug: 'sheet',
+    title: '試算表怎麼填',
+    lead: '七張表分別管什麼、哪些欄位非填不可、它們之間怎麼連起來',
+  },
+  {
+    md: '如何自己部署遊戲？.md',
+    slug: 'deploy',
+    title: '如何自己部署遊戲',
+    lead: '把匯出的資料夾放上網，變成一條玩家點得開的網址',
+  },
+  {
+    md: '收集玩家紀錄.md',
+    slug: 'collect',
+    title: '收集玩家的遊戲紀錄',
+    lead: '玩家卡在哪、打錯什麼答案——自動流進你自己的試算表，並算成報表',
+  },
 ];
+
+// 目錄頁。**先做這個，而不是導入一套文件產生器。**
+//
+// 生成器（VitePress／Docusaurus）換來的主要是導覽與搜尋，那是頁數多才會痛的問題，
+// 而現在只有三頁。導入等於為了還沒發生的問題背一整套主題與設定。
+// 真的長到十頁再換——markdown 原始檔可以直接搬過去，不會白做。
+const indexHtml = () => `<h1>謎生文件</h1>
+<p>從第一份試算表到一場真的活動，中間會用到的三份東西。</p>
+${PAGES.map(
+  (p) => `<h2 style="border:none;padding:0;margin:2.5rem 0 .3rem">
+  <a href="/docs/${p.slug}">${p.title}</a></h2>
+  <p style="margin:0;color:var(--muted)">${p.lead}</p>`
+).join('\n')}
+<hr>
+<p style="color:var(--muted);font-size:.95rem">
+還沒開始的話，先去<a href="/demo">玩一次 demo</a>——那款遊戲本身就在解釋這些表，
+玩完再看文件會快很多。</p>`;
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -172,6 +205,36 @@ const render = (mdPath, title) => {
 
 export const docsPages = () => ({
   name: 'misheng-docs-pages',
+
+  // **dev 時每次請求現場算，不吃 public/ 裡那份。**
+  //
+  // buildStart 在 dev 只跑一次（伺服器啟動時），所以改了 markdown 之後畫面還是舊的
+  // ——要重開 server 才看得到。實測時我自己踩過一次，Dong 也撞到（2026-09-07：
+  // 「為什麼不能在 5205 看到最新的文件？」）。
+  //
+  // 那是同一種病的又一個病灶：**產物與來源之間有一個不會自動失效的快取。**
+  // 這裡的解法是最徹底的那種——dev 根本不看快取，每次都從 .md 重算。
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const path = (req.url || '').split('?')[0];
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      // 不給快取：dev 時改一行 markdown 就該重整看得到
+      res.setHeader('Cache-Control', 'no-store');
+
+      if (path === '/docs' || path === '/docs/' || path === '/docs/index.html') {
+        res.end(shell('文件', indexHtml()));
+        return;
+      }
+      const page = PAGES.find(
+        (p) => path === `/docs/${p.slug}` || path === `/docs/${p.slug}.html`
+      );
+      if (!page) return next();
+      const mdPath = resolve(root, 'docs', page.md);
+      if (!existsSync(mdPath)) return next();
+      res.end(render(mdPath, page.title));
+    });
+  },
+
   // buildStart 而不是 closeBundle：產出要放進 public/，而 public/ 是在 build
   // 過程中被複製到 dist/ 的——晚一步就進不去那一班車
   buildStart() {
@@ -187,7 +250,8 @@ export const docsPages = () => ({
       }
       writeFileSync(resolve(outDir, `${page.slug}.html`), render(mdPath, page.title));
     }
-    console.log(`\n  public/docs/  ${PAGES.length} 頁`);
+    writeFileSync(resolve(outDir, 'index.html'), shell('文件', indexHtml()));
+    console.log(`\n  public/docs/  ${PAGES.length + 1} 頁`);
   },
 });
 

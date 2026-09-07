@@ -8,6 +8,7 @@ import {
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded';
 import SportsEsportsRoundedIcon from '@mui/icons-material/SportsEsportsRounded';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
@@ -191,6 +192,19 @@ const HomeApp = () => (
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           開源專案 · 歡迎自己拿去用
         </Typography>
+        {/*
+          文件擺在 GitHub 前面：**要用這個工具的人先需要的是文件，不是原始碼。**
+          原本這裡只有一顆 GitHub，等於把唯一的出口指向一個多數創作者不會去的地方
+          ——而且 2026-09 帳號被停權之後，那顆鈕連原本的功能都沒有了。
+        */}
+        <Button
+          component={Link}
+          href="/docs"
+          startIcon={<MenuBookRoundedIcon />}
+          sx={{ color: 'primary.main', textTransform: 'none' }}
+        >
+          文件
+        </Button>
         <Button
           component={Link}
           href={GITHUB_URL}

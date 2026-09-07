@@ -21,6 +21,8 @@
 
 const EVENTS = 'events';
 const SID = 'sid';
+// 送出去到第幾則了（水位）。事件陣列只增不減，所以「數到第幾則」就足以表達進度。
+const SENT = 'sent';
 
 // 事件數上限。正常一場大概 50～100 則，2000 是「有東西在迴圈」的量級。
 // 滿了之後**丟新的、留舊的**：分析要看的是「第一次卡在哪」，前段比後段值錢。
@@ -104,6 +106,8 @@ export const clearEvents = (gameId) => {
   try {
     localStorage.removeItem(storageKey(gameId, EVENTS));
     localStorage.removeItem(storageKey(gameId, SID));
+    // 水位要一起清。留著的話下一局的前幾則會被當成「已經送過」而永遠不送
+    localStorage.removeItem(storageKey(gameId, SENT));
   } catch {
     // 清不掉就算了
   }
@@ -117,6 +121,105 @@ export const buildExport = (gameId) => ({
   exportedAt: new Date().toISOString(),
   events: readEvents(gameId),
 });
+
+// ---- 送出層：把還沒送出去的事件交給創作者的 Apps Script ----
+//
+// **設計的重點是「不要掉」，不是「即時」。** 這是戶外實境遊戲——玩家會走進地下室、
+// 鎖螢幕、講電話、把分頁切掉。每則事件即時送的話，訊號差的那幾分鐘就是永久的洞。
+//
+// 所以：事件照舊先寫進 localStorage（那一層不變），另外記一個**水位**（送到第幾則）。
+// 定期把水位之後的整批送出去，送成功才推進水位。離線、關掉分頁、中途沒訊號都不掉
+// ——下次打開會把積欠的補送。
+//
+// 去重靠事件自己帶的 id，由 Apps Script 那端負責（見創作者文件裡的腳本）。
+// 所以「重複送」是安全的，而「沒送到卻推進水位」不是——**判斷失敗時一律不推進**。
+//
+// **拿不到送達確認。** 跨來源的回應是不透明的，程式讀不到成功與否。這裡的「成功」
+// 只代表「瀏覽器收下了這個請求」，不代表對方寫進試算表了。真正的確認只有一種：
+// 人去看那張表（見 /create 的「測試連線」）。
+
+// 一次最多送幾則。Apps Script 對單次請求的大小與執行時間都有限制，而補送時
+// 可能一口氣累積了幾百則——切開來送，下一次 tick 再送剩下的。
+const FLUSH_BATCH = 200;
+
+// 多久送一次。**不需要即時**——這份資料是活動結束後拿來分析的，不是即時儀表板。
+// 拉長一點的好處是省電、省流量，而且同一批多送幾則、少發幾次請求。
+// 真正保證不掉的是分頁關掉時那一次 sendBeacon，不是這個間隔。
+export const FLUSH_MS = 30000;
+
+const readSent = (gameId) => {
+  const n = Number(readJSON(storageKey(gameId, SENT), 0));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+// 有幾則還沒送出去。給「要不要提醒創作者」之類的判斷用。
+export const pendingCount = (gameId) =>
+  gameId ? Math.max(0, readEvents(gameId).length - readSent(gameId)) : 0;
+
+// 同時只允許一次 flush。定時器與 visibilitychange 可能同時觸發，兩邊各自讀到
+// 同一個水位、各送一批、各推進一次——**重複送是安全的（對方會去重），
+// 但重複推進水位會跳過中間那一批，那是真的掉資料。**
+let flushing = false;
+
+/**
+ * 把還沒送出去的事件送給 url。
+ *
+ * @param beacon 用 navigator.sendBeacon 而不是 fetch。**分頁被關掉時只剩它**
+ *               ——那一刻 fetch 會被中止，beacon 會被瀏覽器接手送完。
+ *               （beacon 是同步交出去的，所以這個函式雖然是 async，
+ *               在第一個 await 之前就已經把資料交給瀏覽器了。）
+ * @returns 這一次送出了幾則（0 代表沒東西可送，或送不出去）
+ */
+export const flushEvents = async (gameId, url, { beacon = false } = {}) => {
+  if (!gameId || !url || flushing) return 0;
+  flushing = true;
+  try {
+    const events = readEvents(gameId);
+    const sent = readSent(gameId);
+    const batch = events.slice(sent, sent + FLUSH_BATCH);
+    if (batch.length === 0) return 0;
+
+    const body = JSON.stringify({
+      gameId,
+      sid: sessionIdOf(gameId),
+      events: batch,
+    });
+
+    // text/plain 是 CORS 安全清單內的型別，所以不會觸發 preflight——
+    // Apps Script 不處理 OPTIONS，用別的型別會直接被瀏覽器擋在門外
+    if (beacon) {
+      const queued = navigator.sendBeacon(
+        url,
+        new Blob([body], { type: 'text/plain' })
+      );
+      // 佇列不下（超過瀏覽器的 beacon 大小上限）就不推進，留給下次
+      if (!queued) return 0;
+    } else {
+      try {
+        // no-cors：讀不到回應，但寫得進去（2026-09-07 實測）。
+        // **一定要 await**：網路層失敗時要能不推進水位，同步推進的話
+        // .catch 已經來不及，那一批就永遠不會再送了
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body,
+        });
+      } catch {
+        // 離線、對方掛了——水位不推進，下次再送
+        return 0;
+      }
+    }
+
+    localStorage.setItem(storageKey(gameId, SENT), String(sent + batch.length));
+    return batch.length;
+  } catch {
+    // 遙測壞掉不可以拖垮遊戲
+    return 0;
+  } finally {
+    flushing = false;
+  }
+};
 
 const dateStamp = (d = new Date()) =>
   `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(

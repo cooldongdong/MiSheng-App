@@ -9,7 +9,13 @@ import {
 import PropTypes from 'prop-types';
 import { GameContext } from './game-context';
 import { resolveExternalImg } from '../game/imgUrl';
-import { clearEvents, readEvents, recordEvent } from '../game/telemetry';
+import {
+  clearEvents,
+  FLUSH_MS,
+  flushEvents,
+  readEvents,
+  recordEvent,
+} from '../game/telemetry';
 import { hintKeyOf } from '../game/hintTimer';
 
 
@@ -132,6 +138,44 @@ export const GameProvider = ({
     }
     setEventCount(recordEvent(gameId, 'game_start'));
   }, [gameId, previewMode]);
+
+  // 把還沒送出去的事件交給創作者的 Apps Script（config.recordUrl）。
+  //
+  // **三個觸發點，各自負責一種情況：**
+  //
+  //   1. 掛載時先送一次——上一次沒送完的（離線、當掉、直接關掉分頁）在這裡補上
+  //   2. 每 FLUSH_MS 一次——正常玩的時候持續送出去，不要積在裝置上
+  //   3. 分頁被藏起來／被關掉時用 sendBeacon——**那一刻只剩它送得出去**，
+  //      fetch 會隨著分頁一起被中止
+  //
+  // 第 3 點是整個設計最重要的一環：實境遊戲的結束方式通常不是「按了完成」，
+  // 是玩家直接把分頁關掉走人。
+  //
+  // previewMode（/create）不送：創作者自己反覆試玩的資料會把真玩家的樣本弄髒，
+  // 跟 record 那邊是同一道守門。
+  useEffect(() => {
+    if (!gameId || previewMode) return;
+    const url = normId(configData?.[0]?.recordUrl);
+    if (!url) return;
+
+    const onHide = () => flushEvents(gameId, url, { beacon: true });
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') onHide();
+    };
+
+    flushEvents(gameId, url);
+    const timer = setInterval(() => flushEvents(gameId, url), FLUSH_MS);
+    document.addEventListener('visibilitychange', onVisibility);
+    // pagehide 比 unload 可靠（iOS 上 unload 常常不會觸發），而且它是
+    // sendBeacon 明文支援的時機
+    window.addEventListener('pagehide', onHide);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onHide);
+    };
+  }, [gameId, previewMode, configData]);
 
   const [playerMissionData, setPlayerMissionData] = useState([]);
   const [currentId, setCurrentId] = useState(null);

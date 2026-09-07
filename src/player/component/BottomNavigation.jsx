@@ -17,14 +17,38 @@ import PropTypes from 'prop-types';
 // 路」，是**不知道有一條路要回去**——他不覺得自己離開了什麼地方
 //（Dong 2026-09-07：「用完道具後會不知道要去哪裡答題」）。
 //
-// 所以做出主從：解謎的圖示大一號、未選中時也是有顏色的；其餘四個未選中時是灰的。
-// **不加任何新控制項**——那個問題的根源是版面沒講清楚主從，補一顆「回解謎」的鈕
-// 是在補洞，不是修因。
+// 所以做出主從。**不加任何新控制項**——那個問題的根源是版面沒講清楚主從，
+// 補一顆「回解謎」的鈕是在補洞不是修因，而且會讓那一排變成六顆。
+//
+// ## 為什麼是形狀不是顏色
+//
+// 第一版把解謎染成鏽橘、其餘四個灰色。實機一看就發現**兩種訊號在打架**：
+// 站在道具頁時，「道具」是白的（＝你在這）、「解謎」是橘的（＝這是家），
+// 而**橘色在多數介面裡就代表「選中」**——第一次玩的人可能以為自己在解謎那一頁。
+// 而那正好是這個改動要救的族群。
+//
+// 所以改成：
+//   · **家＝形狀**（一顆填色的圓，像很多 app 中間那顆主要按鈕）
+//   · **你在這＝亮度**（選中的字變亮，沒選中的是灰的）
+//
+// 兩個訊號用兩個不同的維度，就不會互相冒充。而「中間一顆突出的主鈕」是玩家在別的
+// app 上已經認得的語彙，不用學。
 const primarySx = {
-  color: 'secondary.main',
+  color: 'text.disabled',
   '&.Mui-selected': { color: 'secondary.main' },
-  // 主要的那一顆連未選中時都要看得出是主要的，所以字也粗一點
   '& .MuiBottomNavigationAction-label': { fontWeight: 600 },
+  // 圖示放進一顆填色的圓裡。圓本身不隨選中狀態改變——它講的是「這是家」，
+  // 那件事跟玩家現在在哪一頁無關
+  '& .MuiSvgIcon-root': {
+    color: 'secondary.contrastText',
+    bgcolor: 'secondary.main',
+    borderRadius: '50%',
+    p: '7px',
+    boxSizing: 'content-box',
+    // 往上提一點，讓它看起來是浮在那一排上面而不是塞在裡面
+    mt: '-10px',
+    mb: '2px',
+  },
 };
 
 const secondarySx = {
@@ -66,6 +90,8 @@ export default function FixedBottomNavigation({ value, onChange }) {
         // theme 的 text.secondary（淺灰），淺灰畫在近白底上就是看不見。
         backgroundColor: 'game.nav',
         boxShadow: '0 -1px 5px rgba(0, 0, 0, 0.1)', // 輕微陰影
+        // 主鈕的圓往上凸 10px，這一排要留得住它，不然會被上緣裁掉
+        overflow: 'visible',
       }}
       value={value}
       onChange={onChange}
@@ -79,7 +105,7 @@ export default function FixedBottomNavigation({ value, onChange }) {
       />
       <BottomNavigationAction
         label="解謎"
-        icon={<QuestionAnswerRoundedIcon sx={{ fontSize: 30 }} />}
+        icon={<QuestionAnswerRoundedIcon />}
         sx={primarySx}
       />
       <BottomNavigationAction

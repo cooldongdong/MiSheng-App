@@ -84,6 +84,16 @@ const shell = (title, body) => `<!doctype html>
   hr + h2 { border-top: none; padding-top: 0; margin-top: 0; }
   .back { display: inline-block; margin-bottom: 2rem; color: var(--muted); text-decoration: none; font-size: .9rem; }
   .back:hover { color: var(--link); }
+  /* 嵌進來的整份腳本：給它自己的高度上限，不然一頁文件會被一份程式碼佔滿 */
+  .snippet { position: relative; margin: 1.5rem 0; }
+  .snippet pre { max-height: 26rem; overflow: auto; margin: 0; }
+  .copy {
+    position: absolute; top: .6rem; right: .6rem; z-index: 1;
+    font: inherit; font-size: .85rem; padding: .3rem .7rem;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
+  }
+  .copy:hover { border-color: var(--link); color: var(--link); }
 </style>
 </head>
 <body>
@@ -91,13 +101,69 @@ const shell = (title, body) => `<!doctype html>
 <a class="back" href="/">← 回謎生</a>
 ${body}
 </main>
+<script>
+// 這一頁唯一的 JS，而且是**漸進增強**——沒有它整份腳本照樣看得到、選得到，
+// 只是要自己拖曳選取。所以不必擔心它在哪個瀏覽器不動。
+//
+// 留了 execCommand 的舊寫法：navigator.clipboard 要 secure context，
+// 而創作者可能從一個奇怪的地方打開這一頁（2026-09-06 在匯出面板上踩過同一件事）。
+document.querySelectorAll('[data-copy]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var text = btn.parentNode.querySelector('code').innerText;
+    var done = function (ok) {
+      btn.textContent = ok ? '已複製' : '複製失敗，請手動選取';
+      setTimeout(function () { btn.textContent = '複製整份'; }, 2200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); },
+                                              function () { done(false); });
+      return;
+    }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      done(document.execCommand('copy'));
+      ta.remove();
+    } catch (e) { done(false); }
+  });
+});
+</script>
 </body>
 </html>
 `;
 
+// markdown 裡寫 <!--INCLUDE:檔名--> 就把 docs/ 底下那個檔整份嵌進來。
+//
+// **為什麼要嵌，不給下載連結。** 創作者要對那份腳本做的事是「複製、貼到
+// Apps Script 編輯器」——給他一個檔案連結，等於要他先下載、再找到檔案、
+// 再用某個編輯器打開、再全選。而且 GitHub 帳號停權之後，原本那條相對連結
+// 在網站上直接是 404（2026-09-07 撞到）。
+//
+// 嵌進來還有一個好處：**腳本與文件永遠是同一版**。分開放的話，改了腳本忘了
+// 更新文件，就會有人照著舊的貼。
+const escapeHtml = (s) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const inlineIncludes = (html, docsDir) =>
+  html.replace(/<!--INCLUDE:(.+?)-->/g, (_, name) => {
+    const file = resolve(docsDir, name.trim());
+    if (!existsSync(file)) return `<p><em>（找不到 ${name}）</em></p>`;
+    const code = escapeHtml(readFileSync(file, 'utf8'));
+    return `<div class="snippet">
+<button class="copy" type="button" data-copy>複製整份</button>
+<pre><code>${code}</code></pre>
+</div>`;
+  });
+
 const render = (mdPath, title) => {
   const src = readFileSync(mdPath, 'utf8');
   let html = marked.parse(src, { mangle: false, headerIds: false });
+  html = inlineIncludes(html, dirname(mdPath));
   // 表格包一層，讓它在手機上自己橫向捲，而不是把整頁撐寬
   html = html.replace(/<table>/g, '<div class="table-wrap"><table>')
              .replace(/<\/table>/g, '</table></div>');

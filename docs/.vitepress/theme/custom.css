@@ -64,6 +64,31 @@
   --vp-home-hero-name-background: linear-gradient(120deg, #e08a4a, #93a7b2);
 }
 
+/*
+ * **永遠替捲軸留位置。**
+ *
+ * 文件的頁面長短差很多（story 那頁 796px、collect 那頁 4402px）。短的沒有捲軸、
+ * 長的有，而捲軸會吃掉 15px 的視窗寬——整個置中的版面就跟著左右跳，
+ * 側欄看起來像會變寬變窄（Dong 2026-09-07 回報）。
+ *
+ * 那不是側欄的問題，是**視窗寬度本身在變**。所以修在最外層：不管有沒有捲軸，
+ * 都先把那條溝留著。
+ *
+ * **只寫 scrollbar-gutter 是沒有用的**（實測）：那個屬性對 overflow: visible 的
+ * 元素不生效，而 VitePress 的 html 正是 visible。所以要先讓根元素真的成為捲動容器
+ * （overflow-y: scroll），gutter 才有東西可以保留。
+ *
+ * 量到的：短頁 story（1396px）內外寬差 0、長頁 collect（4330px）差 15；
+ * 只加 scrollbar-gutter 兩者都不變，加上 overflow-y: scroll 之後短頁也變成 15。
+ *
+ * 兩條都留：overflow-y 保證行為，scrollbar-gutter 讓支援它的瀏覽器用比較好的方式
+ * 達成同一件事（覆蓋式捲軸的系統上不會多出一條沒有用的溝）。
+ */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 /* 內文行高跟站台一致（1.85）——中文密度高，預設的行高會擠 */
 .vp-doc p,
 .vp-doc li {

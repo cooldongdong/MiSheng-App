@@ -1,8 +1,8 @@
 import PropTypes from 'prop-types';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Container, Stack } from '@mui/material';
-import RestartButton from './common/RestartButton';
-import ExportEventsButton from './common/ExportEventsButton';
+import GameMenu from './common/GameMenu';
+import OnboardingTour from './common/OnboardingTour';
 import { GameProvider } from '../store/game-provider';
 import FixedBottomNavigation from './BottomNavigation';
 import MissionPage from './page/MissionPage';
@@ -81,6 +81,10 @@ const GameShell = ({
   useTouchClickRecovery();
 
   const [value, setValue] = useState(TAB.PLAY);
+  // 「再看一次」：GameMenu 按一下就 +1，導覽看到它變了就重開。
+  // 用計數器而不是布林，是因為導覽關掉之後還要能再被叫起來——
+  // 布林要先關才能再開，狀態會跟導覽自己的 open 打架。
+  const [tourNonce, setTourNonce] = useState(0);
   // 兩條分隔線：左面板寬度、遊戲那欄的寬度
   const [leftW, setLeftW] = useState(268);
   const [paneW, setPaneW] = useState(phonePaneWidth);
@@ -302,9 +306,10 @@ const GameShell = ({
               }}
             >
               <Stack direction="row" spacing={0.5} alignItems="center">
-                <ExportEventsButton />
-                <RestartButton />
+                {/* headerActions 留著給宿主塞東西（/create 用它放外觀開關）。
+                    遊戲畫面自己的那三項已經收進 GameMenu。 */}
                 {headerActions}
+                <GameMenu onReplayTour={() => setTourNonce((n) => n + 1)} />
               </Stack>
             </ChromeFade>
           )}
@@ -351,6 +356,12 @@ const GameShell = ({
               onChange={(event, newValue) => setValue(newValue)}
             />
           </ChromeFade>
+
+          {/* 新手導覽。掛在這裡而不是 #main-container 裡面，是因為它要照亮的正是
+              導覽列——而 #main-container（z-index 550 ＋ transform）是一個堆疊
+              脈絡，裡面的東西不管標多少都贏不了外面的 700（見上面那段 ⚠️）。
+              !devTools：/create 的三欄是工具，不是給玩家的畫面。 */}
+          {!devTools && <OnboardingTour activeTab={value} replayNonce={tourNonce} />}
         </Container>
 
         {sidePanel && (

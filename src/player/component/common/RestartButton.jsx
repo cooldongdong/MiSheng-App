@@ -1,6 +1,5 @@
-import { useContext, useState } from 'react';
-import { IconButton, Tooltip } from '@mui/material';
-import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
+import PropTypes from 'prop-types';
+import { useContext } from 'react';
 import { GameContext } from '../../store/game-context';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -11,28 +10,27 @@ import ConfirmDialog from './ConfirmDialog';
 // 丟掉。那邊真正的「重來」是左欄的「換一份／重新讀取」。
 //
 // 不給 confirmOnEnter：清存檔不可逆，應該要求真的伸手點那一下。
-const RestartButton = () => {
+const RestartButton = ({ open, onClose }) => {
   const { gameId, clearGameData } = useContext(GameContext);
-  const [open, setOpen] = useState(false);
 
   if (!gameId) return null;
 
   return (
     <>
-      <Tooltip title="清除進度，重新開始">
-        <IconButton size="small" color="inherit" onClick={() => setOpen(true)}>
-          <RestartAltRoundedIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
       <ConfirmDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={onClose}
         onConfirm={() => clearGameData(gameId)}
         title="確定重新開始？"
         confirmText={`會清掉「${gameId}」的進度（走到哪一列、關卡狀態、已解鎖的提示）並重新整理頁面。`}
       />
     </>
   );
+};
+
+RestartButton.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
 };
 
 export default RestartButton;

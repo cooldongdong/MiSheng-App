@@ -167,9 +167,20 @@ export const createAppTheme = (extra = {}) =>
     },
     MuiBottomNavigationAction: {
       styleOverrides: {
-        // 「現在在哪一頁」屬於狀態，走 secondary（見 palette 的註解）
+        // 「你在這」＝**亮度**，不是顏色。
+        //
+        // 這裡原本是 secondary（鏽橘）。2026-09-07 底部導覽做出主從之後，
+        // 鏽橘被指派給另一件事——「解謎是家」（見 player/component/BottomNavigation.jsx）。
+        // 兩個訊號共用一個顏色就會互相冒充：站在道具頁時「解謎」是橘的，
+        // 而橘色在多數介面裡代表「選中」，於是玩家會以為自己在解謎那一頁。
+        //
+        // 所以狀態改走亮度：選中＝text.primary ＋ 加粗，沒選中＝繼承 MUI 預設的
+        // text.disabled。顏色那個維度整個讓給「身分」。
         root: ({ theme }) => ({
-          '&.Mui-selected': { color: theme.vars.palette.secondary.main },
+          '&.Mui-selected': {
+            color: theme.vars.palette.text.primary,
+            fontWeight: 600,
+          },
         }),
       },
     },

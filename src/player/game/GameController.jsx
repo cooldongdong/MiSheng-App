@@ -483,7 +483,14 @@ const GameController = ({
           // 蓋滿視窗，沒有露縫的那一格。
         }}
       >
-        <Box style={swipe.style} sx={{ position: 'absolute', inset: 0 }}>
+        {/* data-tour：新手導覽示範上下滑時，要讓這一層跟著動——
+            那是「這個手勢會做什麼」唯一講得清楚的方式（見 common/OnboardingTour）。
+            導覽只下 CSS 動畫，不碰遊戲狀態，所以位置動完就回到原處。 */}
+        <Box
+          data-tour="stage"
+          style={swipe.style}
+          sx={{ position: 'absolute', inset: 0 }}
+        >
           {slots.map((slot) => (
             <Box
               // 對白列的 id 可以留空，兩個相鄰的無名列會拿到同一個 undefined——

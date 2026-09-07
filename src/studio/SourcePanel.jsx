@@ -279,7 +279,7 @@ const SourcePanel = ({
           <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             未設定 ·{' '}
             <Link
-              href="https://github.com/cooldongdong/MiSheng-App/blob/main/docs/%E6%94%B6%E9%9B%86%E7%8E%A9%E5%AE%B6%E7%B4%80%E9%8C%84.md"
+              href="https://misheng.app/docs/collect"
               target="_blank"
               rel="noopener"
               underline="hover"

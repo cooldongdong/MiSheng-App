@@ -96,7 +96,7 @@ ${
 不需要安裝任何軟體，也不用會寫程式。
 
 其他選擇與注意事項（GitHub Pages 有一個對解謎很要命的限制）看這裡：
-https://github.com/cooldongdong/MiSheng-App/blob/main/docs/如何自己部署遊戲？.md
+https://misheng.app/docs/deploy
 
 【注意】不能直接用瀏覽器打開 index.html（網址開頭是 file:// 的那種）。
 瀏覽器不允許網頁那樣讀資料，畫面會告訴你讀不到遊戲。一定要放上網站空間。

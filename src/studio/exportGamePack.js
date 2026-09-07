@@ -96,7 +96,7 @@ ${
 不需要安裝任何軟體，也不用會寫程式。
 
 其他選擇與注意事項（GitHub Pages 有一個對解謎很要命的限制）看這裡：
-https://github.com/cooldongdong/MiSheng-App/blob/main/docs/如何自己部署遊戲？.md
+https://misheng.app/docs/deploy
 
 【注意】不能直接用瀏覽器打開 index.html（網址開頭是 file:// 的那種）。
 瀏覽器不允許網頁那樣讀資料，畫面會告訴你讀不到遊戲。一定要放上網站空間。
@@ -113,6 +113,19 @@ https://github.com/cooldongdong/MiSheng-App/blob/main/docs/如何自己部署遊
                     改完直接重新上傳就生效，不用重新匯出
   圖片對照.csv       哪個檔名對應原本哪一條連結、用在哪一格
 ${playable ? '  index.html      播放器。不用改它\n  assets/         播放器的程式碼\n' : ''}
+【想知道玩家玩得怎麼樣嗎】
+
+玩家進了哪一關、花了多久、打錯了什麼答案，可以自動流進**你自己的**
+Google 試算表，還會幫你算成一張看得懂的報表。
+
+資料不會經過謎生的伺服器——它是你的玩家的資料，所以它應該在你手上。
+
+怎麼設定看這裡（大約十分鐘，只做一次）：
+https://misheng.app/docs/collect
+
+設定完之後，這個資料夾裡的 ${GAME_DIR}/config.csv 加一欄 recordUrl 就生效了，
+**不用重新匯出**——改完直接重新上傳這個資料夾。
+
 【授權】
 
 播放器的原始碼是 AGPL-3.0，公開在

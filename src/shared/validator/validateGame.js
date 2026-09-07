@@ -40,6 +40,16 @@ export const REQUIRED_FIELDS = {
 // 選填欄位：有就吃、沒有就當空字串，不報錯也不提醒。
 // prop.backImg＝Wheel 最底層的固定背景圖（見 Wheel.jsx 的圖層說明）。
 export const OPTIONAL_FIELDS = {
+  // config.recordUrl＝把玩家的遊戲紀錄送到哪裡（創作者自己的 Apps Script 網址，
+  // 資料落在他自己的 Google 試算表）。留空就完全不送。
+  //
+  // **為什麼在 config 而不是別的地方**：它是整場遊戲的設定，不是某一關的性質
+  // ——跟啟動碼、跟封面是同一個判斷。
+  //
+  // **它是公開的。** config.csv 玩家打得開，所以那條網址等於一把「可以寫進那張表」
+  // 的鑰匙，任何人都能往裡面灌東西。擋不住（播放器本來就要讀那個檔），
+  // n=50 的場合不是問題；公開販售的遊戲要重想。
+  config: ['recordUrl'],
   // character.id 是歷史遺毒：角色一律靠 **name** 比對（rundown.speaker、hint.speaker），
   // 沒有任何一張表指向 character.id。
   //
@@ -273,6 +283,24 @@ export function validateGame(tables) {
         if (!names.has(norm(row.speaker))) {
           warn('hint', sheetRow(i), 'speaker', `speaker「${row.speaker}」在 character 表找不到這個角色，這一則提示不會有頭像（名字仍會顯示）`);
         }
+      }
+    }
+  }
+
+  // config.recordUrl 填了但不像 Apps Script 的網址。
+  //
+  // **是提醒不是 error**：填錯的後果是「資料靜默地收不到」，而遊戲照樣玩得下去
+  // ——擋生成沒有道理。但這一格的失敗方式特別惡劣（活動結束才發現一筆都沒有，
+  // 而那時資料已經永遠沒了），所以寧可話多一點。
+  //
+  // 只檢查形狀，不檢查通不通——真的通不通要靠 /create 的「測試連線」，
+  // 那是唯一問得到答案的方式（跨來源的回應是不透明的，程式讀不到）。
+  if (tables.config) {
+    for (const { row, i } of rowsOf('config')) {
+      if (isEmpty(row.recordUrl)) continue;
+      const url = norm(row.recordUrl);
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) {
+        warn('config', sheetRow(i), 'recordUrl', `recordUrl「${row.recordUrl}」看起來不是 Apps Script 的網頁應用程式網址（應該長得像 https://script.google.com/macros/s/xxxxx/exec）。填錯的話遊戲照樣能玩，但玩家的紀錄會靜靜地收不到`);
       }
     }
   }

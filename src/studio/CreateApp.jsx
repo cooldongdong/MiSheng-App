@@ -493,6 +493,7 @@ const CreateApp = () => {
         canReload={!!sheetUrl}
         reloading={reloading}
         error={error}
+        recordUrl={String(tables?.config?.rows?.[0]?.recordUrl || '').trim()}
         exportSlot={
           <Stack spacing={1}>
             {playLinkEl}

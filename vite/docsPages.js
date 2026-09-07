@@ -1,0 +1,130 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { marked } from 'marked';
+import { GROUND } from '../src/shared/ground.js';
+
+// ── 把 docs/*.md 變成站台上的頁面 ──────────────────────────────────────
+//
+// **為什麼不直接連 GitHub。** 原本匯出的 README 與 /create 都連到
+// github.com/cooldongdong/MiSheng-App/blob/main/docs/…，而那個帳號 2026-09-01
+// 被停權之後，**那些連結全部是死的**——包括已經交到創作者手上的匯出包裡那一條。
+//
+// 更根本的問題是：那些文件是**產品的一部分**（創作者照著它做才收得到資料），
+// 而產品的一部分不該住在一個我們控制不了、隨時可能連不上的地方。
+//
+// 所以改由自己的網站供應：`docs/收集玩家紀錄.md` → `https://misheng.app/docs/collect`
+//
+// **檔名到網址用明確的對照表，不用中文檔名轉譯。** 一來 `如何自己部署遊戲？.md`
+// 帶著問號，那在網址裡是查詢字串的開頭；二來中文網址在聊天軟體裡貼出去會變成
+// 一長串 %E6%94%B6…，沒有人看得出那是什麼。
+//
+// 產出寫進 public/，跟 player.zip 同一個模式：它是 build 產物，不進 git。
+const PAGES = [
+  { md: '收集玩家紀錄.md', slug: 'collect', title: '收集玩家的遊戲紀錄' },
+  { md: '如何自己部署遊戲？.md', slug: 'deploy', title: '如何自己部署遊戲' },
+];
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// 只有樣式，沒有 JS。文件頁不需要 React——多載一份 bundle 只為了顯示一頁文字，
+// 而且它要在最爛的網路下也能打開（創作者可能站在活動現場翻它）。
+const shell = (title, body) => `<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}｜謎生 Misheng</title>
+<meta name="theme-color" content="${GROUND.app.light}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="${GROUND.app.dark}" media="(prefers-color-scheme: dark)">
+<style>
+  :root {
+    --bg: ${GROUND.app.light}; --fg: #1c2429; --muted: #5b6770;
+    --line: #d6dade; --code-bg: #eceff1; --link: #b2591f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: ${GROUND.app.dark}; --fg: #dfe4e8; --muted: #97a2aa;
+      --line: #2c3439; --code-bg: #1c2429; --link: #e08a4a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: "Noto Serif TC", "PingFang TC", "Microsoft JhengHei", serif;
+    line-height: 1.85; font-size: 17px;
+    -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 6rem; }
+  a { color: var(--link); }
+  h1 { font-size: 1.9rem; line-height: 1.4; margin: 0 0 2rem; }
+  h2 { font-size: 1.35rem; margin: 3rem 0 1rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.1rem; margin: 2rem 0 .75rem; }
+  code {
+    background: var(--code-bg); padding: .12em .4em; border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;
+  }
+  pre {
+    background: var(--code-bg); padding: 1rem; border-radius: 8px;
+    overflow-x: auto; line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; }
+  blockquote {
+    margin: 1.5rem 0; padding: .25rem 0 .25rem 1.25rem;
+    border-left: 3px solid var(--line); color: var(--muted);
+  }
+  table { border-collapse: collapse; width: 100%; margin: 1.5rem 0; font-size: .95em; }
+  th, td { border: 1px solid var(--line); padding: .5rem .75rem; text-align: left; }
+  th { background: var(--code-bg); }
+  /* 表格在手機上會撐破版面——給它自己的捲動範圍，不要讓整頁橫向捲 */
+  .table-wrap { overflow-x: auto; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 3rem 0; }
+  /* markdown 裡的 --- 後面常常就接著一個 h2，而 h2 自己也有上框線——
+     兩條線疊在一起會多出一段空白。後面接 h2 的分隔線就讓 h2 去畫 */
+  hr + h2 { border-top: none; padding-top: 0; margin-top: 0; }
+  .back { display: inline-block; margin-bottom: 2rem; color: var(--muted); text-decoration: none; font-size: .9rem; }
+  .back:hover { color: var(--link); }
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="/">← 回謎生</a>
+${body}
+</main>
+</body>
+</html>
+`;
+
+const render = (mdPath, title) => {
+  const src = readFileSync(mdPath, 'utf8');
+  let html = marked.parse(src, { mangle: false, headerIds: false });
+  // 表格包一層，讓它在手機上自己橫向捲，而不是把整頁撐寬
+  html = html.replace(/<table>/g, '<div class="table-wrap"><table>')
+             .replace(/<\/table>/g, '</table></div>');
+  return shell(title, html);
+};
+
+export const docsPages = () => ({
+  name: 'misheng-docs-pages',
+  // buildStart 而不是 closeBundle：產出要放進 public/，而 public/ 是在 build
+  // 過程中被複製到 dist/ 的——晚一步就進不去那一班車
+  buildStart() {
+    const outDir = resolve(root, 'public', 'docs');
+    if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+    for (const page of PAGES) {
+      const mdPath = resolve(root, 'docs', page.md);
+      if (!existsSync(mdPath)) {
+        // 文件被改名或刪掉時要吵一聲。安靜跳過的話，網站上那條連結會變成 404，
+        // 而那正是這個 plugin 要解決的問題
+        this.warn(`docs/${page.md} 不存在，/docs/${page.slug} 不會被產生`);
+        continue;
+      }
+      writeFileSync(resolve(outDir, `${page.slug}.html`), render(mdPath, page.title));
+    }
+    console.log(`\n  public/docs/  ${PAGES.length} 頁`);
+  },
+});
+
+export const DOC_URLS = Object.fromEntries(
+  PAGES.map((p) => [p.slug, `https://misheng.app/docs/${p.slug}`])
+);

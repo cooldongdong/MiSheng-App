@@ -10,6 +10,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  Link,
   Stack,
   Typography,
 } from '@mui/material';
@@ -26,6 +27,38 @@ import BrandBadge from '../shared/BrandBadge';
 // 版面分成「遊戲資料」與「圖片」兩組，每組都是「現在的來源 ＋ 它自己的動作」。
 // 這兩層本來就可以各換各的（試算表出資料、本機資料夾出圖），版面要把這件事畫出來，
 // 否則動作跟它對應的來源會離很遠，看不出誰配誰。
+// 送一筆測試事件到創作者的 Apps Script。
+//
+// 用一般的 fetch 而不是 sendBeacon：beacon 是「射後不理」，連「有沒有送出去」
+// 都不會告訴你，而這裡至少要能分辨「網路不通」跟「送出去了」。
+// 仍然是 no-cors，所以讀不到對方的回應——能回答的只有「這個請求出去了嗎」。
+const sendProbe = async (url) => {
+  try {
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        gameId: '（測試連線）',
+        sid: 'connection-test',
+        events: [
+          {
+            // 每次都用新的 id，否則第二次測試會被去重吃掉，看起來像沒送到
+            id: 'test-' + Date.now(),
+            ts: Date.now(),
+            type: 'connection_test',
+            missionId: '',
+            value: '這是從 /create 送出的測試資料，可以直接刪掉',
+          },
+        ],
+      }),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const SourcePanel = ({
   source,
   imgSource = '',
@@ -38,6 +71,7 @@ const SourcePanel = ({
   reloading = false,
   error = '',
   exportSlot = null,
+  recordUrl = '',
 }) => {
   const errors = issues.filter((it) => it.level === 'error').length;
   const warns = issues.filter((it) => it.level === 'warn').length;
@@ -45,6 +79,8 @@ const SourcePanel = ({
   // 報告平常收著，但重讀後冒出錯誤時要自己打開。
   // 不能只靠 defaultExpanded——就地重讀時這個面板不會重新掛載，預設值只會生效一次。
   const [reportOpen, setReportOpen] = useState(errors > 0);
+  const [probe, setProbe] = useState('');
+  const [probing, setProbing] = useState(false);
   useEffect(() => {
     if (errors > 0) setReportOpen(true);
   }, [issues, errors]);
@@ -220,6 +256,67 @@ const SourcePanel = ({
         )}
       </Box>
 
+      {/* ---- 玩家紀錄 ---- */}
+      {/*
+        **沒設定也要留一行。** 第一版做成「沒填就完全不顯示」，理由是「不打擾
+        用不到的人」——但那也代表**沒有人會發現這個功能存在**（Dong 2026-09-07：
+        「我沒有在 create 頁面看到那個按鈕」）。而這個功能的價值恰恰在於
+        「你原本不知道自己想要」。
+
+        所以未設定時留一行輕的說明 ＋ 一條連結，設定了才長出「測試連線」。
+
+        **那顆鈕唯一的工作是「讓他知道通不通」。** 跨來源的回應是不透明的，
+        程式讀不到成功與否，所以它不能說「成功了」——它只能說「送出去了，
+        去看你的試算表」。看起來很弱，但那是唯一不會騙人的說法：
+        真正的驗證是那張表上多了一列，不是這裡跳了什麼字。
+      */}
+      <Divider />
+      <Box sx={{ px: 1.5, py: 1.25 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+          玩家紀錄
+        </Typography>
+        {!recordUrl && (
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+            未設定 ·{' '}
+            <Link
+              href="https://misheng.app/docs/collect"
+              target="_blank"
+              rel="noopener"
+              underline="hover"
+            >
+              怎麼收集玩家的遊戲紀錄？
+            </Link>
+          </Typography>
+        )}
+        {recordUrl && (
+          <>
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={probing}
+              onClick={async () => {
+                setProbing(true);
+                setProbe('');
+                const ok = await sendProbe(recordUrl);
+                setProbing(false);
+                setProbe(
+                  ok
+                    ? '已送出一筆測試資料。打開你的試算表，「遊戲紀錄」最後一列應該是 connection_test。'
+                    : '送不出去（網路不通，或那條網址不對）。'
+                );
+              }}
+            >
+              {probing ? '送出中…' : '測試連線'}
+            </Button>
+            {probe && (
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                {probe}
+              </Typography>
+            )}
+          </>
+        )}
+      </Box>
+
       <Divider />
 
       {/* 報告預設收起來，只留一行摘要——268px 寬攤開會擠成一團 */}
@@ -264,6 +361,7 @@ SourcePanel.propTypes = {
   reloading: PropTypes.bool,
   error: PropTypes.string,
   exportSlot: PropTypes.node,
+  recordUrl: PropTypes.string,
 };
 
 export default SourcePanel;

@@ -223,16 +223,23 @@ function rebuildReport() {
     }
   });
 
-  // **先 flush 再量寬度。** 沒有 flush 的話 autoResize 是照「還沒寫進去的內容」
-  // 去算的，結果就是標題被截掉（實測「花費中位數（分）」只剩「花費中位」）。
+  // 欄寬要動兩次 flush，而且**兩次都不能省**——這一段前後踩過兩次同樣的坑：
+  //
+  //   1. 寫完值要 flush，否則 autoResize 是照「還沒寫進去的內容」量的
+  //   2. autoResize 完**也**要 flush，否則接下來 getColumnWidth 讀到的是
+  //      調整前的舊寬度，於是「舊寬度 + 餘裕」會把 autoResize 的結果整個蓋掉
+  //
+  // 第 2 點是實測出來的：其他欄剛好看起來還行（預設 100 → 118 夠用），
+  // 只有裝最長說明文字的第一欄真正需要變寬，就被蓋掉了。
+  // 當時我以為是 autoResize 對中文量不準，還去寫了一個寫死的下限——
+  // **那個數字是在補一個我自己造成的傷。**
   SpreadsheetApp.flush();
   report.autoResizeColumns(1, width);
-  // autoResize 貼著字切齊，中文標題看起來會很擠——每欄補一點餘裕。
-  // 第一欄另外給一個下限：autoResize 對它量不準（實測「全程花費（中位數）」
-  // 仍然被切成「全程花費（中」），而那一欄裝的全是最長的那種說明文字。
+  SpreadsheetApp.flush();
+
+  // autoResize 貼著字切齊，中文標題看起來會很擠——每欄補一點餘裕
   for (var c = 1; c <= width; c++) {
-    var w = report.getColumnWidth(c) + 18;
-    report.setColumnWidth(c, c === 1 ? Math.max(w, 190) : w);
+    report.setColumnWidth(c, report.getColumnWidth(c) + 18);
   }
   ss.setActiveSheet(report);
 }

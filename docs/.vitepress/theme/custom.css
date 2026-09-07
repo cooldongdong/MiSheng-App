@@ -1,0 +1,78 @@
+/*
+ * 把 VitePress 的預設配色換成謎生的。
+ *
+ * **為什麼不能用預設。** VitePress 預設是綠底藍字，而站台是藍灰墨 ＋ 鏽橘
+ *（見 src/shared/theme.js）。文件跟產品長得不像，讀的人會以為自己點到別的網站
+ * ——尤其這份文件是從 /create 的側欄點進來的。
+ *
+ * 值全部對齊 src/shared/theme.js 與 src/shared/ground.js，**不要在這裡另外調色**。
+ * 那兩個檔是唯一真相；這裡只是把它們翻譯成 VitePress 的變數名。
+ * （這正是 firstPaintGround 那支 plugin 檔頭在講的事：抄了兩份就會分岔。）
+ */
+
+:root {
+  /* 鏽橘＝「你現在在哪／可以點的東西」。theme.js 的 secondary.main */
+  --vp-c-brand-1: #b2591f;
+  --vp-c-brand-2: #9a4d1a;
+  --vp-c-brand-3: #b2591f;
+  --vp-c-brand-soft: rgba(178, 89, 31, 0.14);
+
+  /* 底：ground.js 的 app.light；面板用 BG[50] */
+  --vp-c-bg: #fff;
+  --vp-c-bg-alt: #f7f8f9;
+  --vp-c-bg-soft: #eceff1;
+  --vp-c-bg-elv: #fff;
+
+  /* 字：theme.js 的 BG[900] / BG[600] / BG[400] */
+  --vp-c-text-1: #263238;
+  --vp-c-text-2: #546e7a;
+  --vp-c-text-3: #78909c;
+
+  --vp-c-divider: #cfd8dc;
+  --vp-c-border: #cfd8dc;
+  --vp-c-gutter: #eceff1;
+
+  /* 站台用的是明體。文件是拿來讀的，跟遊戲畫面同一種質感比較不突兀 */
+  --vp-font-family-base: 'Noto Serif TC', 'PingFang TC', 'Microsoft JhengHei', serif;
+
+  /* 首頁大標的漸層，用鏽橘到藍灰墨 */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #b2591f, #37474f);
+}
+
+.dark {
+  /* 深色的鏽橘要提亮，跟 theme.js 的 dark.secondary 同一個值 */
+  --vp-c-brand-1: #e08a4a;
+  --vp-c-brand-2: #c9763a;
+  --vp-c-brand-3: #e08a4a;
+  --vp-c-brand-soft: rgba(224, 138, 74, 0.16);
+
+  /* NEUTRAL：abyss / raised / line / ink… */
+  --vp-c-bg: #0e0f11;
+  --vp-c-bg-alt: #17191c;
+  --vp-c-bg-soft: #17191c;
+  --vp-c-bg-elv: #17191c;
+
+  --vp-c-text-1: #e8eaed;
+  --vp-c-text-2: #a1a6ad;
+  --vp-c-text-3: #6e737a;
+
+  --vp-c-divider: #2a2d31;
+  --vp-c-border: #2a2d31;
+  --vp-c-gutter: #2a2d31;
+
+  --vp-home-hero-name-background: linear-gradient(120deg, #e08a4a, #93a7b2);
+}
+
+/* 內文行高跟站台一致（1.85）——中文密度高，預設的行高會擠 */
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.85;
+}
+
+/* 表格在手機上會撐破版面。VitePress 自己有捲動容器，但沒有給提示，
+   加一條左右的漸層邊界讓人知道還有東西在旁邊 */
+.vp-doc table {
+  display: table;
+  width: 100%;
+}

@@ -223,28 +223,48 @@ function rebuildReport() {
     }
   });
 
-  // 欄寬要動兩次 flush，而且**兩次都不能省**——這一段前後踩過兩次同樣的坑：
+  // 欄寬自己量，不呼叫 autoResize。
   //
-  //   1. 寫完值要 flush，否則 autoResize 是照「還沒寫進去的內容」量的
-  //   2. autoResize 完**也**要 flush，否則接下來 getColumnWidth 讀到的是
-  //      調整前的舊寬度，於是「舊寬度 + 餘裕」會把 autoResize 的結果整個蓋掉
+  // 那支 API 在這張表上量不準——第一欄的「全程花費（中位數）」一直被切掉，
+  // 補了 flush（寫值之後、調整之後各一次）也一樣。我不想再猜它為什麼，
+  // 而寫死一個下限只會在下一份資料、下一組標題時再壞一次
+  // （Dong：「定一個數字之後一定也會有問題」）。
   //
-  // 第 2 點是實測出來的：其他欄剛好看起來還行（預設 100 → 118 夠用），
-  // 只有裝最長說明文字的第一欄真正需要變寬，就被蓋掉了。
-  // 當時我以為是 autoResize 對中文量不準，還去寫了一個寫死的下限——
-  // **那個數字是在補一個我自己造成的傷。**
-  SpreadsheetApp.flush();
-  report.autoResizeColumns(1, width);
-  SpreadsheetApp.flush();
-
-  // autoResize 貼著字切齊，中文標題看起來會很擠——每欄補一點餘裕
-  for (var c = 1; c <= width; c++) {
-    report.setColumnWidth(c, report.getColumnWidth(c) + 18);
+  // 改成從內容算：中日韓字元佔兩個半形位，每個半形位約 CH_PX，再加左右內距。
+  // **常數是「一個字多寬」（字型的性質），不是「某一欄多寬」（內容的性質）**
+  // ——所以標題變長、關卡改名、多一種事件都會自己跟著調整。
+  //
+  // 這裡不需要 flush：全部都是寫入，沒有讀回任何東西——而先前那兩個坑
+  // （autoResize 讀到還沒寫進去的內容、getColumnWidth 讀到還沒生效的寬度）
+  // 都是「寫完馬上讀」造成的。不讀就沒有那個問題。
+  for (var c = 0; c < width; c++) {
+    var cells = 0;
+    for (var r = 0; r < padded.length; r++) {
+      cells = Math.max(cells, textCells_(padded[r][c]));
+    }
+    report.setColumnWidth(c + 1, Math.max(MIN_COL_PX, cells * CH_PX + PAD_PX));
   }
+
   ss.setActiveSheet(report);
 }
 
 // ======================== 小工具 ========================
+
+// 一個半形字元的寬度，以及儲存格左右的內距。這兩個是**字型**的性質，
+// 不隨內容改變——所以它們是常數是合理的，寫死某一欄多寬則不是。
+const CH_PX = 7;
+const PAD_PX = 24;
+const MIN_COL_PX = 60;
+
+// 這段文字佔幾個半形位。中日韓字元（含全形標點）算兩個。
+function textCells_(v) {
+  const s = String(v === null || v === undefined ? '' : v);
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    n += s.charCodeAt(i) > 0x2e80 ? 2 : 1;
+  }
+  return n;
+}
 
 function groupBy_(arr, key) {
   const out = {};

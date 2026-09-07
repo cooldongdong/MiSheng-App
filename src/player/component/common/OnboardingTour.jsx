@@ -193,8 +193,11 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
       },
       has(propData) && {
         sel: '[data-tour="props"]',
-        title: '道具：拿到的東西放這裡',
-        body: '看完點回「解謎」作答。',
+        // **不是「拿到的東西」**（Dong 2026-09-07 指正）。玩家從來不會從解謎那邊
+        // 「取得」一件道具——PropPage 是照 currentMissionId 過濾的，走進那一關，
+        // 該關的道具就已經在那裡了。故事也是同一個機制，所以那一步的文案一起改。
+        title: '道具：這一關用得上的東西',
+        body: '這一關如果有道具，一進關就在這裡了。看完點回「解謎」作答。',
       },
       {
         sel: '[data-tour="missions"]',
@@ -203,8 +206,8 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
       },
       has(storyData) && {
         sel: '[data-tour="stories"]',
-        title: '故事：這一關累積的劇情',
-        body: '走過的劇情圖與敘述留在這裡，隨時翻得回去。',
+        title: '故事：這一關的劇情',
+        body: '劇情圖與敘述放在這裡，隨時翻得回去。',
       },
     ].filter(Boolean);
   }, [hintData, propData, storyData]);

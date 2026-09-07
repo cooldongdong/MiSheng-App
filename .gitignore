@@ -37,5 +37,6 @@ dist-player
 
 # 播放器的 zip（由 npm run build:player 產生，給 /create 抓）
 public/player.zip
-# build 產物：docs/*.md 轉成的網頁（見 vite/docsPages.js）
+# build 產物：VitePress 產出的文件站（見 docs/.vitepress/config.mjs）
 public/docs/
+docs/.vitepress/cache/

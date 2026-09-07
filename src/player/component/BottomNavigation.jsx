@@ -42,14 +42,24 @@ import PropTypes from 'prop-types';
 const primarySx = {
   color: 'text.disabled',
   // 圖示放進一顆填色的圓裡。**圓不隨選中狀態改變**——它講的是「這是家」，
-  // 那件事跟玩家現在在哪一頁無關
+  // 那件事跟玩家現在在哪一頁無關。
+  //
+  // **尺寸的上限在縱向，不在橫向。** 圓直徑 46（＝圖示 26 ＋ padding 10）。
+  // 375px 寬的手機上，圓跟左右鄰居的圖示還隔著 45px，橫向完全不緊；
+  // 真正會先撞牆的是上下——圓靠負 margin 往上凸，直徑每加 6px 就多凸 5px，
+  // 而「解謎」兩個字同時被往下擠。實測 38→46 是凸 6→12px、字底離列底 5→3px；
+  // 再往上到 50 就變成凸 16px，開始壓到內容區。
+  //
+  // 放大時 fontSize 要跟著加。只加 padding 的話圓長大了、圖示沒有，
+  // 主鈕會變成「一坨橘色中間一個小圖示」，反而顯得空。
   '& .MuiSvgIcon-root': {
+    fontSize: 26,
     color: 'secondary.contrastText',
     bgcolor: 'secondary.main',
     borderRadius: '50%',
-    p: '7px',
+    p: '10px',
     boxSizing: 'content-box',
-    mt: '-10px',
+    mt: '-15px',
     mb: '2px',
   },
 };

@@ -51,8 +51,71 @@ const markSeen = () => {
 // 聚光燈的洞比目標本身大一點，不然按鈕會貼著洞緣，看起來像被切到
 const PAD = 6;
 
+// 上下滑的示範動畫。
+//
+// **為什麼是「演給他看」而不是「要他做一次」。** 一度想做成「真的滑了才放行」，
+// 但翻頁的手勢跟鍵盤共用 canAdvance（見 GameController）——**題目沒答對的頁面
+// 是滑不動的**。導覽在離開封面 1.4 秒後跳出來，那時他停在哪一列不一定；剛好落在
+// 一頁還沒作答的謎題上，「請往上滑」就永遠做不到，而導覽卡在那一步出不去。
+// 要救就得再加一條「幾秒後自動放行」——那是花力氣做一道一定要繞過的門。
+//
+// 所以只演一次：一顆指尖往上滑、再往下滑，循環。不擋、不等、不判斷。
+const SwipeDemo = () => (
+  <Box
+    aria-hidden
+    sx={{
+      position: 'absolute',
+      left: '50%',
+      // 卡片自己在畫面底部，示範要畫在它上面那片變暗的內容區裡
+      bottom: 'calc(100% + 28px)',
+      transform: 'translateX(-50%)',
+      width: 40,
+      height: 132,
+      pointerEvents: 'none',
+      '@keyframes tourSwipe': {
+        // 停一下 → 往上 → 停 → 往下 → 回原位，讓兩個方向都看得出來
+        '0%, 8%': { transform: 'translateY(38px)', opacity: 0 },
+        '14%': { transform: 'translateY(38px)', opacity: 1 },
+        '34%, 44%': { transform: 'translateY(-38px)', opacity: 1 },
+        '64%': { transform: 'translateY(38px)', opacity: 1 },
+        '92%, 100%': { transform: 'translateY(38px)', opacity: 0 },
+      },
+    }}
+  >
+    {/* 軌跡：一條淡淡的直線，讓那顆點看起來是在「滑」而不是在「跳」 */}
+    <Box
+      sx={{
+        position: 'absolute',
+        left: '50%',
+        top: 8,
+        bottom: 8,
+        width: '2px',
+        ml: '-1px',
+        borderRadius: 1,
+        background:
+          'linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.28), rgba(255,255,255,0))',
+      }}
+    />
+    <Box
+      sx={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        ml: '-14px',
+        mt: '-14px',
+        width: 28,
+        height: 28,
+        borderRadius: '50%',
+        bgcolor: 'rgba(255, 255, 255, 0.92)',
+        boxShadow: '0 0 0 8px rgba(255, 255, 255, 0.16)',
+        animation: 'tourSwipe 2.8s ease-in-out infinite',
+      }}
+    />
+  </Box>
+);
+
 const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
-  const { rundownData, currentId, hintData, propData, overlayOpen, record } =
+  const { rundownData, currentId, hintData, propData, storyData, overlayOpen, record } =
     useContext(GameContext);
 
   const [open, setOpen] = useState(false);
@@ -67,13 +130,14 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
         sel: '[data-tour="nav"]',
         padTop: 18, // 解謎那顆圓往上凸出導覽列，洞要罩得住它
         title: '底下這一排是遊戲的分頁',
-        body: '隨時可以切。中間那顆橘色的是主畫面，其他幾個是卡住或好奇的時候才會用到。',
+        body: '五個都隨時可以切。中間那顆橘色的是主畫面，接下來一個一個講。',
       },
       {
         sel: '[data-tour="play"]',
         padTop: 18,
+        gesture: true, // 這一步要示範上下滑，見下面的手勢動畫
         title: '解謎：故事跟作答都在這裡',
-        body: '看完一段往上滑就繼續。整場遊戲九成的時間待在這一頁——不管翻到哪去，點這顆就回得來。',
+        body: '看完一段往上滑翻到下一頁，往下滑退回上一頁。整場遊戲九成的時間待在這一頁——不管翻到哪去，點這顆就回得來。',
       },
       has(hintData) && {
         sel: '[data-tour="hints"]',
@@ -85,8 +149,18 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
         title: '道具：拿到的東西放這裡',
         body: '看完點回「解謎」作答。',
       },
+      {
+        sel: '[data-tour="missions"]',
+        title: '關卡：走到哪了、還有幾關',
+        body: '想回頭看前面那一關的內容，也從這裡跳。',
+      },
+      has(storyData) && {
+        sel: '[data-tour="stories"]',
+        title: '故事：這一關累積的劇情',
+        body: '走過的劇情圖與敘述留在這裡，隨時翻得回去。',
+      },
     ].filter(Boolean);
-  }, [hintData, propData]);
+  }, [hintData, propData, storyData]);
 
   // 玩家離開封面了沒。**用「不是 GameStart」而不是「有沒有進關」**——
   // 有些遊戲在第一關之前還有幾頁旁白，那時候導覽列就已經在畫面上了。
@@ -214,6 +288,8 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
           transition: 'bottom 220ms ease',
         }}
       >
+        {current.gesture && <SwipeDemo />}
+
         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
           {current.title}
         </Typography>
@@ -221,7 +297,7 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
           {current.body}
         </Typography>
 
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 2 }}>
+        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 2 }}>
           <Button size="small" color="inherit" onClick={() => finish('skip')}>
             跳過
           </Button>
@@ -238,6 +314,16 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
               />
             ))}
           </Stack>
+          {/* 第一步時是 disabled 而不是不畫——**不畫會讓「下一步」在按下去的瞬間
+              往左跳**，手指還停在原位就按到別的東西 */}
+          <Button
+            size="small"
+            color="inherit"
+            disabled={step === 0}
+            onClick={() => setStep((n) => Math.max(0, n - 1))}
+          >
+            上一步
+          </Button>
           <Button
             size="small"
             variant="contained"

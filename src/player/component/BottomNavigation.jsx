@@ -66,6 +66,9 @@ const primarySx = {
 
 const secondarySx = { color: 'text.disabled' };
 
+// data-tour：新手導覽用來量位置的標記（見 common/OnboardingTour）。
+// 用 data 屬性而不是 ref，是因為導覽是**另一棵子樹**裡的元件，
+// 而它要指的是這一排裡的某一顆——ref 得一路傳出去，data 屬性只要 querySelector。
 export default function FixedBottomNavigation({ value, onChange }) {
   const { hintData, currentMissionId, unlockedHints, missionStartedAt } =
     useContext(GameContext);
@@ -90,6 +93,7 @@ export default function FixedBottomNavigation({ value, onChange }) {
 
   return (
     <BottomNavigation
+      data-tour="nav"
       sx={{
         position: 'relative',
         bottom: 0, // 固定在畫面底部
@@ -107,18 +111,26 @@ export default function FixedBottomNavigation({ value, onChange }) {
       onChange={onChange}
       showLabels
     >
-      <BottomNavigationAction label="關卡" icon={<StorageRoundedIcon />} sx={secondarySx} />
       <BottomNavigationAction
+        data-tour="missions"
+        label="關卡"
+        icon={<StorageRoundedIcon />}
+        sx={secondarySx}
+      />
+      <BottomNavigationAction
+        data-tour="props"
         label="道具"
         icon={<HomeRepairServiceRoundedIcon />}
         sx={secondarySx}
       />
       <BottomNavigationAction
+        data-tour="play"
         label="解謎"
         icon={<QuestionAnswerRoundedIcon />}
         sx={primarySx}
       />
       <BottomNavigationAction
+        data-tour="hints"
         label="提示"
         icon={
           <Badge badgeContent={dueCount} color="error">
@@ -127,7 +139,12 @@ export default function FixedBottomNavigation({ value, onChange }) {
         }
         sx={secondarySx}
       />
-      <BottomNavigationAction label="故事" icon={<AutoStoriesRoundedIcon />} sx={secondarySx} />
+      <BottomNavigationAction
+        data-tour="stories"
+        label="故事"
+        icon={<AutoStoriesRoundedIcon />}
+        sx={secondarySx}
+      />
     </BottomNavigation>
   );
 }

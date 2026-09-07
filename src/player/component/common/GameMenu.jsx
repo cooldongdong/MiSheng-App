@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { useContext, useState } from 'react';
 import {
   Divider,
@@ -11,6 +12,7 @@ import {
 import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
+import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded';
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
 import BrightnessAutoRoundedIcon from '@mui/icons-material/BrightnessAutoRounded';
@@ -40,7 +42,7 @@ const MODE_ICON = {
   dark: DarkModeRoundedIcon,
 };
 
-const GameMenu = () => {
+const GameMenu = ({ onReplayTour = null }) => {
   const { gameId, eventCount } = useContext(GameContext);
   const { mode, setMode } = useColorScheme();
   const [anchor, setAnchor] = useState(null);
@@ -95,6 +97,22 @@ const GameMenu = () => {
           />
         </MenuItem>
 
+        {/* 新手導覽只跑一次就記在 localStorage，而且是全域的（不掛 gameId）。
+            沒有這個入口，手滑關掉的人就再也看不到了——COO-189 第 4 點。 */}
+        {onReplayTour && (
+          <MenuItem
+            onClick={() => {
+              onReplayTour();
+              close();
+            }}
+          >
+            <ListItemIcon>
+              <HelpOutlineRoundedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="新手導覽" secondary="再看一次" slotProps={{ secondary: { variant: 'caption' } }} />
+          </MenuItem>
+        )}
+
         {hasRecord && (
           <MenuItem onClick={() => openDialog('record')}>
             <ListItemIcon>
@@ -130,6 +148,10 @@ const GameMenu = () => {
       />
     </>
   );
+};
+
+GameMenu.propTypes = {
+  onReplayTour: PropTypes.func,
 };
 
 export default GameMenu;

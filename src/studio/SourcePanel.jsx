@@ -10,6 +10,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  Link,
   Stack,
   Typography,
 } from '@mui/material';
@@ -257,21 +258,38 @@ const SourcePanel = ({
 
       {/* ---- 玩家紀錄 ---- */}
       {/*
-        只在創作者真的填了 recordUrl 時才出現。沒填的人不需要知道這個功能存在
-        ——那一欄是選填的，遊戲不填照樣能玩。
+        **沒設定也要留一行。** 第一版做成「沒填就完全不顯示」，理由是「不打擾
+        用不到的人」——但那也代表**沒有人會發現這個功能存在**（Dong 2026-09-07：
+        「我沒有在 create 頁面看到那個按鈕」）。而這個功能的價值恰恰在於
+        「你原本不知道自己想要」。
 
-        **這顆鈕唯一的工作是「讓他知道通不通」。** 跨來源的回應是不透明的，
+        所以未設定時留一行輕的說明 ＋ 一條連結，設定了才長出「測試連線」。
+
+        **那顆鈕唯一的工作是「讓他知道通不通」。** 跨來源的回應是不透明的，
         程式讀不到成功與否，所以它不能說「成功了」——它只能說「送出去了，
         去看你的試算表」。看起來很弱，但那是唯一不會騙人的說法：
         真正的驗證是那張表上多了一列，不是這裡跳了什麼字。
       */}
-      {recordUrl && (
-        <>
-          <Divider />
-          <Box sx={{ px: 1.5, py: 1.25 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-              玩家紀錄
-            </Typography>
+      <Divider />
+      <Box sx={{ px: 1.5, py: 1.25 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+          玩家紀錄
+        </Typography>
+        {!recordUrl && (
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+            未設定 ·{' '}
+            <Link
+              href="https://github.com/cooldongdong/MiSheng-App/blob/main/docs/%E6%94%B6%E9%9B%86%E7%8E%A9%E5%AE%B6%E7%B4%80%E9%8C%84.md"
+              target="_blank"
+              rel="noopener"
+              underline="hover"
+            >
+              怎麼收集玩家的遊戲紀錄？
+            </Link>
+          </Typography>
+        )}
+        {recordUrl && (
+          <>
             <Button
               size="small"
               variant="outlined"
@@ -295,9 +313,9 @@ const SourcePanel = ({
                 {probe}
               </Typography>
             )}
-          </Box>
-        </>
-      )}
+          </>
+        )}
+      </Box>
 
       <Divider />
 

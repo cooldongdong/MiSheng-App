@@ -22,6 +22,7 @@ import {
   clearShareBroken,
   isShareBroken,
   markShareBroken,
+  pendingCount,
   policySnapshot,
   shareEvents,
 } from '../../game/telemetry';
@@ -70,7 +71,7 @@ const wantsDiag = () => {
 // **沒有事件就不顯示**：一顆按下去得到空檔的按鈕只會讓人以為壞了。而 previewMode
 // （/create）本來就不記錄，所以那邊自然也不會出現——不必另外判斷。
 const ExportEventsButton = () => {
-  const { gameId, eventCount } = useContext(GameContext);
+  const { gameId, eventCount, configData } = useContext(GameContext);
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -78,14 +79,18 @@ const ExportEventsButton = () => {
   const [canShare, setCanShare] = useState(false);
 
   const [shareHidden, setShareHidden] = useState(false);
+  const [pending, setPending] = useState(0);
 
   useEffect(() => {
     if (!open) return;
     setCanShare(canShareExport());
+    setPending(pendingCount(gameId));
     // 「上次失敗過所以被收起來」跟「這台裝置本來就沒有分享功能」要分開：
     // 前者要給一條回頭路，後者沒有東西可以回頭
     setShareHidden(isShareBroken() && !!navigator.share);
   }, [open]);
+
+  const recordUrl = String(configData?.[0]?.recordUrl || '').trim();
 
   if (!gameId || !eventCount) return null;
 
@@ -156,9 +161,26 @@ const ExportEventsButton = () => {
       <Dialog data-no-swipe open={open} onClose={close} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ pb: 0.5 }}>這場的遊戲紀錄</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: recordUrl ? 0.5 : 2 }}>
             {eventCount} 筆 · 只存在這台裝置上，換一支手機或清掉瀏覽器資料就不見了
           </Typography>
+
+          {/*
+            **創作者要能看出「自動送出到底有沒有在動」。** 送出是背景行為，
+            沒有任何畫面——部署完之後想確認它有沒有生效，唯一的辦法本來是
+            去翻試算表（而且要等 30 秒或關掉分頁才會送）。
+
+            這一行把它變成看得見的：已送幾筆、還積著幾筆。積著的數字一直不降，
+            就是網址填錯或那台裝置連不出去。
+
+            沒設定 recordUrl 的遊戲不顯示——那不是「壞掉」，是根本沒開這個功能。
+          */}
+          {recordUrl && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              自動送出：已送 {Math.max(0, eventCount - pending)} 筆
+              {pending > 0 ? `，還有 ${pending} 筆排隊中` : '，全部送完了'}
+            </Typography>
+          )}
 
           <Stack spacing={1}>
             {canShare && (

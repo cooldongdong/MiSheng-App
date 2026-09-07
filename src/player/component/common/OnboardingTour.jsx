@@ -59,59 +59,106 @@ const PAD = 6;
 // 一頁還沒作答的謎題上，「請往上滑」就永遠做不到，而導覽卡在那一步出不去。
 // 要救就得再加一條「幾秒後自動放行」——那是花力氣做一道一定要繞過的門。
 //
-// 所以只演一次：一顆指尖往上滑、再往下滑，循環。不擋、不等、不判斷。
+// **頁面要跟著動**（Dong 2026-09-07）。只有一顆點在空中滑，講的是「你可以做這個
+// 動作」；頁面跟著位移，講的才是「這個動作會發生什麼事」——而後者才是玩家要知道的。
+// 所以同一組時間軸下兩份動畫：指尖走 ±44px，頁面走 ±32px（比較小，因為它是被帶動的）。
+// 幅度不能再小——低於 30px 在 812 高的畫面上看不出來，等於白做。
+//
+// 頁面那一層的動畫用 CSS 下在 [data-tour="stage"] 上，**不碰遊戲狀態**——
+// 導覽期間整個畫面是不能互動的，動完就回到原處，沒有任何東西被翻過去。
+// 用 <style> 而不是直接改那個元素的 style：跨元件去寫別人的 DOM，
+// 下一個人看那支元件時不會知道有人在動它；CSS 規則至少 grep 得到。
+//
+// 動畫本身尊重 prefers-reduced-motion——會暈的人正是最不需要一個東西在畫面上晃的人。
+const DEMO_MS = 3400;
+
+// 一趟：停 → 往上（下一頁）→ 回來 → 往下（上一頁）→ 回來 → 淡出
+const track = (px) => ({
+  '0%, 6%': { transform: `translateY(0px)` },
+  '24%': { transform: `translateY(-${px}px)` },
+  '40%': { transform: `translateY(0px)` },
+  '58%': { transform: `translateY(${px}px)` },
+  '74%, 100%': { transform: `translateY(0px)` },
+});
+
+// 頁面那一層。它不歸這個元件管，所以只能下 CSS
+const stageCss = `
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes tourStage {
+    0%, 6%   { transform: translateY(0); }
+    24%      { transform: translateY(-32px); }
+    40%      { transform: translateY(0); }
+    58%      { transform: translateY(32px); }
+    74%, 100%{ transform: translateY(0); }
+  }
+  [data-tour="stage"] { animation: tourStage ${DEMO_MS}ms ease-in-out infinite; }
+}`;
+
 const SwipeDemo = () => (
-  <Box
-    aria-hidden
-    sx={{
-      position: 'absolute',
-      left: '50%',
-      // 卡片自己在畫面底部，示範要畫在它上面那片變暗的內容區裡
-      bottom: 'calc(100% + 28px)',
-      transform: 'translateX(-50%)',
-      width: 40,
-      height: 132,
-      pointerEvents: 'none',
-      '@keyframes tourSwipe': {
-        // 停一下 → 往上 → 停 → 往下 → 回原位，讓兩個方向都看得出來
-        '0%, 8%': { transform: 'translateY(38px)', opacity: 0 },
-        '14%': { transform: 'translateY(38px)', opacity: 1 },
-        '34%, 44%': { transform: 'translateY(-38px)', opacity: 1 },
-        '64%': { transform: 'translateY(38px)', opacity: 1 },
-        '92%, 100%': { transform: 'translateY(38px)', opacity: 0 },
-      },
-    }}
-  >
-    {/* 軌跡：一條淡淡的直線，讓那顆點看起來是在「滑」而不是在「跳」 */}
+  <>
+    <style>{stageCss}</style>
     <Box
+      aria-hidden
       sx={{
         position: 'absolute',
         left: '50%',
-        top: 8,
-        bottom: 8,
-        width: '2px',
-        ml: '-1px',
-        borderRadius: 1,
-        background:
-          'linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.28), rgba(255,255,255,0))',
+        // 卡片自己在畫面底部，示範要畫在它上面那片變暗的內容區裡
+        bottom: 'calc(100% + 28px)',
+        transform: 'translateX(-50%)',
+        width: 40,
+        height: 128,
+        pointerEvents: 'none',
+        '@keyframes tourFinger': track(44),
+        '@keyframes tourFingerFade': {
+          '0%, 3%': { opacity: 0 },
+          '8%, 88%': { opacity: 1 },
+          '96%, 100%': { opacity: 0 },
+        },
       }}
-    />
-    <Box
-      sx={{
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        ml: '-14px',
-        mt: '-14px',
-        width: 28,
-        height: 28,
-        borderRadius: '50%',
-        bgcolor: 'rgba(255, 255, 255, 0.92)',
-        boxShadow: '0 0 0 8px rgba(255, 255, 255, 0.16)',
-        animation: 'tourSwipe 2.8s ease-in-out infinite',
-      }}
-    />
-  </Box>
+    >
+      {/* 軌跡：一條淡淡的直線，讓那顆點看起來是在「滑」而不是在「跳」 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: '50%',
+          top: 4,
+          bottom: 4,
+          width: '2px',
+          ml: '-1px',
+          borderRadius: 1,
+          background:
+            'linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.28), rgba(255,255,255,0))',
+        }}
+      />
+      {/* 淡入淡出與位移拆成兩層：同一個元素只能有一個 transform，
+          而兩件事的時間軸不一樣（點要先出現、才開始走） */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          animation: `tourFingerFade ${DEMO_MS}ms ease-in-out infinite`,
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            ml: '-14px',
+            mt: '-14px',
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            bgcolor: 'rgba(255, 255, 255, 0.92)',
+            boxShadow: '0 0 0 8px rgba(255, 255, 255, 0.16)',
+            animation: `tourFinger ${DEMO_MS}ms ease-in-out infinite`,
+            '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+          }}
+        />
+      </Box>
+    </Box>
+  </>
 );
 
 const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {

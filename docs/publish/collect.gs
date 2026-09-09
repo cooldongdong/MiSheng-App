@@ -20,39 +20,56 @@ const HEADER = ['事件 id', '遊戲', '這局玩家', '時間', '事件', '關�
 
 // ======================== 收資料 ========================
 
+// **鎖裡面不可以有任何跟「表已經多長」有關的動作。**
+//
+// 這是 2026-09-09 壓測出來的教訓。當時鎖裡面有兩件 O(列數) 的事——整欄讀回來做
+// 去重、以及對 D:D／A:C／F:G 整欄重設格式——量到的結果是：**表幾乎是空的時候，
+// 每個請求就已經佔住鎖約 0.78 秒**。
+//
+// 那個數字放進活動的規模裡是這樣：30 秒的窗口最多放得過 38 個請求，而 50 支手機
+// 每 30 秒各送一次＝需求 50。**供給在表還空著的時候就已經比需求少三成**，而擠不
+// 進去的請求下一輪會重送（水位只在成功時前進），所以隊伍只會越排越長。
+//
+// ⇒ 現在鎖裡面只剩「問最後一列是第幾列、把資料寫下去」，跟表有多長無關。
 function doPost(e) {
-  // 50 個人可能同時送。沒有鎖的話，兩筆會搶同一列、蓋掉彼此
+  const data = JSON.parse(e.postData.contents);
+  const events = data.events || [];
+
+  // **解析與組裝放在鎖外面。** 它們跟別人沒有衝突，沒有理由佔著門口做。
+  const rows = events
+    .filter(function (ev) { return ev && ev.id; })
+    .map(function (ev) {
+      return [ev.id, data.gameId || '', data.sid || '', new Date(ev.ts),
+              ev.type || '', ev.missionId || '', ev.value || ''];
+    });
+
+  // 50 個人可能同時送。沒有鎖的話，兩筆會問到同一個「最後一列」、蓋掉彼此
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     const sheet = getLogSheet_();
-
-    const data = JSON.parse(e.postData.contents);
-    const events = data.events || [];
-
-    // 靠事件 id 去重：補送、重試都不會變成第二筆
-    const seen = {};
-    const last = sheet.getLastRow();
-    if (last > 1) {
-      sheet.getRange(2, 1, last - 1, 1).getValues()
-        .forEach(function (r) { seen[r[0]] = true; });
-    }
-
-    const rows = events
-      .filter(function (ev) { return ev && ev.id && !seen[ev.id]; })
-      .map(function (ev) {
-        return [ev.id, data.gameId || '', data.sid || '', new Date(ev.ts),
-                ev.type || '', ev.missionId || '', ev.value || ''];
-      });
-
     if (rows.length) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADER.length)
-        .setValues(rows);
+      const start = sheet.getLastRow() + 1;
+      // 格式要在 setValues **之前**設好，否則試算表會先把 "007" 吃成 7、
+      // 把 "1-2" 變成日期——那是 2026-09-07 踩過的坑，順序不能顛倒。
+      //
+      // **但只設這幾列，不設整欄。** 整欄是 O(列數)，而它每一次請求都要跑。
+      setRowFormats_(sheet, start, rows.length);
+      sheet.getRange(start, 1, rows.length, HEADER.length).setValues(rows);
     }
     return ContentService.createTextOutput('ok ' + rows.length);
   } finally {
     lock.releaseLock();
   }
+}
+
+// 這幾列的欄位格式。
+//   D 欄：預設格式只顯示日期，而「每關花多久」全靠時分秒
+//   A:C／F:G：試算表會把 "007" 變成 7、把 "1-2" 變成日期
+function setRowFormats_(sheet, start, n) {
+  sheet.getRange(start, 1, n, 3).setNumberFormat('@');
+  sheet.getRange(start, 4, n, 1).setNumberFormat('yyyy-mm-dd hh:mm:ss');
+  sheet.getRange(start, 6, n, 2).setNumberFormat('@');
 }
 
 function getLogSheet_() {
@@ -62,13 +79,14 @@ function getLogSheet_() {
     sheet.appendRow(HEADER);
     sheet.setFrozenRows(1);
   }
-  // 每次都設，不只在建立分頁時設。創作者會刪分頁、改名、手動貼東西，
-  // 任何依賴「第一次」的邏輯遲早會失效。
-  //   D 欄：預設格式只顯示日期，而「每關花多久」全靠時分秒
-  //   其餘：試算表會把 "007" 變成 7、把 "1-2" 變成日期
-  sheet.getRange('D:D').setNumberFormat('yyyy-mm-dd hh:mm:ss');
-  sheet.getRange('A:C').setNumberFormat('@');
-  sheet.getRange('F:G').setNumberFormat('@');
+  // **格式不在這裡設。**
+  //
+  // 原本這裡對 D:D／A:C／F:G 整欄 setNumberFormat，理由是「每次都設，才不怕
+  // 創作者刪分頁、改名、手動貼東西」——那個理由沒有錯，錯的是**位置**：
+  // 整欄是 O(列數)，而這個函式在鎖裡面、每一個請求都會經過。
+  //
+  // 現在改成只設「這次要寫的那幾列」（見 setRowFormats_）。防呆性質一樣在——
+  // 每一批寫進去的資料都會自己帶格式，不依賴任何「第一次」。
   return sheet;
 }
 
@@ -98,8 +116,20 @@ function rebuildReport() {
     return;
   }
 
+  // **去重在這裡做，不在寫入的時候做。**
+  //
+  // 補送與重試會讓同一個事件 id 出現兩次。原本是在 doPost 裡擋掉的，代價是
+  // 每一次寫入都要把整欄讀回來——而那件事在 50 個人同時玩的時候會塞住門口
+  //（見 doPost 的檔頭）。搬到這裡之後：原始 log 可能有重複的列（無害），
+  // 但**報表看到的每個事件仍然只有一次**，保證沒有變，只是換個地方兌現。
   const values = log.getRange(2, 1, log.getLastRow() - 1, HEADER.length).getValues();
-  const rows = values.map(function (r) {
+  const seenId = {};
+  const rows = values.filter(function (r) {
+    const id = String(r[0]);
+    if (!id || seenId[id]) return false;
+    seenId[id] = true;
+    return true;
+  }).map(function (r) {
     return {
       game: String(r[1]),
       sid: String(r[2]),

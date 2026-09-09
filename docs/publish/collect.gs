@@ -123,10 +123,17 @@ function rebuildReport() {
   //（見 doPost 的檔頭）。搬到這裡之後：原始 log 可能有重複的列（無害），
   // 但**報表看到的每個事件仍然只有一次**，保證沒有變，只是換個地方兌現。
   const values = log.getRange(2, 1, log.getLastRow() - 1, HEADER.length).getValues();
+  //
+  // **沒有 id 的列不參與去重，但也不丟掉。** 第一版寫成 `if (!id) return false`，
+  // 於是創作者手動貼進來的、或匯入舊資料時掉了 id 的列會**無聲消失**——
+  // 而舊版（去重在寫入端做的時候）那些列是留著的。
+  // 去重的目的是「同一筆不要算兩次」，不是「沒有編號的就不算數」；
+  // **多一列重複看得出來，少一列資料看不出來。**
   const seenId = {};
   const rows = values.filter(function (r) {
     const id = String(r[0]);
-    if (!id || seenId[id]) return false;
+    if (!id) return true;
+    if (seenId[id]) return false;
     seenId[id] = true;
     return true;
   }).map(function (r) {

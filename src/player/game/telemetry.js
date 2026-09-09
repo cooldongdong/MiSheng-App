@@ -204,17 +204,40 @@ export const flushEvents = async (gameId, url, { beacon = false } = {}) => {
       if (!queued) return 0;
     } else {
       try {
-        // no-cors：讀不到回應，但寫得進去（2026-09-07 實測）。
+        // **cors 而不是 no-cors（2026-09-09 實測推翻 9-07 的結論）。**
+        //
+        // 原本用 no-cors，理由是「Apps Script 會轉址、讀不到回應」。**寫得進去
+        // 是真的，讀不到是沒驗過就假設的**——而它的代價很大：no-cors 的回應永遠是
+        // opaque，`ok` 恆為 false、status 恆為 0，於是**送成功與對方回錯誤長得
+        // 一模一樣**。水位照樣推進，那批資料就安靜地消失了，包括「超過每日額度」
+        // 這種最該被發現的情況。
+        //
+        // 實測（從 localhost 跨網域打 Apps Script，跟真實情況同一種）：
+        //   正常          → ok:true、type:'cors'、讀得到 'ok 0'
+        //   腳本自己爆    → fetch 直接丟例外（錯誤頁沒帶 CORS 標頭）
+        //   網址是錯的    → 同上
+        // 三種都分得出來，而且失敗全部走 catch——也就是下面那條「不推進水位」。
+        //
+        // 為什麼不會觸發 preflight：text/plain 在 CORS 安全清單裡，
+        // 瀏覽器不會先發 OPTIONS（Apps Script 不處理 OPTIONS，發了就會被擋在門外）。
+        //
         // **一定要 await**：網路層失敗時要能不推進水位，同步推進的話
         // .catch 已經來不及，那一批就永遠不會再送了
-        await fetch(url, {
+        const res = await fetch(url, {
           method: 'POST',
-          mode: 'no-cors',
+          mode: 'cors',
           headers: { 'Content-Type': 'text/plain' },
           body,
         });
+        // 有回應也要看內容。萬一哪天 Google 回一個「帶著 CORS 標頭的錯誤頁」，
+        // 光看 res.ok 會被騙過去——而 doPost 成功時一定是 'ok N'。
+        const text = await res.text();
+        if (!res.ok || text.indexOf('ok') !== 0) return 0;
       } catch {
-        // 離線、對方掛了——水位不推進，下次再送
+        // 離線、對方掛了、腳本爆了——水位不推進，下次再送。
+        //
+        // 這條路現在可能製造重複（寫進去了、但回應讀不到就重送一次）。
+        // **那是刻意選的方向**：重複由報表端的 seenId 收掉，而漏掉沒有人收得掉。
         return 0;
       }
     }

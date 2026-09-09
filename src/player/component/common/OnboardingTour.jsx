@@ -313,7 +313,16 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
           width: rect.width,
           height: rect.height,
           borderRadius: '14px',
-          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.66)',
+          // 兩層：先在洞緣畫一圈亮邊，再往外撐出黑幕。
+          //
+          // **亮邊不是裝飾，是這個深色模式下唯一還能運作的訊號。** 聚光燈的原理是
+          // 「洞裡亮、洞外暗」，但深色模式的導覽列本身就是 #17191c——洞裡跟洞外一樣暗，
+          // 「被照亮」這件事根本沒發生（Dong 2026-09-09 在手機上回報「跟背景融在一起」）。
+          // 淺色模式靠導覽列自己是亮的就成立，深色模式沒有那個條件，得自己畫一個。
+          //
+          // 順序有意義：陰影照列出的順序疊，寫在前面的畫在上面，所以亮邊不會被黑幕蓋掉。
+          boxShadow:
+            '0 0 0 2px rgba(255, 255, 255, 0.55), 0 0 0 9999px rgba(0, 0, 0, 0.74)',
           pointerEvents: 'none',
           transition: 'left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease',
         }}
@@ -334,6 +343,19 @@ const OnboardingTour = ({ activeTab, replayNonce = 0 }) => {
           textAlign: 'left',
           borderRadius: 2,
           p: 2,
+          // **卡片要有自己的邊，不能只靠比背景亮**（Dong 2026-09-09 在手機上回報
+          // 深色下卡片跟背景融在一起）。
+          //
+          // 深色模式表示「浮起」的方式是比底下亮，但這裡的底下是**黑幕蓋住的美術圖**，
+          // 而那張圖的亮度不可預測：demo 是咖啡色油畫，74% 黑之後還剩約 (29,25,18)，
+          // 已經逼近卡片的 #17191c；換一張雪景或白天的照片就會直接比卡片亮，
+          // 卡片於是變成「一塊比周圍更暗的板子」，邊界整個消失。
+          //
+          // 所以改成給它一條實體的邊——**邊界不依賴兩邊的亮度關係，誰亮誰暗都看得到**。
+          // 陰影在深色上幾乎不可見，所以它只在淺色模式派得上用場，兩個都留。
+          border: '1px solid',
+          borderColor: (t) =>
+            t.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
           boxShadow: 6,
           transition: 'bottom 220ms ease',
         }}

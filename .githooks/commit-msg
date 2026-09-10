@@ -1,0 +1,45 @@
+#!/bin/sh
+# 擋掉不符合 CLAUDE.md 標題慣例的 commit。
+#
+# 慣例（見 CLAUDE.md「Commit 與 PR 的語言慣例」）：
+#   標題 = 英文 + conventional prefix   ← 本 hook 只檢查這一行
+#   正文 = 中文                          ← 完全不檢查，中文是對的
+#
+# 為什麼需要 hook 而不是只把規則寫在 CLAUDE.md：
+#   實測 2026-08-26 寫下規則之後撐了剛好一週（128 顆零違規），9/3 起崩掉
+#   ——95 顆中文標題有 93 顆在那之後。成因是 CLAUDE.md 從來沒有被自動載入過，
+#   遵守它得靠某一場 session 剛好讀過那個檔。提醒不是執行機制。
+#
+# 擋不到的：--no-verify、GitHub 網頁上直接編輯、沒跑過 npm install 的 clone。
+# 它不是圍牆，只是把違規從「沒人發現」變成「當場被擋」。
+
+subject=$(sed -n '1p' "$1")
+
+# git 自己產生的標題放行
+case "$subject" in
+  Merge\ *|Revert\ *|Reapply\ *|fixup!\ *|squash!\ *|'') exit 0 ;;
+esac
+
+if printf '%s' "$subject" | grep -qE '^(feat|fix|refactor|chore|docs|style|test|perf|build|ci)(\([a-zA-Z0-9/_.-]+\))?!?: .+'; then
+  exit 0
+fi
+
+cat >&2 <<EOF
+
+✗ commit 標題不符合這個 repo 的慣例
+
+  你寫的：$subject
+
+  標題要用英文，並帶 conventional prefix：
+    feat: / fix: / refactor: / chore: / docs:
+    （也接受 style test perf build ci，可加 scope：feat(create): ...）
+
+  理由：這是 AGPL-3.0 的公開 repo，標題是唯一會被外人掃到的那一行
+  （git log --oneline、GitHub commit 列表、blame 提示都只顯示它）。
+
+  正文請照樣寫中文——判斷與取捨寫在那裡，這個 hook 不會檢查。
+
+  真的要跳過：git commit --no-verify
+
+EOF
+exit 1

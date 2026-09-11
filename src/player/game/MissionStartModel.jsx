@@ -18,14 +18,21 @@ const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
 
   return (
     <FloatingLayer>
-      {currentMission?.backgroundImg && (
-        <Layer>
-          <BackgroundLayer
-            src={getImg(currentMission.backgroundImg)}
-            opacity="0.9"
-          />
-        </Layer>
-      )}
+      {/* **這一層永遠要畫，不能用 backgroundImg 當開關。**
+          BackgroundLayer 自己備好了三種狀態的底（沒填圖／載失敗／還在載），
+          註解就寫在它的檔案裡；而原本的 `backgroundImg &&` 把第一種擋在門外——
+          於是沒填圖的關卡拿不到那塊中性深灰，MissionTitleText 與 MissionSubtitleText
+          寫死的 `color:'#fff'` 就變成白字畫在 FloatingLayer 的白卡上，**整頁看起來
+          是空白的**（Dong 2026-09-11 在測試遊戲的第二頁撞到，只能從關卡頁繞過去）。
+          demo 六關每一關都填了 backgroundImg，所以這個洞從來沒被踩到。
+          Talk 沒事是因為它走 ThemeColorLayer（dialogue.surface 深墨），
+          MissionStart 走 FloatingLayer，沒有那層底。 */}
+      <Layer>
+        <BackgroundLayer
+          src={currentMission?.backgroundImg ? getImg(currentMission.backgroundImg) : ''}
+          opacity="0.9"
+        />
+      </Layer>
 
       {/* hideContent 見 TalkModel 檔頭——關卡名本身也是還沒發生的事 */}
       {!hideContent && (
@@ -46,9 +53,16 @@ const MissionStart = ({ onNext, canProceed, hideContent = false }) => {
             <>
               <MissionSubtitleText
                 // 暫時性的不顯示副標題
+                //
+                // **`?? ''` 不是多餘的防禦。** 少了它，只要 subtitle 是 undefined，
+                // 這一行就丟 TypeError 而整個遊戲畫面全白——而 undefined 比想像中
+                // 容易出現：CSV 檔尾多一個換行、或創作者的試算表少了 subtitle 欄，
+                // 都會產生「有這一列、但沒有這一格」的資料。
+                // 根因擋在 getMissionById（空 id 不再匹配），這裡是第二道：
+                // **播放器不該因為試算表少一格就壞掉，那是 validator 的工作。**
                 subtitle={
-                  currentMission.subtitle.length <= 3
-                    ? currentMission.subtitle
+                  (currentMission.subtitle ?? '').length <= 3
+                    ? (currentMission.subtitle ?? '')
                     : ''
                 }
               />

@@ -87,8 +87,25 @@ export const GameProvider = ({
   );
 
   // 用 id 查 mission（靠 id 不靠陣列位置，mission 的 row 順序／是否連號都無所謂）
+  // **空的 id 永遠對不到關卡。**
+  //
+  // `currentMissionId === ''` 的意思是「玩家不在任何一關」（封面）。但 CSV 檔尾
+  // 只要多一個換行，papaparse 就會產出一列 `{ id: '' }`（其餘欄位是 undefined），
+  // 於是 `String('') === String('')` 命中，這個函式會回傳一個**看起來存在、實際上
+  // 每一格都是 undefined 的關卡**。
+  //
+  // 後果是整棵樹當場卸載：MissionStartModel 的 `currentMission ? … : null` 守衛
+  // 因此放行，下一行 `currentMission.subtitle.length` 就丟 TypeError，畫面全白
+  //（Dong 2026-09-11 在桌機、2026-09-12 在手機各回報一次，是同一個 bug）。
+  //
+  // **不在載入時把空列濾掉**，雖然那樣更乾淨：keyOf 對沒有 id 的列是用物理列號
+  // （`#3`），濾掉任何一列都會讓後面所有列的 key 位移，玩家的存檔會跟著跑掉。
+  // 所以擋在查找這一層——空的 id 本來就不該匹配到任何東西。
   const getMissionById = useCallback(
-    (id) => missionData.find((m) => String(m.id) === String(id)) ?? null,
+    (id) =>
+      normId(id) === ''
+        ? null
+        : (missionData.find((m) => normId(m.id) === normId(id)) ?? null),
     [missionData]
   );
 

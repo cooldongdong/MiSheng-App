@@ -63,6 +63,9 @@ const GameController = ({
     startMission,
     currentMissionId,
     missionStartedAt,
+    // 只給 ?diag=1 的讀數用（見下方 render）
+    missionData,
+    getMissionById,
     mapMode,
     spatialNav,
     record,
@@ -437,6 +440,40 @@ const GameController = ({
 
   return (
     <>
+      {/* **?diag=1 的現場讀數。** 只在 dev、只在網址帶了 diag 時出現。
+          存在的理由寫在 insights 2026-09-06：回饋管道一旦跨了一個人、一台裝置，
+          「改一個東西再問一次好了沒」每一輪只值一位元的資訊，而做一次量測工具
+          換掉的是對方的時間。這次要分辨的是三種在手機上長得一模一樣的失敗——
+          render 丟例外（全白）、某個分支渲染了 null（空卡片）、白字畫在白底上。 */}
+      {import.meta.env.DEV &&
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).has('diag') && (
+          <Box
+            sx={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 99998,
+              bgcolor: 'rgba(0,0,0,0.82)',
+              color: '#9ef',
+              font: '11px/1.5 ui-monospace, Menlo, monospace',
+              p: 0.75,
+              whiteSpace: 'pre-wrap',
+              pointerEvents: 'none',
+            }}
+          >
+            {[
+              `currentId=${JSON.stringify(currentId)}`,
+              `model=${JSON.stringify(currentRow?.model)}`,
+              `row.missionId=${JSON.stringify(currentRow?.missionId)}`,
+              `currentMissionId=${JSON.stringify(currentMissionId)}`,
+              `mission=${JSON.stringify(getMissionById(currentMissionId)?.title ?? null)}`,
+              `missionData=[${(missionData || []).map((m) => JSON.stringify(m.id)).join(',')}]`,
+              `rundown=${(rundownData || []).length}列 coarse=${coarsePointer}`,
+            ].join('  ')}
+          </Box>
+        )}
       <KeyHintBar kind={hintKind} />
       {/* 滑動的舞台。外層是不動的視窗（把上下相鄰的那兩頁裁在畫面外），內層是跟著
           手指走的那一層——一個 transform 同時帶著三頁，各頁就不必自己算位置。

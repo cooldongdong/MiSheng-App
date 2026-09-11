@@ -4,6 +4,7 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import './index.css';
 import theme from '../shared/theme.js';
 import App from './App.jsx';
+import DevErrorSurface from './component/common/DevErrorSurface.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -12,7 +13,15 @@ createRoot(document.getElementById('root')).render(
         跟隨系統；要手動指定的人在 /create 那邊有開關。 */}
     <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
-      <App />
+      {/* dev 專用：render 丟例外時，手機上會看到訊息而不是一片白。
+          正式版不掛——那是另一個決定，見 DevErrorSurface 的檔頭。 */}
+      {import.meta.env.DEV ? (
+        <DevErrorSurface>
+          <App />
+        </DevErrorSurface>
+      ) : (
+        <App />
+      )}
     </ThemeProvider>
   </StrictMode>
 );

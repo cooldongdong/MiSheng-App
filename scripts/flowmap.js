@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Papa from 'papaparse';
 import { buildFlowGraph } from '../src/studio/flowGraph.js';
+import { withRowKeys } from '../src/shared/rowKey.js';
 import {
   layoutFlow,
   nodeTitle,
@@ -41,10 +42,18 @@ if (!fs.existsSync(csvPath)) {
   process.exit(2);
 }
 
-const rows = Papa.parse(fs.readFileSync(csvPath, 'utf8'), {
-  header: true,
-  skipEmptyLines: false,
-}).data;
+// **withRowKeys 不能省。** 這是第四條 CSV 解析路徑（/create、/demo、獨立播放器是
+// 另外三條），而 2026-09-04「id 可以留空」那輪只補到前三條——這一條沒有人發現，
+// 因為上面那個副檔名的 bug 讓這支 CLI 從那時起就載入即失敗，根本跑不到這裡。
+//
+// 少了它，沒填 id 的列 keyOf 會退回空字串，**所有無名列在圖眼裡是同一個節點**。
+// demo 看不出來（它每一列都有 id），只有照新寫法留空 id 的遊戲會中。
+const rows = withRowKeys(
+  Papa.parse(fs.readFileSync(csvPath, 'utf8'), {
+    header: true,
+    skipEmptyLines: false,
+  }).data
+);
 
 const graph = buildFlowGraph(rows, { collapse });
 const view = layoutFlow(graph);

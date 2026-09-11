@@ -1,4 +1,7 @@
-import { keyOf } from '../shared/rowKey';
+// **副檔名不能省。** Vite 補得出來，Node 的 ESM 解析器不會——而 scripts/flowmap.js
+// 是純 Node CLI，少了 .js 它在載入這個檔的當下就 ERR_MODULE_NOT_FOUND。
+// 同一個 import 在瀏覽器是好的，所以壞掉的只有命令列那條路，沒有人會看到。
+import { keyOf } from '../shared/rowKey.js';
 
 // flowGraph.js
 // 從 rundown 建出「流程圖」的資料結構——純函式，不碰畫面。

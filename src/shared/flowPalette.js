@@ -24,6 +24,9 @@ export const MODEL_COLOR = {
   MissionAnswerInput: '#9c3d54', // 作答：酒紅
   CustomValueInput: '#6b7d3a', // 輸入：橄欖綠
   Img: '#2b7a78', // 圖片：深青綠
+  // 補充長文：李子紫。挑這個色相是因為剩下的空位只有紫——其餘五個色相都被用掉了，
+  // 而「用明度區分」在小方塊上看不出來（2026-08-27 第一版藍灰色票就是這樣失敗的）。
+  Article: '#6b4a78',
 };
 
 export const MODEL_TINT = {
@@ -34,6 +37,7 @@ export const MODEL_TINT = {
   MissionAnswerInput: '#f9edf0',
   CustomValueInput: '#f2f4e9',
   Img: '#e9f4f3',
+  Article: '#f2edf5',
 };
 
 // 深色模式的對應組。不是把上面那組套濾鏡——「壓低明度」的前提是白底，
@@ -50,6 +54,7 @@ export const MODEL_COLOR_DARK = {
   MissionAnswerInput: '#c4657f', // 作答：酒紅
   CustomValueInput: '#9db862', // 輸入：橄欖綠
   Img: '#45aba8', // 圖片：深青綠
+  Article: '#ab86bb', // 補充長文：李子紫
 };
 
 // 節點底色。第一版做成「與畫布同明度」去對稱淺色模式，結果整片糊在一起——
@@ -68,6 +73,7 @@ export const MODEL_TINT_DARK = {
   MissionAnswerInput: '#36212c',
   CustomValueInput: '#272d1a',
   Img: '#142e30',
+  Article: '#2e2640',
 };
 
 // 連線色。原本有三份複本（FlowMap、FlowLegend、scripts/flowmap.js），

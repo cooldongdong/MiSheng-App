@@ -1,4 +1,4 @@
-// 七種 model 對到七個元件。
+// 八種 model 對到八個元件。
 //
 // 抽出來是因為現在有兩個地方要照 model 決定畫什麼：GameController（現在這一頁）
 // 與 PeekPage（上下拉時露出的前後頁）。兩份 map 遲早會分岔——新增第八種 model 時
@@ -10,6 +10,7 @@ import GameStartModel from './GameStartModel';
 import MissionAnswerInputModel from './MissionAnswerInputModel';
 import CustomValueInputModel from './CustomValueInputModel';
 import ImgModel from './ImgModel';
+import ArticleModel from './ArticleModel';
 
 export const MODEL_COMPONENTS = {
   Talk: TalkModel,
@@ -19,6 +20,7 @@ export const MODEL_COMPONENTS = {
   MissionAnswerInput: MissionAnswerInputModel,
   Img: ImgModel,
   CustomValueInput: CustomValueInputModel,
+  Article: ArticleModel,
 };
 
 export default MODEL_COMPONENTS;

@@ -20,8 +20,11 @@ import PeekPanel from '../component/common/PeekPanel';
 import PageSlot from './PageSlot';
 import PropTypes from 'prop-types'; // 引入 PropTypes
 
-// 「按一下就走」的三種 model
-const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart', 'GameStart']);
+// 「按一下就走」的 model。**Article 也在裡面**——它是一整頁可捲的長文，
+// 但「讀完才准走」是一道一定要繞過的門：擋不住想跳過的人，卻會逼我們再補一條
+// 逃生規則（2026-09-07 新手導覽那次的教訓）。捲到底才翻頁的手感由 useSwipeFlow
+// 負責，那是提示不是門。
+const FORWARD_MODELS = new Set(['Talk', 'Img', 'MissionStart', 'GameStart', 'Article']);
 // 要打字的兩種。游標落在框裡時方向鍵是移動游標，得先按 Esc 才拿得回來
 // （輸入框本身不再自動 focus，但使用者點過就會）
 const INPUT_MODELS = new Set(['MissionAnswerInput', 'CustomValueInput']);

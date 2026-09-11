@@ -17,13 +17,22 @@ import { keyOf } from '../shared/rowKey.js';
 const isEmpty = (v) => v === undefined || v === null || String(v).trim() === '';
 const norm = (v) => String(v ?? '').trim();
 
-// 這些 model 是流程的骨架，不摺疊；其餘（Talk/Img…）連續段會被摺成一個節點
+// 這些 model 不摺疊；其餘（Talk/Img…）的連續段會被摺成一個節點。
+//
+// 原本的註解寫「這些是流程的骨架」，但那句話只描述了其中一半——Quiz 與兩種輸入
+// 確實是骨架（分岔與停等），MissionStart／GameStart 不改變流程，它們留下來是因為
+// **值得被單獨看見**（章節錨點）。真正的判準是後者。
+//
+// Article 照後者收進來：一篇補充長文摺進「Talk ×18」之後，創作者在圖上就看不到
+// 「這一關解完之後給了一篇東西」——而「流程圖上看得見」正是這種內容放 rundown、
+// 不放 story 表的理由之一。摺掉它等於把那個理由自己拆掉。
 const STRUCTURAL = new Set([
   'GameStart',
   'MissionStart',
   'Quiz',
   'MissionAnswerInput',
   'CustomValueInput',
+  'Article',
 ]);
 
 export const buildFlowGraph = (rundownRows = [], { collapse = true } = {}) => {
@@ -82,7 +91,14 @@ export const buildFlowGraph = (rundownRows = [], { collapse = true } = {}) => {
     model: norm(row.model) || '(空白)',
     missionId: norm(row.missionId),
     speaker: norm(row.speaker),
-    text: norm(row.text) || norm(row.title),
+    // 節點上顯示什麼：一般是那句話本身（對白的內容就是它的身分）。
+    // **Article 反過來優先用 title**——它的 text 動輒幾百字，截前十四個字
+    // 得到的是「樹林崁頂福德宮座落於新北市樹…」，認不出是哪一篇；而標題正好
+    // 就是為了「這是哪一篇」而存在的。
+    text:
+      norm(row.model) === 'Article'
+        ? norm(row.title) || norm(row.text)
+        : norm(row.text) || norm(row.title),
     optionCount: (optionsOf.get(keyOf(row)) || []).length,
     merged: 1, // 摺疊後代表幾列
   }));

@@ -4,10 +4,11 @@ import { Box, Fab, Paper } from '@mui/material';
 import { GameContext } from '../../store/game-context';
 import { usePhotoGestures } from '../../hook/usePhotoGestures';
 import { chromeMotionSx, useChromeHidden } from '../../hook/useChromeMotion';
-import { NAV_HEIGHT } from './layout';
+import { NAV_HEIGHT, OVERLAY_MAX_WIDTH } from './layout';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import SkeletonImage from './SkeletonImage';
+import FullscreenStage from './FullscreenStage';
 
 // 道具、故事、提示、Camera、全文對話框、ImgModel 的圖都走這裡。
 //
@@ -161,49 +162,7 @@ const ZoomableImage = ({
 
       {/* 當圖片放大時 */}
       {isFullScreen && (
-        <Box
-          data-no-swipe
-          sx={{
-            // **這一層是「舞台」，而且會裁切。**
-            //
-            // 自己接管縮放之後，放大的圖會超出原本的框——玩家端只是超出畫面看不到，
-            // 但 /create 的預覽只是三欄裡的中間那一欄，圖就整個蓋到左欄與流程圖上
-            //（Dong 2026-09-05 附圖）。所以要有一個會裁的容器。
-            //
-            // 裡面三個東西改成 absolute（原本各自 fixed）：overflow:hidden 裁不到
-            // position:fixed 的子孫，除非裁切的那一層剛好是它們的定位基準。改成
-            // absolute 就沒有這個但書了。
-            //
-            // 100vw/100vh 會量到「視窗」，嵌在 /create 的欄位裡時會溢出去；
-            // fixed ＋ inset:0 才是填滿定位基準（見 GameShell #main-container 的 transform）。
-            //
-            // data-no-swipe 掛在這一層就夠：useSwipeFlow 是用 closest() 往上找的。
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            // **往下多蓋一條導覽列。** /create 的舞台只有預覽欄（導覽列坐在欄位
-            // 下方那 56px），導覽列收起來之後那一條會變成空白（Dong 2026-09-05）。
-            // 玩家端多出來的部分落在視窗外，看不到也不影響。
-            bottom: -NAV_HEIGHT,
-            m: '0 !important',
-            overflow: 'hidden',
-            zIndex: 1000,
-          }}
-        >
-          {/* 背景，點擊可縮小。
-              **不透明**：一度是 0.9，於是底下那一頁的介面會隱約透出來——平常被圖片
-              蓋住看不到，但往下拖曳時上緣露出來，NEXT 鈕就浮在那裡（Dong 附圖）。
-              看謎面的時候不該看到別的東西。 */}
-          <Box
-            onClick={onToggle}
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: 'rgb(200, 200, 200)',
-            }}
-          />
-
+        <FullscreenStage onBackdropClick={onToggle}>
           {/* 放大的圖片。
               不疊骨架：要點放大就一定先看過縮圖，瀏覽器已經有快取、比例也記過了，
               疊上去只會閃一下。 */}
@@ -214,7 +173,7 @@ const ZoomableImage = ({
             {...handlers}
             style={{
               width: '100%',
-              maxWidth: '600px',
+              maxWidth: `${OVERLAY_MAX_WIDTH}px`,
               // 舞台刻意比可視範圍高出一條導覽列（見上面），所以圖片的高度上限與
               // 垂直中心都要把那 56px 扣回來——不然圖會有一截被切在畫面外
               //（Dong 2026-09-05 在 iOS 回報「圖片下方會超出螢幕」）。
@@ -261,7 +220,7 @@ const ZoomableImage = ({
           >
             <CloseFullscreenRoundedIcon />
           </Fab>
-        </Box>
+        </FullscreenStage>
       )}
     </>
   );

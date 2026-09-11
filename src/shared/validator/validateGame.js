@@ -78,7 +78,7 @@ const knownFieldsOf = (type) =>
 // rundown.model 合法值（見 GameController modelComponents）
 // GameStart＝遊戲封面，資料取自 config（見 player/game/GameStartModel.jsx）。
 // 它是純增量的新值：既有試算表一格都不用改，照舊用 mission 0 那種假關卡當封面。
-export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'GameStart', 'MissionAnswerInput', 'Img', 'CustomValueInput'];
+export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'GameStart', 'MissionAnswerInput', 'Img', 'CustomValueInput', 'Article'];
 // prop.type 合法值（2026-08-25 加入 Camera：相機畫面上疊半透明圖的數位透明片）
 export const VALID_PROP_TYPES = ['Img', 'Wheel', 'Camera'];
 

@@ -16,6 +16,7 @@ import MissionFeedbackDialog from '../component/common/MissionFeedbackDialog';
 import PropTypes from 'prop-types';
 
 const MissionAnswerInputModel = ({
+  currentRow,
   onNext,
   canProceed,
   devTools = false,
@@ -38,14 +39,22 @@ const MissionAnswerInputModel = ({
   const [openDialog, setOpenDialog] = useState(false); // 控制彈出視窗
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false); // 控制確定放棄視窗
   const [giveupCountdown, setGiveupCountdown] = useState(5);
-  const [currentMission, setCurrentMission] = useState(null);
   const [answerArray, setAnswerArray] = useState([]);
   const [similarAnswers, setSimilarAnswers] = useState([]);
 
-  useEffect(() => {
-    const mission = getMissionById(currentMissionId);
-    if (mission) setCurrentMission(mission);
-  }, [currentMissionId, getMissionById]);
+  // **推導值就用推導的，不要存成 state。**
+  //
+  // 原本是 `useState(null)` ＋ effect 回填，而 effect 是**畫完之後**才跑——
+  // 於是這個元件每次掛載，第一幀的 currentMission 必定是 null，畫面上就閃一下
+  // 「未選擇任務。」（Dong 2026-09-12 回報「還是會有一瞬間跳出」）。
+  // 這是 TalkModel 的講者／底圖、GameController 的 currentRow 修過的同一個病：
+  // **存起來的推導值永遠慢真相一個 render。**
+  //
+  // **先看這一列自己的 missionId，再退回 context。** 那一格在第一幀就在手上
+  // （validator 保證 MissionAnswerInput 一定指到一個真關卡），而 context 的
+  // currentMissionId 要等 provider 的同步 effect 才會跟上這一列。
+  const currentMission =
+    getMissionById(currentRow?.missionId) ?? getMissionById(currentMissionId);
 
   useEffect(() => {
     if (currentMission) {
@@ -239,6 +248,7 @@ MissionAnswerInputModel.propTypes = {
   onNext: PropTypes.func.isRequired,
   canProceed: PropTypes.bool.isRequired,
   devTools: PropTypes.bool,
+  currentRow: PropTypes.object,
   hideContent: PropTypes.bool,
 };
 

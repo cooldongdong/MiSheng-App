@@ -114,6 +114,10 @@ const ArticleImage = ({ src, alt }) => (
       src={src}
       alt={alt || ''}
       borderRadius={'12px'}
+      // **不要陰影**（Dong 2026-09-12）。ZoomableImage 預設 elevation=10，那是為了
+      // 讓謎面圖與道具圖「浮」在頁面上；但文章裡的圖不是一個獨立的物件，它是段落
+      // 之間的一部分——浮起來反而把它從文意裡切出去。圓角保留。
+      elevation={0}
       isFullScreen={false}
       showZoomButton={false}
       onToggle={noop}
@@ -133,13 +137,24 @@ const RichText = ({ text, sx, resolveImg }) => (
         return (
           <Typography
             key={i}
-            variant="subtitle2"
+            component="h3"
             sx={{
+              // **字級要跟內文拉開，不能只靠粗體。**
+              // 原本用 `variant="subtitle2"` ＋ fontWeight 700，而 subtitle2 與
+              // body2 在 MUI 預設下都是 0.875rem——於是「## 小標」與內文裡的
+              // `**粗體**` **一模一樣大**，只差在它自己佔一行
+              //（Dong 2026-09-12：「小標跟粗體的大小太接近了」）。
+              //
+              // 17px 是往上一階但停在文章標題（h6，20px）之下：
+              //   內文 14 → 小標 17 → 文章標題 20
+              // 三階各差約 1.2 倍，掃過去分得出誰是誰，又不會讓小標搶走標題的位置。
+              fontSize: '1.0625rem',
               fontWeight: 700,
+              lineHeight: 1.5,
               // 小標與**它上面那一段**之間要比段間距大，與**它下面那一段**要小
               // ——這樣它看起來屬於下面那一節，而不是漂在兩節中間。
-              mt: i === 0 ? 0 : 3,
-              mb: 0.5,
+              mt: i === 0 ? 0 : 3.5,
+              mb: 0.75,
             }}
           >
             {inline(b.text)}

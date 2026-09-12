@@ -7,6 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import PropTypes from 'prop-types';
+import { gameOverlayContainer } from './layout';
 
 const FullTextDialog = ({ open, onClose, title, text }) => {
   return (
@@ -19,7 +20,12 @@ const FullTextDialog = ({ open, onClose, title, text }) => {
     //
     // 標在 Dialog 的根元素（額外的 prop 會被 MUI 傳到那裡），這樣**背景遮罩也包含
     // 在內**——只標在紙張上的話，滑在遮罩上仍然會翻頁。
-    <Dialog data-no-swipe open={open} onClose={onClose} maxWidth="sm">
+    <Dialog
+      data-no-swipe
+      // container 的理由見 layout.js 的 GAME_OVERLAY_ID：
+      // portal 不是後代，所以 #main-container 的 transform 關不住它
+      container={gameOverlayContainer}
+      open={open} onClose={onClose} maxWidth="sm">
       <DialogTitle>{title ? title : '提示'}</DialogTitle>
 
       <DialogContent>

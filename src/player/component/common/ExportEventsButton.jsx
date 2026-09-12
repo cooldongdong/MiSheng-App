@@ -29,6 +29,7 @@ import {
   probeShareText,
   shareEnvReport,
 } from '../../game/shareDiag';
+import { gameOverlayContainer } from './layout';
 
 // 現場診斷只在 ?diag=1 時出現（同 DiagOverlay 的慣例）
 const wantsDiag = () => {
@@ -149,7 +150,10 @@ const ExportEventsButton = ({ open, onClose }) => {
   return (
     <>
       {/* data-no-swipe：面板開著的時候上下滑不該翻頁（同 FullTextDialog） */}
-      <Dialog data-no-swipe open={open} onClose={close} maxWidth="xs" fullWidth>
+      <Dialog
+          data-no-swipe
+          container={gameOverlayContainer}
+          open={open} onClose={close} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ pb: 0.5 }}>這場的遊戲紀錄</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: recordUrl ? 0.5 : 2 }}>

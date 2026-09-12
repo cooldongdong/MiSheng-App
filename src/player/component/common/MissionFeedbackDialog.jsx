@@ -7,6 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import PropTypes from 'prop-types';
+import { gameOverlayContainer } from './layout';
 
 // 見 ConfirmDialog 的同名函式：不靠 autoFocus，聽整個對話框的 keydown
 const enterHandler = (action) => (event) => {
@@ -26,7 +27,7 @@ const MissionFeedbackDialog = ({
   feedback,
 }) => {
   return (
-    <Dialog open={open} onClose={onClose} onKeyDown={enterHandler(onClose)}>
+    <Dialog container={gameOverlayContainer} open={open} onClose={onClose} onKeyDown={enterHandler(onClose)}>
       {isGiveUp ? (
         <DialogTitle>再接再厲！</DialogTitle>
       ) : (

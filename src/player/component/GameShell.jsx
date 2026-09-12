@@ -13,7 +13,7 @@ import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
 import DiagOverlay from './common/DiagOverlay';
 import { useTouchClickRecovery } from '../hook/useTouchClickRecovery';
-import { TAB } from './common/layout';
+import { TAB, GAME_OVERLAY_ID } from './common/layout';
 
 // 現場量測面板：網址帶 ?diag=1 才出現（見 DiagOverlay）
 const wantsDiag = () => {
@@ -322,6 +322,36 @@ const GameShell = ({
               那 56px，收起來會留下一條空白——但那是**舞台不夠大**，不是不該收。
               舞台現在往下多蓋 NAV_HEIGHT，例外就不需要了。
               instantExit：見 chromeMotionSx——它的消失不該被看見。 */}
+          {/* **對話框的舞台。** 它是 #main-container 的**兄弟**，不是子孫——
+              理由見 layout.js 的 GAME_OVERLAY_ID：#main-container 的 z-index 550
+              自成一個堆疊脈絡，掛進去的東西贏不了導覽列的 700（2026-09-05 放大圖的
+              縮小鈕標 1102 照樣被蓋掉，就是這件事）。
+
+              三條規格缺一不可：
+                · z-index 800  贏過導覽列（700）與分隔線（600）
+                · transform    讓 portal 進來的 `position: fixed` 以這裡為定位基準
+                               ——那正是「/create 三欄下對話框蓋掉整個視窗」的解法
+                · pointerEvents: none  空的時候不能擋住底下的點擊；真的開了對話框時，
+                               它自己的根元素會把 pointer-events 要回去
+
+              幾何跟著 #main-container 走：嵌在 /create 裡貼齊遊戲那一欄；
+              /demo 則是整個視窗，**而且要含導覽列那 56px**——現況的遮罩是蓋住它的，
+              不能退步成「底下那條亮在遮罩外面」。 */}
+          <Box
+            id={GAME_OVERLAY_ID}
+            sx={{
+              position: sidePanel || leftPanel ? 'absolute' : 'fixed',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: sidePanel || leftPanel ? '100%' : '100dvh',
+              zIndex: 800,
+              transform: 'translateZ(0)',
+              pointerEvents: 'none',
+              '& > *': { pointerEvents: 'auto' },
+            }}
+          />
+
           <ChromeFade
             id="TabBar"
             hideWithOverlay

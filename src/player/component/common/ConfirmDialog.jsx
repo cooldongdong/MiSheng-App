@@ -7,6 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import PropTypes from 'prop-types';
+import { gameOverlayContainer } from './layout';
 
 // 對話框開著時 Enter 要按到哪一顆，由對話框自己決定，不靠 autoFocus。
 //
@@ -41,6 +42,7 @@ const ConfirmDialog = ({
 }) => {
   return (
     <Dialog
+      container={gameOverlayContainer}
       open={open}
       onClose={onClose}
       onKeyDown={confirmOnEnter ? enterHandler(onConfirm) : undefined}

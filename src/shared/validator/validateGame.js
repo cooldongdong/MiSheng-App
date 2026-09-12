@@ -11,6 +11,8 @@
 // v1 涵蓋層 1–5（結構／必填／id 完整性／參照／列舉值），全部視為「要修才給生成」。
 // 層 6（流程可達性、迴圈、{{變數}} 對應）留 v2。
 
+import { isBlank } from '../rowKey.js';
+
 export const REQUIRED_TABLES = ['character', 'config', 'hint', 'mission', 'prop', 'rundown', 'story'];
 
 // 表頭欄位分兩級（順序不論，只驗有沒有）。
@@ -90,10 +92,41 @@ const MUST_HAVE_ROWS = ['character', 'mission', 'rundown'];
 const NO_MISSION = '0';
 
 const isEmpty = (v) => v === undefined || v === null || String(v).trim() === '';
-const isBlankRow = (row) => !row || Object.values(row).every(isEmpty);
+// **空白列的判準住在 shared/rowKey，不在這裡。**
+// 它原本是這個檔的私有函式，於是 validator 會把空白列過濾掉、播放器不會——
+// 同一份 CSV 兩邊看到的列數不一樣，validator 給綠燈而播放器炸掉（2026-09-12）。
+// 判準只能有一份，而它該住在「每一條載入路徑都會經過」的那個地方。
 const norm = (v) => String(v).trim();
 // papaparse 資料 index → 試算表列號
 const sheetRow = (i) => i + 2;
+
+// 空白列：夾在資料中間的要出聲，表尾的不要。
+//
+// **不是一律 warn**：創作者在表尾留空行是很自然的事（任何編輯器存 CSV 都會留一個
+// 檔尾換行），一律報等於製造每次都要無視的雜訊——而被訓練成無視的警告等於沒有警告。
+// 中間的空白列則幾乎都是誤刪，值得講。
+//
+// rundown 另外講一句後果：沒有 model 的列在遊戲裡是一頁什麼都沒有的畫面。
+const reportBlankRows = (tables, warn) => {
+  for (const type of REQUIRED_TABLES) {
+    const rows = tables[type]?.rows || [];
+    let lastContent = -1;
+    rows.forEach((row, i) => {
+      if (!isBlank(row)) lastContent = i;
+    });
+    rows.forEach((row, i) => {
+      if (!isBlank(row) || i > lastContent) return;
+      warn(
+        type,
+        sheetRow(i),
+        null,
+        type === 'rundown'
+          ? '這一列整列是空的，但它夾在資料中間——遊戲裡會多出一頁什麼都沒有的畫面。通常是誤刪，確認一下是不是該把它刪掉'
+          : '這一列整列是空的，但它夾在資料中間。通常是誤刪，確認一下是不是該把它刪掉'
+      );
+    });
+  }
+};
 
 export function validateGame(tables) {
   const issues = [];
@@ -104,7 +137,9 @@ export function validateGame(tables) {
   const rowsOf = (type) =>
     (tables[type]?.rows || [])
       .map((row, i) => ({ row, i }))
-      .filter(({ row }) => !isBlankRow(row));
+      .filter(({ row }) => !isBlank(row));
+
+  reportBlankRows(tables, warn);
 
   // ---- 層 1：結構（表存在 + 表頭欄位齊全 + 核心表非空）----
   for (const type of REQUIRED_TABLES) {

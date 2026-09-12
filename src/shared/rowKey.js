@@ -22,6 +22,46 @@
 // 匯出不受影響——`Papa.unparse` 是拿原始表頭當 `fields`，多掛的欄位漏不進去。
 export const ROW_KEY = '__key';
 
+// 「這一列整列都是空的」。**這個判準原本只活在 validator 裡**，於是 validator 會
+// 把空白列過濾掉、播放器不會——同一份 CSV，兩邊看到的列數不一樣，validator 給綠燈
+// 而播放器炸掉（2026-09-12，CSV 檔尾多一個換行造成的空列讓 getMissionById 命中它）。
+//
+// **為什麼是「標記」不是「移除」**：陣列索引就是試算表的列號。validator 的
+// `sheetRow(i) = i + 2` 靠它報「第 21 列」，keyOf 對沒有 id 的列靠它產生 `#N`，
+// 而那是玩家存檔的位置。少掉任何一列，錯誤訊息會指到隔壁，存檔會整批位移。
+//
+// 所以掛在這裡：withRowKeys 已經是「載入時替每一列掛上內部身分」的唯一位置，
+// 空白與否是同一種性質，掛在同一個地方，兩邊就不可能算出兩個答案。
+export const ROW_BLANK = '__blank';
+
+const isEmptyValue = (v) =>
+  v === undefined || v === null || String(v).trim() === '';
+
+/** 整列都是空的嗎。**不看內部欄位**，只看試算表真的有的那些格。 */
+export const isBlankRow = (row) =>
+  !row ||
+  typeof row !== 'object' ||
+  Object.entries(row).every(
+    ([k, v]) => k === ROW_KEY || k === ROW_BLANK || isEmptyValue(v)
+  );
+
+/** 讀旗標；沒掛過的（還沒經過 withRowKeys）就當場算一次。 */
+export const isBlank = (row) =>
+  row && ROW_BLANK in row ? Boolean(row[ROW_BLANK]) : isBlankRow(row);
+
+/**
+ * 從 index 往後找第一列「不是空白」的。流程要跳過空白列——
+ * 沒有 model 的列在 PageSlot 會渲染成 null，玩家因此會翻到一頁什麼都沒有的畫面。
+ * **跳過的是走訪，不是身分**：keyOf 仍然用物理列號，所以存檔不受影響。
+ */
+export const nextNonBlank = (rows, index) => {
+  if (!Array.isArray(rows)) return null;
+  for (let i = index; i < rows.length; i += 1) {
+    if (!isBlank(rows[i])) return rows[i];
+  }
+  return null;
+};
+
 /** 欄位值正規化。跟 validator 的 norm 同一套，免得「這裡算相同、那裡算不同」。 */
 export const normId = (v) =>
   v === null || v === undefined ? '' : String(v).trim();
@@ -38,7 +78,9 @@ export const withRowKeys = (rows) => {
   return rows.map((row, index) => {
     if (!row || typeof row !== 'object') return row;
     const id = normId(row.id);
-    return { ...row, [ROW_KEY]: id || `#${index}` };
+    // 空白與否也在這裡算好。理由見 ROW_BLANK 的註解：下游只准讀旗標，
+    // 不准各自再算一次——那正是 validator 與播放器分岔的成因。
+    return { ...row, [ROW_KEY]: id || `#${index}`, [ROW_BLANK]: isBlankRow(row) };
   });
 };
 
@@ -59,7 +101,9 @@ export const fingerprintOf = (row, fields = null) => {
   // 兩邊若都用「整個物件」算指紋，就會得到兩個不同的答案，紅點永遠不會消。
   const keys = fields
     ? fields
-    : Object.keys(row).filter((k) => k !== ROW_KEY && k !== 'id');
+    : Object.keys(row).filter(
+        (k) => k !== ROW_KEY && k !== ROW_BLANK && k !== 'id'
+      );
   const parts = [...keys]
     .sort()
     .map((k) => `${k}=${normId(row[k])}`);

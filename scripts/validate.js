@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Papa from 'papaparse';
 import { validateGame, REQUIRED_TABLES } from '../src/shared/validator/validateGame.js';
+import { withRowKeys } from '../src/shared/rowKey.js';
 
 const gameDir = process.argv[2];
 if (!gameDir) {
@@ -26,8 +27,11 @@ const folderName = path.basename(gameDir);
 
 const parseCsv = (filePath) => {
   const raw = fs.readFileSync(filePath, 'utf8');
+  // **withRowKeys 不能省。** 這是第五條 CSV 解析路徑（csvLoader／sheetLoader／
+  // localFiles／flowmap 是另外四條）。少了它，validator 讀不到 `__blank` 旗標，
+  // 只好自己再算一次空白列——而「同一件事算兩次」正是它與播放器分岔的成因。
   const result = Papa.parse(raw, { header: true, skipEmptyLines: false });
-  return { fields: result.meta.fields || [], rows: result.data };
+  return { fields: result.meta.fields || [], rows: withRowKeys(result.data) };
 };
 
 // 依 misheng 命名規則 `{資料夾} - {type}.csv` 找 7 張表

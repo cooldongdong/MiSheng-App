@@ -258,8 +258,16 @@ const dateStamp = (d = new Date()) =>
   ).padStart(2, '0')}`;
 
 // 一場一個檔。帶日期與 sid 前六碼，收到一疊檔案時才分得出誰是誰
+// **副檔名是 .txt，不是 .json。** 內容仍然是 JSON，換的只是一件外衣。
+//
+// 三個理由，由硬到軟：
+//   ① **Chromium 對可分享的檔案有副檔名白名單，`.json` 不在裡面**——送 .json 的
+//      分享在 Android 上必定失敗（2026-09-06 追了四輪才確認）。分享那條路本來就
+//      已經改送 .txt 了，只是它是在自己那一支裡 replace，於是三條出口長出兩種檔名。
+//   ② 收檔的人面對的是 50 份檔案，**混著兩種副檔名而內容完全一樣**，沒有好處。
+//   ③ `.txt` 在手機上點得開；`.json` 常常沒有預設程式。
 export const exportFileName = (gameId, sid) =>
-  `${gameId}-${dateStamp()}-${(sid || '').slice(0, 6) || 'nosid'}.json`;
+  `${gameId}-${dateStamp()}-${(sid || '').slice(0, 6) || 'nosid'}.txt`;
 
 // 匯出的內容與檔名——三條出口（分享／複製／下載）共用同一份，
 // 免得哪一條哪天長出自己的格式。
@@ -364,7 +372,13 @@ export const canShareExport = () => {
   if (!navigator.canShare || typeof File === 'undefined') return false;
   if (readShareBroken()) return false;
   try {
-    const probe = new File(['{}'], 'probe.json', { type: 'application/json' });
+    // **探針要送跟真正送出時一樣的東西。**
+    // 原本探的是 `probe.json`／`application/json`，而實際送的是 .txt／text/plain
+    // ——**探測與執行讀的不是同一份規則，那個 true 就什麼都不保證**
+    //（這個檔下面就記著 canShare 說謊的那次）。Chromium 的副檔名白名單目前只在
+    // 真正送出時才檢查，所以今天兩者都回 true；但哪天它提前到 canShare，
+    // 用 .json 探就會變成假的否定，按鈕會無故消失。
+    const probe = new File(['{}'], 'probe.txt', { type: 'text/plain' });
     return navigator.canShare({ files: [probe] });
   } catch {
     return false;
@@ -410,9 +424,11 @@ export const shareEvents = async (gameId) => {
   // 手勢的有效期內呼叫，而第一次失敗之後已經是另一個 task 了。用錯的方法測，
   // 會得到看起來很確定的錯誤結論。
   //
-  // 內容仍然是 JSON，只是換一件外衣。iOS 那邊 .json 本來就能送，改成 .txt 也一樣
+  // 內容仍然是 JSON，只是換一件外衣。iOS 那邊 .json 本來就能送，改成 .txt 也一樣。
+  // **檔名現在由 exportFileName 直接給**，不再在這裡 replace——三條出口共用同一個
+  // 檔名，這個檔頭那句「免得哪一條哪天長出自己的格式」才是真的
   // 收得到——一種送法涵蓋所有環境，比分平台特例可靠。
-  const name = exportFileName(gameId, payload.sid).replace(/\.json$/, '.txt');
+  const name = exportFileName(gameId, payload.sid);
   const file = new File([JSON.stringify(payload, null, 2)], name, {
     type: 'text/plain',
   });
@@ -470,7 +486,7 @@ export const copyEvents = async (gameId) => {
 export const downloadEvents = (gameId) => {
   const payload = buildExport(gameId);
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: 'application/json',
+    type: 'text/plain',
   });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

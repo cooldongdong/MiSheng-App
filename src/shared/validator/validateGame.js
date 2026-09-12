@@ -392,6 +392,25 @@ export function validateGame(tables) {
     }
   }
 
+  // ---- 層 2（延伸）：Article 不讀 backgroundImg ----
+  //
+  // **靜默無效比報錯更難查。** 其他 model 的 backgroundImg 是鋪滿整頁的底圖，
+  // Article 不是——它的圖寫在內文裡（`![說明](檔名)` 自成一行），這樣一篇文章才
+  // 能有好幾張、而且放在該放的位置。填了 backgroundImg 什麼事都不會發生，
+  // 創作者只會覺得「圖沒出來」然後去查圖片路徑——查錯方向。
+  for (let i = 0; i < (tables.rundown?.rows || []).length; i += 1) {
+    const row = tables.rundown.rows[i];
+    if (isBlank(row)) continue;
+    if (norm(row.model) !== 'Article') continue;
+    if (isEmpty(row.backgroundImg)) continue;
+    warn(
+      'rundown',
+      sheetRow(i),
+      'backgroundImg',
+      'Article 不使用 backgroundImg（那是別的頁面的滿版底圖）。文章裡要放圖的話，在 text 裡用 ![說明](檔名) 自成一行——這樣一篇可以放好幾張，位置也由你決定'
+    );
+  }
+
   // ---- 層 2（延伸）：兩種「開始」的 missionId 規則相反 ----
   //
   // | | GameStart | MissionStart |

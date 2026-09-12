@@ -1,6 +1,7 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Typography, Box } from '@mui/material';
 import PropTypes from 'prop-types';
+import ZoomableImage from '../component/common/ZoomableImage';
 
 // Article 的極小 markdown 子集。**刻意不引任何 markdown 套件。**
 //
@@ -16,9 +17,15 @@ import PropTypes from 'prop-types';
 //   4. `> 引言`（連續多行併成同一段引文）
 //   5. `---` 分隔線
 //   6. `**粗體**`
+//   7. `![說明](檔名或網址)` 自成一行 ＝ 一張圖
 //
-// 不支援也不打算支援的：斜體（單顆 `*` 在中文標點旁太容易誤觸）、連結、圖片、
-// 表格、HTML、程式碼。要放圖請用 backgroundImg 欄位。
+// 不支援也不打算支援的：斜體（單顆 `*` 在中文標點旁太容易誤觸）、連結、表格、
+// HTML、程式碼。
+//
+// **圖片是後來加的，而它取代了原本的做法。** 一開始 Article 的圖是讀 rundown 的
+// `backgroundImg` 欄位，畫在文章最上面——但那等於「一篇文章只能有一張圖，而且只能
+// 在開頭」。導覽解說常常是「講到第一代廟宇 → 放那張照片 → 再講第二代」，
+// 位置本身就是內容的一部分（Dong 2026-09-12：「用 markdown 放圖片的語法會比較靈活」）。
 //
 // **`1.` 的編號由瀏覽器數，不採用創作者填的數字。** 在試算表裡手動維護編號，
 // 跟 2026-08-26 那個「手拉 462 個 id」是同一件事——插一行就要重編。
@@ -51,7 +58,12 @@ const toBlocks = (text) => {
     .forEach((raw) => {
       const line = raw.trimEnd();
       if (!line.trim()) return; // 空行只是視覺上的空白，間距由 spacing 給
-      if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
+      const img = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(line.trim());
+      if (img) {
+        // **只認「自成一行」的圖。** 行內圖在一段文字中間塞一張圖，
+        // 排版上沒有好答案（要繞排？要撐開行高？），而創作者要的是「這裡放一張圖」。
+        blocks.push({ type: 'img', alt: img[1], src: img[2].trim() });
+      } else if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
         blocks.push({ type: 'hr' });
       } else if (line.startsWith('## ')) {
         blocks.push({ type: 'h', text: line.slice(3) });
@@ -82,7 +94,37 @@ const toBlocks = (text) => {
 // Vite 樣板留下來的 `#root { text-align: center }`，所以整個遊戲的文字預設置中；
 // TalkText 與 QuestionText 都各自寫了 align="left" 退出它，長文更不能少這一行
 //（Dong 2026-09-11 回報內文置中）。
-const RichText = ({ text, sx }) => (
+// 文章裡的一張圖。**可以放大**——導覽解說裡的匾額、碑文、老照片，正是需要湊近看的
+// 東西，而那也是原本 backgroundImg 那條路做不到的（它把放大鈕關掉了）。
+const ArticleImage = ({ src, alt, onZoomChange }) => {
+  const [zoomed, setZoomed] = useState(false);
+  const toggle = () => {
+    setZoomed((v) => {
+      onZoomChange?.(!v);
+      return !v;
+    });
+  };
+  return (
+    <Box sx={{ my: 2 }}>
+      <ZoomableImage
+        src={src}
+        alt={alt || ''}
+        borderRadius={'12px'}
+        isFullScreen={zoomed}
+        showZoomButton={!zoomed}
+        onToggle={toggle}
+      />
+    </Box>
+  );
+};
+
+ArticleImage.propTypes = {
+  src: PropTypes.string.isRequired,
+  alt: PropTypes.string,
+  onZoomChange: PropTypes.func,
+};
+
+const RichText = ({ text, sx, resolveImg, onZoomChange }) => (
   <Box sx={{ color: 'text.primary', textAlign: 'left', ...sx }}>
     {toBlocks(text).map((b, i) => {
       if (b.type === 'h') {
@@ -100,6 +142,16 @@ const RichText = ({ text, sx }) => (
           >
             {inline(b.text)}
           </Typography>
+        );
+      }
+      if (b.type === 'img') {
+        return (
+          <ArticleImage
+            key={i}
+            src={resolveImg ? resolveImg(b.src) : b.src}
+            alt={b.alt}
+            onZoomChange={onZoomChange}
+          />
         );
       }
       if (b.type === 'hr') {
@@ -159,6 +211,11 @@ const RichText = ({ text, sx }) => (
 RichText.propTypes = {
   text: PropTypes.string,
   sx: PropTypes.object,
+  // 檔名 → 真正的網址。走 getImg，所以本機資料夾／外連網址／build-time 三種來源
+  // 都吃得下，跟其他欄位填圖的規則完全一樣。
+  resolveImg: PropTypes.func,
+  // 有圖被放大時通知外面——Article 的捲動與下滑關閉要在那段時間讓開
+  onZoomChange: PropTypes.func,
 };
 
 export default RichText;

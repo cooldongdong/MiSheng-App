@@ -1,7 +1,9 @@
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { Typography, Box } from '@mui/material';
 import PropTypes from 'prop-types';
 import ZoomableImage from '../component/common/ZoomableImage';
+
+const noop = () => {};
 
 // Article 的極小 markdown 子集。**刻意不引任何 markdown 套件。**
 //
@@ -94,37 +96,37 @@ const toBlocks = (text) => {
 // Vite 樣板留下來的 `#root { text-align: center }`，所以整個遊戲的文字預設置中；
 // TalkText 與 QuestionText 都各自寫了 align="left" 退出它，長文更不能少這一行
 //（Dong 2026-09-11 回報內文置中）。
-// 文章裡的一張圖。**可以放大**——導覽解說裡的匾額、碑文、老照片，正是需要湊近看的
-// 東西，而那也是原本 backgroundImg 那條路做不到的（它把放大鈕關掉了）。
-const ArticleImage = ({ src, alt, onZoomChange }) => {
-  const [zoomed, setZoomed] = useState(false);
-  const toggle = () => {
-    setZoomed((v) => {
-      onZoomChange?.(!v);
-      return !v;
-    });
-  };
-  return (
-    <Box sx={{ my: 2 }}>
-      <ZoomableImage
-        src={src}
-        alt={alt || ''}
-        borderRadius={'12px'}
-        isFullScreen={zoomed}
-        showZoomButton={!zoomed}
-        onToggle={toggle}
-      />
-    </Box>
-  );
-};
+// 文章裡的一張圖。**不能放大**（Dong 2026-09-12：「有點奇怪」）。
+//
+// 我原本讓它可以放大，理由是匾額、碑文、老照片需要湊近看——那個需求是真的，
+// 但代價沒算到：**一頁上會同時出現兩顆放大鈕**，一顆放大文章、一顆放大圖，
+// 而它們長得一模一樣。使用者得先分辨哪顆是哪顆，然後才想得起自己要做什麼。
+// 這是 2026-09-07「兩個訊號不能共用一個維度」的同一種錯——那次是「家」與
+// 「你在這」共用顏色，這次是兩種「放大」共用同一顆按鈕的長相。
+//
+// 想看清楚的人仍然有路：把**整篇文章**放大，圖跟著一起變大。
+//
+// 仍然走 ZoomableImage 而不是裸的 `<img>`，是為了它的骨架佔位與長寬比記憶
+// （見 SkeletonImage）——沒有那個，圖載進來的瞬間版面會跳，而文章正在被讀。
+const ArticleImage = ({ src, alt }) => (
+  <Box sx={{ my: 2 }}>
+    <ZoomableImage
+      src={src}
+      alt={alt || ''}
+      borderRadius={'12px'}
+      isFullScreen={false}
+      showZoomButton={false}
+      onToggle={noop}
+    />
+  </Box>
+);
 
 ArticleImage.propTypes = {
   src: PropTypes.string.isRequired,
   alt: PropTypes.string,
-  onZoomChange: PropTypes.func,
 };
 
-const RichText = ({ text, sx, resolveImg, onZoomChange }) => (
+const RichText = ({ text, sx, resolveImg }) => (
   <Box sx={{ color: 'text.primary', textAlign: 'left', ...sx }}>
     {toBlocks(text).map((b, i) => {
       if (b.type === 'h') {
@@ -150,7 +152,6 @@ const RichText = ({ text, sx, resolveImg, onZoomChange }) => (
             key={i}
             src={resolveImg ? resolveImg(b.src) : b.src}
             alt={b.alt}
-            onZoomChange={onZoomChange}
           />
         );
       }
@@ -214,8 +215,6 @@ RichText.propTypes = {
   // 檔名 → 真正的網址。走 getImg，所以本機資料夾／外連網址／build-time 三種來源
   // 都吃得下，跟其他欄位填圖的規則完全一樣。
   resolveImg: PropTypes.func,
-  // 有圖被放大時通知外面——Article 的捲動與下滑關閉要在那段時間讓開
-  onZoomChange: PropTypes.func,
 };
 
 export default RichText;

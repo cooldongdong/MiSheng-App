@@ -27,8 +27,9 @@ import RichText from './markdownLite';
 // 一篇文章再學一套介面**：這一頁與謎面頁的差別應該只剩「裡面裝的是字還是圖」。
 //
 // **圖刻意不當背景。** 這一種 model 存在的理由就是「長文要讀得下去」，滿版底圖會把
-// 對比拱手讓給美術。圖是寫在內文裡的（`![說明](檔名)` 自成一行），跟著內容一起捲，
-// 而且點得開。
+// 對比拱手讓給美術。圖是寫在內文裡的（`![說明](檔名)` 自成一行），跟著內容一起捲。
+// **文章裡的圖不能單獨放大**，理由見 markdownLite 的 ArticleImage——一頁上兩顆長得
+// 一樣的放大鈕，使用者得先分辨哪顆是哪顆。要看清楚就把整篇文章放大。
 //
 // **這一版取代了原本讀 `backgroundImg` 的做法**：那等於「一篇文章只能有一張圖，
 // 而且只能在開頭」，而導覽解說常常是「講到第一代廟宇 → 放那張照片 → 再講第二代」,
@@ -43,7 +44,7 @@ const DISMISS_VELOCITY = 0.6;
 const TAP_SLOP = 8;
 const TAP_MS = 400;
 
-const Body = ({ row, text, getImg, scrollRef, onImageZoomChange }) => (
+const Body = ({ row, text, getImg, scrollRef }) => (
   <>
     {row.title && (
       <Typography
@@ -75,11 +76,7 @@ const Body = ({ row, text, getImg, scrollRef, onImageZoomChange }) => (
           第二代」，位置本身就是內容的一部分（Dong 2026-09-12）。
           現在寫 `![說明](檔名)` 自成一行就是一張圖，而且**點得開**——匾額、碑文、
           老照片正是需要湊近看的，那是 backgroundImg 那條路做不到的。 */}
-      <RichText
-        text={text}
-        resolveImg={getImg}
-        onZoomChange={onImageZoomChange}
-      />
+      <RichText text={text} resolveImg={getImg} />
     </Box>
   </>
 );
@@ -89,7 +86,6 @@ Body.propTypes = {
   text: PropTypes.string.isRequired,
   getImg: PropTypes.func.isRequired,
   scrollRef: PropTypes.object,
-  onImageZoomChange: PropTypes.func,
 };
 
 const Article = ({ currentRow, onNext, canProceed, hideContent = false }) => {
@@ -101,10 +97,6 @@ const Article = ({ currentRow, onNext, canProceed, hideContent = false }) => {
     setOverlayChromeVisible: setChromeVisible,
   } = useContext(GameContext);
   const [zoomed, setZoomed] = useState(false);
-  // 有一張圖被放大時，文章自己的捲動與下滑關閉要整個讓開。
-  // **不用 DOM 嗅探（closest 之類）**：放大的圖是畫在文章面板的子樹裡，
-  // 事件會冒泡上來，而「誰正在被放大」是狀態不是結構——讓它自己往上說最直接。
-  const [imageZoomed, setImageZoomed] = useState(false);
   const { chromeHidden } = useChromeHidden();
 
   // 滿版時把導覽列與品牌標收掉，跟看圖放大同一套。
@@ -138,7 +130,6 @@ const Article = ({ currentRow, onNext, canProceed, hideContent = false }) => {
 
   const gestureHandlers = {
     onPointerDown: (e) => {
-      if (imageZoomed) return;
       drag.current = {
         x: e.clientX,
         y: e.clientY,
@@ -281,7 +272,6 @@ const Article = ({ currentRow, onNext, canProceed, hideContent = false }) => {
               row={currentRow}
               text={text}
               getImg={getImg}
-              onImageZoomChange={setImageZoomed}
             />
             </Box>
           )}
@@ -394,7 +384,6 @@ const Article = ({ currentRow, onNext, canProceed, hideContent = false }) => {
               text={text}
               getImg={getImg}
               scrollRef={scrollRef}
-              onImageZoomChange={setImageZoomed}
             />
           </Paper>
 

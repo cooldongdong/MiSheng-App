@@ -185,6 +185,27 @@ export const createAppTheme = (extra = {}) =>
       },
     },
   },
+  // **中文釘死在 Noto Sans TC，拉丁字母與數字留給系統字型。**
+  //
+  // 原本這裡什麼都沒設，於是吃 MUI 預設的 `"Roboto","Helvetica","Arial"`——
+  // 那三個**都沒有中文字**，所以每個平台各自去挑自己的中文 fallback：
+  // iOS 拿到 PingFang TC、Android 拿到 Noto Sans CJK 或更糟的東西。
+  // Dong 2026-09-12 在兩台手機上比出來的症狀是「Android 比較細、看起來虛」——
+  // 那是 **fallback 沒有真的 700 字面，Chrome 只好自己合成粗體**的長相。
+  //
+  // 為什麼把中文排在最後而不是最前：拉丁與數字用各平台自己的系統字型就很好，
+  // 而且不必為它們下載任何東西；**兩邊真正會長不一樣的只有中文**，釘住那一段就夠。
+  //
+  // 標題那幾個元件（MissionTitleText 等）自己覆寫成 Noto Serif TC，不受影響；
+  // 官網首頁則整份換成襯線（見 site/main.jsx），它傳進來的 typography 會覆蓋這裡。
+  //
+  // **刻意不設 `font-synthesis: none`。** 它能讓「字型沒載到」現形而不是變成醜的
+  // 合成粗體，但實境解謎是在戶外用行動網路——字型載不到時寧可有醜的粗體，
+  // 也不要整篇沒有重點。
+  typography: {
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif',
+  },
   ...extra,
 });
 

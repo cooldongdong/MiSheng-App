@@ -8,7 +8,7 @@
 
 | 欄位 | 說明 |
 |---|---|
-| `model` | 這一頁長什麼樣（見[七種頁面](/sheet/models)） |
+| `model` | 這一頁長什麼樣（見[八種頁面](/sheet/models)） |
 | `text` | 這一頁的文字 |
 | `speaker` | 誰說的（要對得上 [character](/sheet/character) 表的 `name`） |
 
@@ -33,7 +33,7 @@
 | `title` | 這一頁的標題；Quiz 選項則是選項文字 |
 | `missionId` | 這一頁屬於哪一關。**留空代表「沿用上一關」**——關卡中間的對白都是留空的 |
 | `parentId` | 只有 Quiz 的選項會用（指回題目那一列） |
-| `backgroundImg` | 這一頁的背景圖 |
+| `backgroundImg` | 這一頁的背景圖；`Article` 例外，那是**文章開頭的插圖**（見 [Article](/sheet/models#article-長文補充)） |
 | `url` | `Img` 的圖片網址；Quiz 選項填了它就變成外部連結 |
 | `textAnimation` | 對白要不要一個字一個字出現 |
 | `customKey` | `CustomValueInput` 用它當名字 |

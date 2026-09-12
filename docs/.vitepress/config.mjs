@@ -55,7 +55,7 @@ export default defineConfig({
         text: '填試算表',
         items: [
           { text: 'rundown：遊戲的每一頁', link: '/sheet/rundown' },
-          { text: '七種頁面（model）', link: '/sheet/models' },
+          { text: '八種頁面（model）', link: '/sheet/models' },
           { text: 'mission：關卡與答案', link: '/sheet/mission' },
           { text: 'character：角色', link: '/sheet/character' },
           { text: 'hint：提示', link: '/sheet/hint' },

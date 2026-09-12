@@ -50,7 +50,16 @@ const Body = ({ row, text, getImg, scrollRef }) => (
       <Typography
         variant="h6"
         align="left"
-        sx={{ mb: 1.5, flexShrink: 0, color: 'text.primary' }}
+        sx={{
+          // **h6 的預設字重是 500，不是粗體。** 於是文章標題比它底下的 `## 小標`
+          // （700）還細，階層是反的（Dong 2026-09-12）。
+          // 現在是 標題 20/700 → 小標 17/700 → 內文 14/400、行內粗體 14/700：
+          // 最上面兩階同字重、靠字級分，跟內文則字級與字重都分得開。
+          fontWeight: 700,
+          mb: 1.5,
+          flexShrink: 0,
+          color: 'text.primary',
+        }}
       >
         {row.title}
       </Typography>

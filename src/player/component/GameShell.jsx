@@ -12,17 +12,11 @@ import StoryPage from './page/StoryPage';
 import GameController from '../game/GameController';
 import GameLoading from './common/GameLoading';
 import DiagOverlay from './common/DiagOverlay';
+import DiagDock from './common/DiagDock';
+import { diagEnabled, setDiagTab, removeDiagTab } from '../../shared/diagBus';
 import { useTouchClickRecovery } from '../hook/useTouchClickRecovery';
 import { TAB, GAME_OVERLAY_ID } from './common/layout';
 
-// 現場量測面板：網址帶 ?diag=1 才出現（見 DiagOverlay）
-const wantsDiag = () => {
-  try {
-    return new URLSearchParams(window.location.search).get('diag') === '1';
-  } catch {
-    return false;
-  }
-};
 import ChromeFade from './common/ChromeFade';
 
 // 中間那一欄預設就是「一支手機」。
@@ -79,6 +73,15 @@ const GameShell = ({
 }) => {
   // Chrome 在滑動翻頁後會吞掉下一次觸控的 click（見 hook 檔頭的證據）
   useTouchClickRecovery();
+
+  // 把既有的現場量測面板註冊成 DiagDock 的一個分頁。
+  // **它自己不再浮在畫面上**——統一由 DiagDock 決定位置與收合，
+  // 否則它的 z-index 2000 會蓋掉比它低的相機診斷（相機舞台是 1200）。
+  useEffect(() => {
+    if (!diagEnabled()) return undefined;
+    setDiagTab('touch', { title: '觸控／環境', order: 10, node: <DiagOverlay embedded /> });
+    return () => removeDiagTab('touch');
+  }, []);
 
   const [value, setValue] = useState(TAB.PLAY);
   // 「再看一次」：GameMenu 按一下就 +1，導覽看到它變了就重開。
@@ -282,7 +285,10 @@ const GameShell = ({
           {/* 左上角＝身分與出口，右上角＝這一頁的控制項。
               兩邊都只在 !devTools 時出現：/create 的三欄有自己的導覽列（左欄頂端），
               不需要在遊戲畫面上再疊一顆。 */}
-          {wantsDiag() && <DiagOverlay />}
+          {/* 現場診斷：**只有一個開關 `?diag=1`**，內容全部收進 DiagDock 的分頁
+              （Dong 2026-09-13：三個參數太難記、三塊浮層互相遮擋）。
+              DiagOverlay 有自己的互動按鈕，所以是以 node 的形式當一個分頁。 */}
+          <DiagDock />
 
           {!devTools && brand && (
             <ChromeFade sx={{ position: 'absolute', top: 8, left: 8, zIndex: 1200 }}>

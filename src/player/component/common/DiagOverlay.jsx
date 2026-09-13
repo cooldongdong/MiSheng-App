@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 
@@ -14,7 +15,10 @@ import { Box } from '@mui/material';
 //   兩個都有、但畫面沒反應          → 事件有到，是處理它的 code 沒做事
 //
 // 這三種的修法完全不同，而在手機上唯一分得出來的辦法就是把數字印在螢幕上。
-const DiagOverlay = () => {
+// embedded＝被 DiagDock 當成一個分頁顯示時，不要自己定位。
+// 它原本是一塊 `position: fixed` ＋ z-index 2000 的獨立浮層，而那個 z-index 正是
+// 它會蓋住相機診斷的原因（相機舞台是 1200）。收進統一面板之後，定位交給面板。
+const DiagOverlay = ({ embedded = false }) => {
   const [state, setState] = useState({
     down: 0,
     up: 0,
@@ -211,14 +215,18 @@ const DiagOverlay = () => {
         })
       }
       sx={{
-        position: 'fixed',
-        top: 44,
-        left: 8,
-        zIndex: 2000,
-        px: 1,
-        py: 0.5,
-        borderRadius: 1,
-        bgcolor: 'rgba(0,0,0,0.75)',
+        ...(embedded
+          ? { px: 0, py: 0, bgcolor: 'transparent' }
+          : {
+              position: 'fixed',
+              top: 44,
+              left: 8,
+              zIndex: 2000,
+              px: 1,
+              py: 0.5,
+              borderRadius: 1,
+              bgcolor: 'rgba(0,0,0,0.75)',
+            }),
         color: '#0f0',
         font: '11px/1.5 ui-monospace, monospace',
         whiteSpace: 'pre',
@@ -260,5 +268,7 @@ ${(state.log || []).join('\n')}
     </Box>
   );
 };
+
+DiagOverlay.propTypes = { embedded: PropTypes.bool };
 
 export default DiagOverlay;

@@ -51,8 +51,9 @@ const PropPage = () => {
                 setFullScreenIndex(fullScreenIndex === index ? null : index)
               }
             />
-          ) : prop.type === 'Camera' ? (
+          ) : prop.type === 'Camera' || prop.type === 'Overlay' ? (
             <CameraOverlay
+              mode={prop.type === 'Camera' ? 'camera' : 'overlay'}
               key={index}
               prop={prop}
               isFullScreen={fullScreenIndex === index}

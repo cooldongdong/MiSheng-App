@@ -36,6 +36,27 @@ export const extractDriveId = (url) => {
 export const driveImgUrl = (id, width = DEFAULT_WIDTH) =>
   `https://drive.google.com/thumbnail?id=${id}&sz=w${width}`;
 
+// 同一張圖，但**畫得進 canvas 的版本**。
+//
+// `drive.google.com/thumbnail` 會 302 到 lh3，而 **CORS 要求重導向的每一跳都放行、
+// 那個 302 本身沒有 ACAO**（2026-08-25 實測）。用 `<img>` 顯示不受影響（顯示不做
+// CORS），但只要想把它畫進 canvas 或 fetch 它，就會失敗——畫進去的後果是畫布被
+// 污染，`toBlob()` 丟 SecurityError。
+//
+// 直接打 lh3 就沒有那一跳。**顯示層刻意不改**：現況是好的，而換掉一個能動的東西
+// 只為了讓另一件事方便，代價是把兩條路都押在同一個端點上。
+export const driveImgUrlCors = (id, width = DEFAULT_WIDTH) =>
+  `https://lh3.googleusercontent.com/d/${id}=w${width}`;
+
+// 要把一張圖畫進 canvas 時，依序可以試的網址。
+// 第一個是最可能帶 CORS 的，最後一個永遠是原本那條（同源、blob: 都走這裡）。
+export const canvasImgCandidates = (url, width = DEFAULT_WIDTH) => {
+  if (!url) return [];
+  const raw = String(url).trim();
+  const id = extractDriveId(raw);
+  return id ? [driveImgUrlCors(id, width), raw] : [raw];
+};
+
 // 不是外連網址就回 null（代表「這是本機檔名，交給 IMAGE_MAP」）
 export const resolveExternalImg = (value, width = DEFAULT_WIDTH) => {
   if (!value) return null;

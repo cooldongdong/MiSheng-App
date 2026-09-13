@@ -82,7 +82,14 @@ const knownFieldsOf = (type) =>
 // 它是純增量的新值：既有試算表一格都不用改，照舊用 mission 0 那種假關卡當封面。
 export const VALID_MODELS = ['Talk', 'Quiz', 'MissionStart', 'GameStart', 'MissionAnswerInput', 'Img', 'CustomValueInput', 'Article'];
 // prop.type 合法值（2026-08-25 加入 Camera：相機畫面上疊半透明圖的數位透明片）
-export const VALID_PROP_TYPES = ['Img', 'Wheel', 'Camera'];
+// prop.type 合法值
+// 2026-08-25 加入 Camera；2026-09-14 拆成兩種，因為它們的互動模型幾乎相反：
+//   Camera ＝ 合照：取景框（4:5，輸出 1080×1350）、前後鏡頭可切、套圖貼齊框、拍照
+//   Overlay ＝ 對位透明片：後鏡頭、半透明、可自由拖曳縮放旋轉、可凍結現實畫面
+// **`Camera` 的語意變了**（原本是對位），這是刻意的——那個字最直觀的意思就是拍照。
+// 當時只有一份遊戲在用，是改名成本最低的時機；validator 擋不住語意變動
+//（值仍然合法），所以改名與改試算表必須同一次做完。
+export const VALID_PROP_TYPES = ['Img', 'Wheel', 'Camera', 'Overlay'];
 
 // 至少要有一筆資料的表（遊戲核心；hint/prop/story 允許整張空）
 const MUST_HAVE_ROWS = ['character', 'mission', 'rundown'];

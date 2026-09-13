@@ -106,7 +106,7 @@ const makeFakeStream = () => {
   return stream;
 };
 
-const openStream = async () => {
+const openStream = async (facing) => {
   if (FAKE_ENABLED) {
     const fake = fakeCameraMode();
     if (fake === 'denied') throw Object.assign(new Error('fake'), { name: 'NotAllowedError' });
@@ -116,17 +116,28 @@ const openStream = async () => {
   }
   // 非 HTTPS（含用區網 IP 拿手機測）時 mediaDevices 根本不存在，不是「被拒絕」
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return null;
+  // **前後鏡頭由用途決定，不給玩家切換。**
+  // 對位透明片要後鏡頭（對的是現實裡的匾額、碑文），合照要前鏡頭——
+  // 那是創作者出題時就知道的事，不該在現場丟一顆切換鈕讓玩家猜。
+  // 用 ideal 不用 exact：裝置只有一顆鏡頭時 exact 會直接失敗，ideal 會退而求其次。
   return navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: 'environment' } }, // 對位要用後鏡頭
+    video: { facingMode: { ideal: facing === 'user' ? 'user' : 'environment' } },
     audio: false,
   });
 };
 
-export const useCameraStream = (active) => {
+export const useCameraStream = (active, facing = 'environment') => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [status, setStatus] = useState(CAMERA_STATUS.IDLE);
   const [reason, setReason] = useState(null);
+  // 原始的錯誤，給 ?diag=1 用。
+  //
+  // **`classify()` 把 error 收斂成四種人話之後，`error.name` 就沒了**——而人話
+  // 是給玩家看的，診斷要的是底層那個名字（NotAllowedError／NotReadableError／
+  // SecurityError…）。2026-09-13 撞到「Android Chrome 開不了、Firefox 可以」時，
+  // 少的正好就是這一格：四種人話裡有三種都可能對應到 Chrome 的不同行為。
+  const [detail, setDetail] = useState('');
 
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -147,13 +158,16 @@ export const useCameraStream = (active) => {
       setStatus(CAMERA_STATUS.STARTING);
       setReason(null);
       try {
-        const stream = await openStream();
+        const stream = await openStream(facing);
         if (cancelled) {
           stream?.getTracks().forEach((track) => track.stop());
           return;
         }
         if (!stream) {
           setReason('insecure');
+          setDetail(
+            `secureContext=${window.isSecureContext} mediaDevices=${!!navigator.mediaDevices} getUserMedia=${!!navigator.mediaDevices?.getUserMedia}`
+          );
           setStatus(CAMERA_STATUS.BLOCKED);
           return;
         }
@@ -167,6 +181,9 @@ export const useCameraStream = (active) => {
       } catch (error) {
         if (cancelled) return;
         setReason(classify(error));
+        setDetail(
+          `${error?.name || '(無 name)'}：${error?.message || '(無 message)'}｜secureContext=${window.isSecureContext}`
+        );
         setStatus(CAMERA_STATUS.BLOCKED);
       }
     };
@@ -189,7 +206,7 @@ export const useCameraStream = (active) => {
       document.removeEventListener('visibilitychange', onVisibility);
       stop();
     };
-  }, [active, stop]);
+  }, [active, facing, stop]);
 
-  return { videoRef, status, reason };
+  return { videoRef, status, reason, detail };
 };

@@ -100,11 +100,23 @@ const LeftSkeleton = () => (
 
 // 中間欄：頂端的切換、置中的遊戲卡片、底部五格分頁。
 // 三塊各自的底色是這一欄最好認的特徵，不能省。
-const GameSkeleton = ({ title }) => (
+// full＝窄螢幕，這一欄就是整個畫面。
+//
+// **為什麼用 prop 而不是讓父層用 CSS 蓋。** 原本父層寫 `'& > *': { width: '100%' }`
+// 想把它撐滿，但那一行**從來沒有生效過**：`.父層 > *` 與這裡 sx 產生的 `.子層`
+// specificity 完全相同（各一個 class），同分時由插入順序決定，而子元件的 emotion
+// class 是後插入的——於是 `width: MID_W` 一直贏。
+//
+// 後果是 Dong 2026-09-13 在 Android 上看到的：骨架只佔畫面約 86%，右側留下一條
+// 黑帶，而「正在讀取…」那行字（`right: 16`，貼的是**視窗**右緣）就落在黑帶上，
+// 看起來像它把版面撐寬了。**其實沒有任何東西溢出**——量測工具顯示溢出 0px，
+// 正是這個假設被推翻的地方：不是有東西太寬，是骨架太窄。
+const GameSkeleton = ({ title, full = false }) => (
   <Box
     sx={{
-      width: MID_W,
-      flex: '0 0 auto',
+      // clamp 的下限 320px 在窄螢幕上幾乎必定小於視窗寬，所以這裡不能只放寬上限
+      width: full ? '100%' : MID_W,
+      flex: full ? '1 1 auto' : '0 0 auto',
       minWidth: 0,
       bgcolor: 'game.bg',
       display: 'flex',
@@ -212,7 +224,7 @@ const GameSkeleton = ({ title }) => (
   </Box>
 );
 
-GameSkeleton.propTypes = { title: PropTypes.string };
+GameSkeleton.propTypes = { title: PropTypes.string, full: PropTypes.bool };
 
 // 右側流程圖：點陣底、置中的一直排節點、靠左貼底的工具列
 const FlowSkeleton = () => {
@@ -338,10 +350,12 @@ const LoadingScreen = ({ label = '', fadingOut = false, title = '' }) => {
           flex: narrow ? '1 1 auto' : '0 0 auto',
           display: 'flex',
           minWidth: 0,
-          '& > *': narrow ? { width: '100%', maxWidth: 'none' } : null,
+          // 這裡原本有一行 `'& > *': { width: '100%' }` 想把中間欄撐滿，
+          // 但它跟子元件自己的 sx specificity 同分、而且插入得比較早，所以一直輸。
+          // 現在改用 prop 讓 GameSkeleton 自己決定（見它的檔頭註解），這一行拿掉。
         }}
       >
-        <GameSkeleton title={title} />
+        <GameSkeleton title={title} full={narrow} />
       </Box>
       {!narrow && <FlowSkeleton />}
       {!narrow && withList && <ListSkeleton />}
@@ -357,6 +371,12 @@ const LoadingScreen = ({ label = '', fadingOut = false, title = '' }) => {
         aria-live="polite"
         sx={{
           position: 'fixed',
+          // **兩邊都要釘。** 只給 right 的話寬度由內容決定、沒有上限，這一行
+          // （「正在讀取 Google 試算表．表格比較大時要幾秒」，約 22 個字）在手機
+          // 寬度下就是畫面上最寬的東西——Dong 2026-09-13 的 Android 截圖裡，
+          // 它延伸到超出骨架右緣，右側多出一條沒有內容的黑帶。
+          // 補上 left 之後寬度被鎖在視窗內，放不下就換行，不會再把畫面撐寬。
+          left: 16,
           right: 16,
           bottom: narrow ? NAV_H + 10 : 10,
           textAlign: 'right',

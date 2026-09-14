@@ -4,6 +4,7 @@ import { Stack } from '@mui/material';
 import ThemeColorLayer from '../component/layer/ThemeColorLayer';
 import Layer from '../component/layer/Layer';
 import BackgroundLayer from '../component/layer/BackgroundLayer';
+import { resolveBackground } from './resolveBackground';
 import CharacterLayer from '../component/layer/CharacterLayer';
 import GradientLayer from '../component/layer/GradientLayer';
 import BottomBox from '../component/common/BottomBox';
@@ -24,6 +25,7 @@ const CustomValueInputModel = ({
   hideContent = false,
 }) => {
   const {
+    configData,
     getImg,
     currentMissionId,
     characterData,
@@ -54,7 +56,7 @@ const CustomValueInputModel = ({
   const speaker = currentRow?.speaker
     ? characterData?.find((char) => char.name === currentRow.speaker) || null
     : null;
-  const backgroundImg = currentRow?.backgroundImg || currentMission?.backgroundImg;
+  const backgroundImg = resolveBackground(currentRow, currentMission, configData?.[0]);
 
   // 設定答案
   useEffect(() => {

@@ -4,6 +4,7 @@ import ThemeColorLayer from '../component/layer/ThemeColorLayer';
 import Layer from '../component/layer/Layer';
 import GradientLayer from '../component/layer/GradientLayer';
 import BackgroundLayer from '../component/layer/BackgroundLayer';
+import { resolveBackground } from './resolveBackground';
 import CharacterLayer from '../component/layer/CharacterLayer';
 import TalkBox from '../component/feature/TalkBox';
 import { GameContext } from '../store/game-context';
@@ -24,6 +25,7 @@ const Talk = ({
   hideContent = false,
 }) => {
   const {
+    configData,
     getImg,
     characterData,
     getMissionById,
@@ -41,7 +43,7 @@ const Talk = ({
   const speaker = currentRow?.speaker
     ? characterData?.find((char) => char.name === currentRow.speaker) || null
     : null;
-  const backgroundImg = currentRow?.backgroundImg || currentMission?.backgroundImg;
+  const backgroundImg = resolveBackground(currentRow, currentMission, configData?.[0]);
   const showFullTextIcon = (currentRow?.text?.length || 0) > 130;
 
   const processedText = (currentRow?.text || '').replace(

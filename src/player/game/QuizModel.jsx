@@ -6,6 +6,7 @@ import ThemeColorLayer from '../component/layer/ThemeColorLayer';
 import Layer from '../component/layer/Layer';
 import GradientLayer from '../component/layer/GradientLayer';
 import BackgroundLayer from '../component/layer/BackgroundLayer';
+import { resolveBackground } from './resolveBackground';
 import CharacterLayer from '../component/layer/CharacterLayer';
 import QuestionBox from '../component/feature/QuestionBox';
 
@@ -16,6 +17,7 @@ const QuizModel = ({
   hideContent = false,
 }) => {
   const {
+    configData,
     getImg,
     characterData,
     getMissionById,
@@ -39,7 +41,7 @@ const QuizModel = ({
   const speaker = currentRow?.speaker
     ? characterData?.find((char) => char.name === currentRow.speaker) || null
     : null;
-  const backgroundImg = currentRow?.backgroundImg || currentMission?.backgroundImg;
+  const backgroundImg = resolveBackground(currentRow, currentMission, configData?.[0]);
 
   const processedText = (currentRow?.text || '').replace(
     /\{\{(.*?)\}\}/g,

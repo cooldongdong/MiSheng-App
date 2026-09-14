@@ -16,6 +16,7 @@
 
 const SHEET_NAME = '遊戲紀錄';
 const REPORT_NAME = '報表';
+const SESSIONS_NAME = '場次';
 const HEADER = ['事件 id', '遊戲', '這局玩家', '時間', '事件', '關卡', '內容 (v3)'];
 
 // ======================== 收資料 ========================
@@ -96,7 +97,86 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('謎生')
     .addItem('重算報表', 'rebuildReport')
+    .addItem('建立／檢查「場次」表', 'ensureSessions')
     .addToUi();
+}
+
+
+// ======================== 場次 ========================
+//
+// 一張表裡會混進好幾種資料：你自己的測試、正式活動、隔週的第二場。全部算在一起
+// 會把測試的數字混進正式的統計裡，而那件事**看不出來**——報表只會給你一個比較平的
+// 平均值。
+//
+// 做法是讓創作者自己填時間段，**而不是我們猜**（按日期切、按空檔切都會在某些排法
+// 下切錯，而切錯的報表跟切對的長得一模一樣）。
+//
+// 三個刻意的決定：
+//
+// 1. **沒填任何一列就跟以前完全一樣**（全部算成一份）。既有的試算表不用做任何事。
+// 2. **不在任何場次裡的資料會自成一段「其他」，不會被丟掉。** 這跟去重那邊
+//    「多一列重複看得出來，少一列資料看不出來」是同一個判斷——篩掉的資料不會有人
+//    發現，所以寧可讓它礙眼。
+// 3. **報表最上面一定印出目前的場次設定。** 沒有這一段的話，時間段就變成一個藏
+//    起來的狀態：你看著一張報表，卻不知道它算的是哪一段——那正是當初否決「選哪一款
+//    遊戲的下拉選單」的理由。
+
+function ensureSessions() {
+  ensureSessionsSheet_(SpreadsheetApp.getActiveSpreadsheet());
+  SpreadsheetApp.getUi().alert(
+    '「' + SESSIONS_NAME + '」表已經在了。\n\n' +
+    '填好時間段之後，回到「謎生 → 重算報表」，報表就會照場次分開。\n' +
+    '一列都不填的話，報表跟以前一樣把全部算成一份。'
+  );
+}
+
+function ensureSessionsSheet_(ss) {
+  let sh = ss.getSheetByName(SESSIONS_NAME);
+  if (sh) return sh;
+  sh = ss.insertSheet(SESSIONS_NAME);
+  sh.getRange(1, 1, 1, 3).setValues([['場次名稱', '開始（含）', '結束（不含）']]);
+  sh.getRange(2, 1, 2, 3).setValues([
+    ['（範例）試玩測試', '', '2026-09-20 08:00'],
+    ['（範例）正式活動', '2026-09-20 08:00', ''],
+  ]);
+  sh.getRange(5, 1).setValue(
+    '說明：開始或結束留空＝那一邊不限。把「（範例）」那兩列改成你自己的場次，' +
+    '或整列刪掉。一列都沒有的話，報表會把全部資料算成一份。'
+  );
+  sh.getRange(1, 1, 1, 3).setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 160);
+  sh.setColumnWidth(2, 150);
+  sh.setColumnWidth(3, 150);
+  return sh;
+}
+
+// 試算表的日期欄可能回 Date，也可能回字串（看使用者怎麼填的）。
+// 兩種都吃，看不懂就當作沒填——**寧可算得比較寬，也不要靜默地少算一段**。
+function toDate_(v) {
+  if (v instanceof Date) return v;
+  const t = String(v || '').trim();
+  if (!t) return null;
+  const d = new Date(t.replace(/-/g, '/')); // Safari/舊 runtime 對 'YYYY-MM-DD hh:mm' 較挑
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function readSessions_(ss) {
+  const sh = ss.getSheetByName(SESSIONS_NAME);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const vals = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
+  return vals.map(function (r) {
+    return { name: String(r[0] || '').trim(), from: toDate_(r[1]), to: toDate_(r[2]) };
+  }).filter(function (x) {
+    // 名稱空白、或範例列沒被改過就跳過——不然第一次用的人會拿到兩段空報表
+    return x.name && x.name.indexOf('（範例）') !== 0;
+  });
+}
+
+function inSession_(r, s) {
+  if (s.from && r.time < s.from) return false;
+  if (s.to && r.time >= s.to) return false;
+  return true;
 }
 
 /**
@@ -157,38 +237,51 @@ function rebuildReport() {
        '（重算於 ' + fmtTime_(new Date()) + '）');
   push('');
 
-  // ---- 資料來源：這張表裡有哪些遊戲的資料 ----
+  // ---- 場次：把資料切成幾段各自算 ----
   //
-  // **為什麼不是一個「選哪一款」的下拉選單。** 選單只解決「我有多款遊戲」，
-  // 不解決「有人亂填」——而且它會製造一個藏起來的狀態：你看著一張報表，
-  // 但不知道它現在顯示的是哪一款。那跟上面那行「資料截至」要防的是同一種錯。
-  //
-  // 攤開來的話，**污染變成看得見的**：亂填的資料自己成一段，掃一眼就知道
-  // 有沒有髒東西進來，而不是被靜靜地平均掉。這張小表本身就是異常偵測——
-  // 筆數、時間範圍不對勁的一眼就浮出來。
-  //
-  // ⚠️ 但這擋不住「用你自己的 gameId 送假資料」：recordUrl 與 gameId 都寫在
-  // 玩家打得開的 config.csv 裡。分組只能隔開不同的遊戲，不能隔開假裝是你的遊戲。
-  const byGame = groupBy_(rows, 'game');
-  const games = Object.keys(byGame).sort(function (a, b) {
-    return byGame[b].length - byGame[a].length;
-  });
+  // 沒設定場次時 sessions 是空陣列，走的是跟以前一模一樣的那條路（全部一段），
+  // 既有的試算表不會看到任何差別。
+  const sessions = readSessions_(ss);
 
-  push('資料來源');
-  push('遊戲', '筆數', '第一筆', '最後一筆');
-  games.forEach(function (g) {
-    const evs = byGame[g];
-    push(g || '（沒有遊戲名稱）', evs.length,
-         fmtTime_(evs[0].time), fmtTime_(evs[evs.length - 1].time));
-  });
-  push('');
+  if (sessions.length === 0) {
+    reportSlice_(push, rows);
+  } else {
+    // 先把設定攤在最上面。**時間段不能是藏起來的狀態**——否則你看著一張報表，
+    // 不知道它算的是哪一段（同「資料截至」那一行要防的錯）。
+    push('場次設定');
+    push('場次', '開始（含）', '結束（不含）', '筆數');
+    const buckets = sessions.map(function (sn) {
+      const evs = rows.filter(function (r) { return inSession_(r, sn); });
+      push(sn.name, sn.from ? fmtTime_(sn.from) : '—', sn.to ? fmtTime_(sn.to) : '—', evs.length);
+      return { name: sn.name, evs: evs };
+    });
 
-  games.forEach(function (g) {
-    push('━━━ ' + (g || '（沒有遊戲名稱）') + ' ━━━');
+    // **不在任何場次裡的資料自成一段，不丟掉。**
+    // 篩掉的資料不會有人發現——這跟去重那邊「少一列資料看不出來」是同一個判斷。
+    const rest = rows.filter(function (r) {
+      return !sessions.some(function (sn) { return inSession_(r, sn); });
+    });
+    if (rest.length) push('（不在任何場次內）', '—', '—', rest.length);
     push('');
-    reportOneGame_(push, byGame[g]);
-    push('');
-  });
+
+    buckets.forEach(function (b) {
+      push('════════ 場次：' + b.name + ' ════════');
+      push('');
+      if (b.evs.length === 0) {
+        push('（這個時間段裡沒有資料）');
+      } else {
+        reportSlice_(push, b.evs);
+      }
+      push('');
+    });
+
+    if (rest.length) {
+      push('════════ 不在任何場次內 ════════');
+      push('');
+      reportSlice_(push, rest);
+      push('');
+    }
+  }
 
   const report = ss.getSheetByName(REPORT_NAME) || ss.insertSheet(REPORT_NAME);
   report.clear();
@@ -239,6 +332,44 @@ function rebuildReport() {
 
 // 一款遊戲的報表內容。抽出來是因為現在同一張表裡可能有好幾款遊戲的資料，
 // 而每一款都要各算一次——共用同一份計算，不要讓其中一款的數字有自己的算法。
+// 一段資料（可能是全部，也可能是某一個場次）的完整報表：
+// 先列出裡面有哪些遊戲，再每款各出一份。
+function reportSlice_(push, rows) {
+  // ---- 資料來源：這張表裡有哪些遊戲的資料 ----
+  //
+  // **為什麼不是一個「選哪一款」的下拉選單。** 選單只解決「我有多款遊戲」，
+  // 不解決「有人亂填」——而且它會製造一個藏起來的狀態：你看著一張報表，
+  // 但不知道它現在顯示的是哪一款。那跟上面那行「資料截至」要防的是同一種錯。
+  //
+  // 攤開來的話，**污染變成看得見的**：亂填的資料自己成一段，掃一眼就知道
+  // 有沒有髒東西進來，而不是被靜靜地平均掉。這張小表本身就是異常偵測——
+  // 筆數、時間範圍不對勁的一眼就浮出來。
+  //
+  // ⚠️ 但這擋不住「用你自己的 gameId 送假資料」：recordUrl 與 gameId 都寫在
+  // 玩家打得開的 config.csv 裡。分組只能隔開不同的遊戲，不能隔開假裝是你的遊戲。
+  const byGame = groupBy_(rows, 'game');
+  const games = Object.keys(byGame).sort(function (a, b) {
+    return byGame[b].length - byGame[a].length;
+  });
+
+  push('資料來源');
+  push('遊戲', '筆數', '第一筆', '最後一筆');
+  games.forEach(function (g) {
+    const evs = byGame[g];
+    push(g || '（沒有遊戲名稱）', evs.length,
+         fmtTime_(evs[0].time), fmtTime_(evs[evs.length - 1].time));
+  });
+  push('');
+
+  games.forEach(function (g) {
+    push('━━━ ' + (g || '（沒有遊戲名稱）') + ' ━━━');
+    push('');
+    reportOneGame_(push, byGame[g]);
+    push('');
+  });
+
+}
+
 function reportOneGame_(push, rows) {
   // 「組」不是「人」：同一支手機重新開始算兩組，一群人共用一支手機算一組
   const bySid = groupBy_(rows, 'sid');

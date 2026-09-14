@@ -106,7 +106,10 @@ const HintPage = () => {
     if (currentHints.length > 0 && startedAt) autoExpandArmed.current = false;
 
     if (due.length === 0) return;
-    due.forEach((index) => unlockHint(currentMission.id, hintKeyOf(currentHints[index])));
+    // 'auto'＝安全網開的，不是玩家開口要的。見 game-provider 的 unlockHint。
+    due.forEach((index) =>
+      unlockHint(currentMission.id, hintKeyOf(currentHints[index]), 'auto')
+    );
     if (armed) setExpandedHints((prev) => [...new Set([...prev, ...due])]);
   }, [now, currentHints, startedAt, unlockedHints, currentMission]);
 
@@ -123,7 +126,8 @@ const HintPage = () => {
 
   const handleConfirmUnlock = () => {
     if (currentHintIndex !== null) {
-      unlockHint(currentMission.id, hintKeyOf(currentHints[currentHintIndex]));
+      // 'manual'＝玩家自己按了確認對話框的「確定」，這是卡關最直接的證據。
+      unlockHint(currentMission.id, hintKeyOf(currentHints[currentHintIndex]), 'manual');
       setTimeout(() => {
         handleExpand(currentHintIndex);
       }, 100); // 略微延遲確保狀態更新,確保在解鎖後才展開

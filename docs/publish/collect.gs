@@ -271,7 +271,11 @@ function reportOneGame_(push, rows) {
   }
 
   push('每一關');
-  push('關卡', '進來', '通過', '通過率', '花費中位數（分）', '解提示', '答錯', '放棄');
+  // 「主動看提示」與「自動解鎖」**要分開兩欄，不能相加**。
+  // 前者是玩家自己按了確認鈕——他承認需要幫忙，是卡關最直接的證據；
+  // 後者是時間到、安全網開的，所有在這一關待夠久又打開過提示頁的人都會觸發，
+  // 不管他需不需要。加在一起會系統性地高估卡關，而且數字看起來完全正常。
+  push('關卡', '進來', '通過', '通過率', '花費中位數（分）', '主動看提示', '自動解鎖', '答錯', '放棄');
   missions.forEach(function (m) {
     const inSids = distinct_(rows.filter(function (r) {
       return r.type === 'mission_start' && r.mission === m;
@@ -298,6 +302,7 @@ function reportOneGame_(push, rows) {
       // 沒有作答的關卡（純劇情）算不出時間，留 — 比填 0 誠實
       med_(spent) === null ? '—' : med_(spent),
       count_(rows, 'hint_unlock', m),
+      count_(rows, 'hint_auto_unlock', m),
       count_(rows, 'answer_wrong', m),
       count_(rows, 'give_up', m)
     );

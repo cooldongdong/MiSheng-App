@@ -506,8 +506,24 @@ export const GameProvider = ({
     record('mission_start', { missionId });
   };
 
-  // 更新提示的開啟狀態
-  const unlockHint = (missionId, hintIndex) => {
+  // 更新提示的開啟狀態。
+  //
+  // **source 決定記成哪一種事件，而那是兩件不同的事、不是同一件事的兩個變體。**
+  //   'manual' → hint_unlock       玩家自己按了「確定」——他承認自己需要幫忙，
+  //                                所以那顆確認鈕的摩擦是刻意的。卡關的直接證據。
+  //   'auto'   → hint_auto_unlock  時間到、安全網開了。所有「在這一關待夠久又打開過
+  //                                提示頁」的人都會觸發，不管他需不需要——甚至可能
+  //                                是他已經解開之後才好奇點進去看的。
+  //
+  // 混成同一個事件的話，報表會**系統性地高估卡關程度**，而且資料看起來是完整的
+  // （每次解鎖都有一筆），所以沒有人會去懷疑那個數字（Dong 2026-09-14 發現）。
+  // 9/02 定 timer 時就分清楚這兩者了，但那個判斷只寫進了設計，沒寫進資料。
+  //
+  // **為什麼是兩種事件型別，不是多一個欄位。** 事件 schema 只有 {missionId, value}
+  // 兩格，而 value 已經拿去裝「第幾則」；加第三格要動整條管線（播放器 → Apps Script
+  // → 試算表欄位 → 報表），而換 type 只要改報表那一行——落地端是原樣寫入的。
+  const UNLOCK_EVENT = { manual: 'hint_unlock', auto: 'hint_auto_unlock' };
+  const unlockHint = (missionId, hintIndex, source = 'manual') => {
     // 記「第幾則」而不是內部的指紋鍵。指紋（`h:17k7sa6`）對引擎是對的——它讓解鎖
     // 狀態在創作者插入／搬動提示之後仍然對得上——但**這批資料是要交出去給人看的**，
     // 而創作者打開試算表只認得「解鎖提示 2」。跟畫面上的編號對齊，才有辦法讀。
@@ -517,7 +533,11 @@ export const GameProvider = ({
     const ordinal = (hintData || []).filter(
       (row) => row.missionId === missionId
     ).findIndex((row) => hintKeyOf(row) === hintIndex);
-    record('hint_unlock', {
+    // 漏傳 source 時退回 manual。**這個 fallback 的方向是刻意選的**：
+    // 兩種錯都會讓數字偏，但「把自動記成手動」會高估卡關、讓人去改一個其實沒問題
+    // 的關卡；反過來會低估、讓真的有問題的關卡被忽略。前者看得出來（改完發現
+    // 沒差），後者不會。
+    record(UNLOCK_EVENT[source] || UNLOCK_EVENT.manual, {
       missionId,
       value: ordinal >= 0 ? String(ordinal + 1) : hintIndex,
     });

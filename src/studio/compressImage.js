@@ -28,6 +28,23 @@
 //   道具／提示／故事：`ZoomableImage` 可以放大到 5 倍，玩家會湊近看碑文與細節
 export const WIDTH_LIMITS = { display: 1600, zoomable: 2400 };
 
+// 高度上限給寬度上限的兩倍。9:16 的背景圖（1080×1920）高是寬的 1.78 倍，
+// 不能卡到它；但**卷軸式的長圖**（例如 800×5000 的碑文全文照）寬度沒超標、
+// 高度卻爆掉，那種圖不處理的話會整張原樣進包。
+const HEIGHT_MULTIPLIER = 2;
+
+// 即使尺寸夠小，超過這個大小仍然值得進 canvas 看看。
+// 典型是「照片存成無壓縮 PNG」：1500×1000 可能有 8 MB，而轉成 JPEG 只要 200 KB。
+// **原本的「已經夠小」只看寬度，於是這種圖完全不會被碰**——而它正是壓縮效益
+// 最大的一種（Dong 2026-09-14 問「壓縮的條件是什麼」時盤出來的）。
+const BYTES_THRESHOLD = 1024 * 1024;
+
+// 這張圖需不需要處理。三個條件任一成立就要進 canvas。
+export const needsWork = ({ width, height, size, limit }) =>
+  width > limit ||
+  height > limit * HEIGHT_MULTIPLIER ||
+  size > BYTES_THRESHOLD;
+
 // 哪些欄位的圖會被玩家放大。判準是「它有沒有掛在 ZoomableImage 上」，
 // 不是「它看起來重不重要」。
 const ZOOMABLE = {
@@ -124,14 +141,16 @@ export const compressBytes = async (bytes, limit) => {
   original.width = width;
   original.height = height;
 
-  // 已經夠小就完全不碰。**重新編碼只會損失畫質**，而且這條路順便保證了
-  // 「小的透明圖」連 canvas 都不會經過。
-  if (width <= limit) {
+  // 三個條件都不成立才算「已經夠小」，那時完全不碰——重新編碼只會損失畫質，
+  // 而且這條路順便保證了小的透明圖連 canvas 都不會經過。
+  if (!needsWork({ width, height, size: bytes.length, limit })) {
     bitmap.close?.();
     return { ...original, note: '已經夠小' };
   }
 
-  const scale = limit / width;
+  // **兩個方向都要夾。** 只縮寬度的話，長圖（寬度本來就沒超標）不會被縮到，
+  // 而它的像素量可能比一張超寬的圖還多。
+  const scale = Math.min(1, limit / width, (limit * HEIGHT_MULTIPLIER) / height);
   const w = Math.round(width * scale);
   const h = Math.round(height * scale);
 
@@ -166,6 +185,9 @@ export const compressBytes = async (bytes, limit) => {
     // changed＝副檔名要不要跟著改。有 alpha 時輸出 PNG，來源本來就是 PNG／WebP，
     // 但 WebP→PNG 仍然算變了。
     changed: outMime !== mime,
-    note: `${width}px → ${w}px${alpha ? '，保留透明度' : ''}`,
+    note:
+      w === width && h === height
+        ? `尺寸不變，重新編碼${alpha ? '（保留透明度）' : ''}`
+        : `${width}×${height} → ${w}×${h}${alpha ? '，保留透明度' : ''}`,
   };
 };

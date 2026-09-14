@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Alert, Box, Button, Chip, LinearProgress, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  FormControlLabel,
+  LinearProgress,
+  Typography,
+} from '@mui/material';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { buildGamePack, downloadBlob } from './exportGamePack';
 
@@ -30,6 +39,11 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
   const [progress, setProgress] = useState(null); // { done, total }
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  // 壓縮預設開。**開關是逃生口，不是要使用者做決定**——
+  // 多數人不知道該選什麼，而預設值要挑「對多數人比較好」的那一邊。
+  // 留著它是因為我無法預先知道所有用途：萬一有人的道具就是要放大到 5 倍看細節，
+  // 他需要一條路出去，而那條路不該是「放棄使用匯出功能」。
+  const [compress, setCompress] = useState(true);
 
   const handleExport = async () => {
     setBusy(true);
@@ -39,6 +53,7 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
     try {
       const { blob, folder, report } = await buildGamePack(tables, {
         imgMap,
+        compress,
         onProgress: ({ done, total }) => setProgress({ done, total }),
       });
       downloadBlob(blob, `${folder}.zip`);
@@ -88,6 +103,25 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
         )}
       </Button>
 
+      {/* 壓縮開關。**放在按鈕底下、預設打勾**，不是跳一個對話框問——
+          這是一個多數人不必想的選擇，只有少數有特殊需求的人需要動它。 */}
+      <FormControlLabel
+        sx={{ mt: 0.5, ml: 0.25, display: 'block' }}
+        control={
+          <Checkbox
+            size="small"
+            checked={compress}
+            disabled={busy}
+            onChange={(e) => setCompress(e.target.checked)}
+          />
+        }
+        label={
+          <Typography variant="caption" color="text.secondary">
+            壓縮圖片（背景 1600px、可放大的道具圖 2400px；透明度會保留）
+          </Typography>
+        }
+      />
+
       {busy && (
         <Box sx={{ mt: 1 }}>
           <LinearProgress
@@ -126,6 +160,12 @@ const ExportPackButton = ({ tables, imgMap = null, fullWidth = false, size = 'la
                   result.report
                 )}。`}
           </Typography>
+
+          {result.report.compress?.text && (
+            <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
+              {result.report.compress.text}
+            </Typography>
+          )}
 
           {result.report.failed.length > 0 && (
             <Box sx={{ mt: 0.75 }}>

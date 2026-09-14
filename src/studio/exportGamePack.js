@@ -31,6 +31,7 @@
 import Papa from 'papaparse';
 import { zip, unzip } from 'fflate';
 import { IMG_FIELDS } from './checkSheetImages';
+import { compressBytes, limitForUses } from './compressImage';
 import { extractDriveId } from '../player/game/imgUrl';
 
 // 一次最多幾條連線。Drive 對同時大量請求會變慢甚至擋，慢慢來比較快。
@@ -311,7 +312,10 @@ const utf8 = (s) => new TextEncoder().encode(s);
  * @param onProgress  ({ done, total, label }) => void
  * @returns { blob, folder, report }
  */
-export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) => {
+export const buildGamePack = async (
+  tables,
+  { imgMap = null, onProgress, compress = true } = {}
+) => {
   const refs = collectImageRefs(tables, imgMap);
   const total = refs.length;
   let done = 0;
@@ -361,10 +365,64 @@ export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) 
     }
   });
 
-  // 只有外連圖片要改寫那一格；本機那條路的值本來就對
+  // ---- 壓縮 ----
+  //
+  // **放在抓完之後、改寫 CSV 之前**：壓縮可能改變格式（無透明度的 PNG 會轉成 JPEG），
+  // 而副檔名一改，包裡的檔名與表格裡那一格都要跟著改，所以必須趕在改寫之前定案。
+  //
+  // 上限依用途分兩級（見 compressImage.js）：背景與立繪 1600、會被玩家放大的
+  // 道具／提示／故事圖 2400。同一張圖被多處用到時取最寬鬆的那一個。
+  const sizes = { before: 0, after: 0, compressed: 0, skipped: 0 };
+  results.forEach((item) => {
+    if (item.bytes) sizes.before += item.bytes.length;
+  });
+
+  if (compress) {
+    let cdone = 0;
+    const targets = results.filter((r) => r.bytes);
+    await runPool(targets, CONCURRENCY, async (item) => {
+      try {
+        const out = await compressBytes(item.bytes, limitForUses(item.ref.uses));
+        if (out.bytes !== item.bytes) {
+          item.bytes = out.bytes;
+          sizes.compressed += 1;
+          // 格式變了就要換副檔名——**兩條路都要換**，包括本機那條（它的檔名原本
+          // 是原樣沿用的）。不換的話包裡會出現「副檔名是 .png、內容是 JPEG」的檔案，
+          // 靜態主機會照副檔名送 Content-Type，能不能顯示就看瀏覽器要不要 sniff。
+          if (out.changed) {
+            const ext = out.mime === 'image/png' ? 'png' : 'jpg';
+            if (item.ref.kind === 'remote') {
+              item.fileName = `${item.base}.${ext}`;
+              item.packPath = `img/${item.fileName}`;
+            } else {
+              const renamed = String(item.ref.path).replace(/\.[^.]+$/, '') + '.' + ext;
+              item.fileName = renamed;
+              item.packPath = `img/${renamed}`;
+            }
+          }
+        } else {
+          sizes.skipped += 1;
+        }
+        item.compressNote = out.note;
+      } catch (err) {
+        // **壓縮失敗絕不能讓匯出失敗。** 這是加分項，原圖本來就是可用的。
+        item.compressNote = `未壓縮（${err?.message || err}）`;
+        sizes.skipped += 1;
+      } finally {
+        cdone += 1;
+        onProgress?.({ done: cdone, total: targets.length, label: '壓縮圖片' });
+      }
+    });
+  }
+  results.forEach((item) => {
+    if (item.bytes) sizes.after += item.bytes.length;
+  });
+
+  // 改寫表格裡那一格。外連圖本來就會換成新檔名；本機圖**只有在壓縮改了副檔名時**
+  // 才需要換，其餘維持原值（使用者自己給的檔名就是最好的檔名）。
   const rewrite = new Map(); // `${table}|${rowIndex}|${column}` -> fileName
   results.forEach((item) => {
-    if (item.ref.kind !== 'remote' || !item.fileName) return;
+    if (!item.fileName) return;
     item.ref.uses.forEach((u) => {
       rewrite.set(`${u.table}|${u.rowIndex}|${u.column}`, item.fileName);
     });
@@ -414,7 +472,12 @@ export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) 
       ? `${item.error}${item.ref.kind === 'remote' ? '（表格裡維持原連結）' : ''}`
       : item.ref.kind === 'remote'
         ? '已下載，表格裡的網址已換成這個檔名'
-        : '已從本機資料夾打包，表格裡的值沒有動',
+        : item.fileName
+          ? '已從本機資料夾打包，因為壓縮換了格式，表格裡的值已改成新檔名'
+          : '已從本機資料夾打包，表格裡的值沒有動',
+    // 壓縮的明細放收據、摘要放畫面上——診斷資訊要放在使用者已經在看的地方，
+    // 而「哪一張沒被壓、為什麼」是解壓縮之後才需要追的細節（2026-08-25 的教訓）。
+    壓縮: item.compressNote || '',
   }));
 
   const receipt = Papa.unparse(reportRows);
@@ -434,6 +497,7 @@ export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) 
   const zipped = await zipAsync(files);
 
   const counted = (kind) => results.filter((r) => r.ref.kind === kind);
+  const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
 
   return {
     blob: new Blob([zipped], { type: 'application/zip' }),
@@ -455,6 +519,21 @@ export const buildGamePack = async (tables, { imgMap = null, onProgress } = {}) 
           where: whereOf(r.ref),
         })),
       rows: reportRows,
+      // 壓縮摘要。**那個數字本身就是最好的說明**，不用解釋什麼——
+      // 「42 MB → 6 MB」比任何一段文案都有說服力（2026-09-14 決定）。
+      compress: compress
+        ? {
+            on: true,
+            before: sizes.before,
+            after: sizes.after,
+            compressed: sizes.compressed,
+            skipped: sizes.skipped,
+            text:
+              sizes.before > 0 && sizes.after < sizes.before
+                ? `圖片 ${mb(sizes.before)} → ${mb(sizes.after)}（壓了 ${sizes.compressed} 張，${sizes.skipped} 張維持原樣）`
+                : `圖片共 ${mb(sizes.after)}（${sizes.skipped} 張已經夠小，維持原樣）`,
+          }
+        : { on: false, before: sizes.before, after: sizes.after, compressed: 0, skipped: 0, text: '' },
     },
   };
 };

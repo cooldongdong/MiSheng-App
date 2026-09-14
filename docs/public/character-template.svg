@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920" font-family="'Noto Sans TC','PingFang TC',sans-serif">
+  <defs>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M60 0H0v60" fill="none" stroke="#dfe4e8" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="veil" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#37474F" stop-opacity="0"/>
+      <stop offset="1" stop-color="#37474F" stop-opacity="0.55"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1920" fill="#f7f9fa"/>
+  <rect width="1080" height="1920" fill="url(#grid)"/>
+
+  <!-- 上方留白（頭頂不要進來） -->
+  <rect x="0" y="0" width="1080" height="192" fill="#ff8f6b" opacity="0.13"/>
+  <line x1="0" y1="192" x2="1080" y2="192" stroke="#ff8f6b" stroke-width="3" stroke-dasharray="14 10"/>
+  <text x="28" y="112" font-size="34" fill="#c2410c">留白區　0–10%</text>
+  <text x="28" y="158" font-size="27" fill="#c2410c">頭頂不要超過這條線，否則會貼到畫面頂端</text>
+
+  <!-- 安全區 -->
+  <line x1="0" y1="1056" x2="1080" y2="1056" stroke="#0f766e" stroke-width="4"/>
+  <text x="28" y="1020" font-size="34" fill="#0f766e">安全線　55%</text>
+  <text x="28" y="1108" font-size="27" fill="#0f766e">臉與上半身放在 10%–55% 之間：</text>
+  <text x="28" y="1148" font-size="27" fill="#0f766e">這一段在所有手機上都看得到（含最矮的 iPhone SE）</text>
+
+  <!-- 主流手機的漸層線 -->
+  <rect x="0" y="1478" width="1080" height="442" fill="url(#veil)"/>
+  <line x1="0" y1="1478" x2="1080" y2="1478" stroke="#37474F" stroke-width="3" stroke-dasharray="14 10"/>
+  <text x="28" y="1444" font-size="34" fill="#37474F">漸層線　77%</text>
+  <text x="28" y="1534" font-size="27" fill="#ffffff">這條線以下會被對白框與漸層蓋住</text>
+  <text x="28" y="1574" font-size="27" fill="#ffffff">（iPhone 15／Pixel 7／Pro Max 實測 74–79%）</text>
+  <text x="28" y="1614" font-size="27" fill="#ffffff">人物的腳、衣襬放這裡，讓它自然融進漸層</text>
+
+  <!-- 邊框與標題 -->
+  <rect x="2" y="2" width="1076" height="1916" fill="none" stroke="#90a4ae" stroke-width="4"/>
+  <text x="540" y="1870" font-size="30" fill="#607d8b" text-anchor="middle">謎生　角色立繪版型　1080 × 1920（9:16）</text>
+</svg>

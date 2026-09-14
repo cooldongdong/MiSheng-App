@@ -52,13 +52,22 @@ function BackgroundLayer({ src, opacity = '0.5' }) {
           opacity,
         }}
       />
-      {/* 只有「有圖、但還沒載完」才鋪骨架——見檔頭關於雙重身分的說明。
-          透明度壓得比一般骨架低，因為它疊在深色底上，太亮會蓋掉那塊設計過的中性底。 */}
-      {showImg && !loaded && (
+      {/* 只有「有圖」才鋪骨架——見檔頭關於雙重身分的說明。
+          透明度壓得比一般骨架低，因為它疊在深色底上，太亮會蓋掉那塊設計過的中性底。
+
+          **它是用 opacity 淡出的，不是載完就拿掉。**
+          第一版寫成 `showImg && !loaded &&`，骨架在 onLoad 那一刻整個消失，
+          而圖片要 320ms 才淡入完成——**中間那段空窗就露出底下的深灰**，
+          看起來像「脈動 → 深灰 → 照片」三段（Dong 2026-09-14 回報）。
+          改成跟圖片同一條 320ms 交叉淡出，接縫就沒有了。 */}
+      {showImg && (
         <Box
           sx={{
             position: 'absolute',
             inset: 0,
+            opacity: loaded ? 0 : 1,
+            transition: reduceMotion ? 'none' : 'opacity 320ms ease',
+            pointerEvents: 'none',
             ...stillSkeletonSx(reduceMotion),
           }}
         >

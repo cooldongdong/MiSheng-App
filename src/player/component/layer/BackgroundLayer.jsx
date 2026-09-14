@@ -71,14 +71,28 @@ function BackgroundLayer({ src, opacity = '0.5' }) {
             ...stillSkeletonSx(reduceMotion),
           }}
         >
+          {/* **用掃光（wave）不是明暗（pulse）。**
+              第一版是 7% 白的 pulse，實測（ffmpeg 逐格量亮度）在深灰底上
+              只造成 ±3.2 的亮度變化——**肉眼看不出來，等於沒做**
+              （Dong 2026-09-14 錄影回報「還是有深灰」）。
+              我當時壓低透明度的理由是「怕蓋掉那塊設計過的中性底」，保守過頭了。
+
+              掃光在深底上有效得多：它是一道移動的亮帶，靠的是「有東西在動」
+              而不是「整片變亮」，所以可以在不洗掉底色的前提下被看見。
+              底色只留 5%，對比交給那道帶子。 */}
           <Skeleton
             variant="rectangular"
+            animation="wave"
             sx={{
               position: 'absolute',
               inset: 0,
               width: '100%',
               height: '100%',
-              bgcolor: 'rgba(255, 255, 255, 0.07)',
+              bgcolor: 'rgba(255, 255, 255, 0.05)',
+              '&::after': {
+                background:
+                  'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent)',
+              },
             }}
           />
         </Box>

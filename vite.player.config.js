@@ -40,6 +40,22 @@ const tidyPlayerDist = (outDir) => ({
       const stale = resolve(outDir, name);
       if (existsSync(stale)) rmSync(stale);
     }
+
+    // favicon：放一份**獨立的檔案**，不是 inline 進 HTML。
+    //
+    // player.html 原本刻意沒有 favicon，理由寫在那裡：「這一份是交到使用者手上、
+    // 掛在他自己網域下的遊戲，分頁上不該出現謎生的 logo」。那個判斷的方向是對的，
+    // 但它的結果是**分頁上什麼都沒有**——瀏覽器會顯示預設的空白文件圖示，
+    // 看起來像沒做完，而不是像「刻意留白」（Dong 2026-09-14 部署後回報）。
+    //
+    // 折衷：預設放謎生的 logo（總比空白好），但放成 `favicon.svg` 這個獨立檔案，
+    // 創作者要換成自己的只要覆蓋它，不必去改 HTML。README 裡有寫。
+    // **這樣「這是他的遊戲」這個原則仍然成立，只是預設值從『沒有』變成『可替換』。**
+    const favicon = resolve(root, 'public', 'MiSheng-logo-w.svg');
+    if (existsSync(favicon)) {
+      writeFileSync(resolve(outDir, 'favicon.svg'), readFileSync(favicon));
+    }
+
     writePlayerZip(outDir);
   },
 });

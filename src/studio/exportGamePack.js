@@ -182,7 +182,7 @@ https://misheng.app/docs/publish/deploy
   ${GAME_DIR}/            你的遊戲。7 張 CSV ＋ img/ 圖片
                     改完直接重新上傳就生效，不用重新匯出
   圖片對照.csv       哪個檔名對應原本哪一條連結、用在哪一格
-${playable ? '  index.html      播放器。不用改它\n  assets/         播放器的程式碼\n' : ''}
+${playable ? '  index.html      播放器。不用改它\n  assets/         播放器的程式碼\n  favicon.svg     分頁上的小圖示。想換成自己的就覆蓋這個檔\n' : ''}
 【想讓分享到 LINE／FB 時出現封面圖嗎】
 
 index.html 裡已經幫你填好遊戲名稱與簡介了，唯一缺的是預覽圖——因為匯出的當下

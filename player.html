@@ -7,11 +7,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&family=Noto+Serif+TC:wght@200..900&display=swap" rel="stylesheet">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- 刻意沒有 favicon。這一份是交到使用者手上、掛在他自己網域下的遊戲，
-         分頁上不該出現謎生的 logo——那是他的遊戲。「made with 謎生」的標記有它自己
-         設計好的位置（頁面裡的品牌小卡），不是這裡。 -->
+    <!-- favicon 預設是謎生的 logo，但它是一個**可以被換掉的獨立檔案**。
+         原本這裡刻意不放任何東西，理由是「這是交到使用者手上、掛在他自己網域下的
+         遊戲，分頁上不該出現謎生的 logo」——方向是對的，但結果是分頁上空空如也，
+         瀏覽器顯示預設的空白文件圖示，看起來像沒做完（Dong 2026-09-14）。
+         所以改成：給一個預設值，並讓它換起來只要覆蓋 favicon.svg 這個檔。
+         路徑用相對的——這份會被放在別人網域的子目錄底下。 -->
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
 
-    <!-- 標題會在 config.csv 讀進來之後由 GameController 換掉。這裡放的是它還沒讀到之前的樣子 -->
+    <!-- 這一行只是「還沒讀到 config.csv 之前」的樣子，有兩個東西會蓋掉它：
+         · 匯出時 —— exportGamePack 直接把遊戲名字寫進這個檔（分享預覽卡只看得到 HTML）
+         · 執行時 —— game-provider 讀完 config 後設 document.title
+         **兩條都要**：爬蟲不執行 JS，而 JS 管得到已經開啟的分頁。 -->
     <title>實境解謎</title>
 
     <!-- first-paint 的底色與 theme-color 由 vite plugin 注入，

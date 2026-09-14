@@ -129,6 +129,30 @@ export const GameProvider = ({
     setGameId(id);
   }, [configData, gameId]);
 
+  // 分頁標題換成這款遊戲的名字。
+  //
+  // **player.html 從一開始就寫著「標題會在 config.csv 讀進來之後由 GameController
+  // 換掉」，而那件事從來沒有被實作過**——全 repo 沒有任何一行 document.title
+  // （Dong 2026-09-14 部署之後發現分頁上只有「實境解謎」）。
+  // 註解描述了一個意圖，但沒有任何東西會在它沒兌現時出聲，於是它一直沒發生。
+  //
+  // 放在 provider 而不是 GameController：configData 是這裡的 state，
+  // 那邊只有載入流程裡的一個區域變數。
+  //
+  // **這只管得到瀏覽器分頁。** 分享到 LINE／Facebook 的預覽卡是爬蟲讀 HTML 決定的，
+  // 而爬蟲不執行 JS——那一半必須在匯出時就寫進 index.html。
+  useEffect(() => {
+    const name = configData?.[0]?.title?.trim();
+    if (!name) return undefined;
+    const previous = document.title;
+    document.title = name;
+    // 離開時還原：/create 的三欄裡遊戲只是其中一格，換一份試算表之後
+    // 分頁不該還掛著上一款遊戲的名字。
+    return () => {
+      document.title = previous;
+    };
+  }, [configData]);
+
   const getStorageKey = (key) => (gameId ? `${gameId}_${key}` : null);
 
   // 記一則玩家行為。**previewMode（/create）不記**——那邊的進度本來就不寫

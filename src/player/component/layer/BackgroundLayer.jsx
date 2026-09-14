@@ -1,19 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { isReady, useReduceMotion } from '../../hook/useImageRatio';
+import { Box, Skeleton } from '@mui/material';
+import { isReady, useReduceMotion, stillSkeletonSx } from '../../hook/useImageRatio';
 
 // 沒有底圖時的替代底：中性深灰漸層。
 // 不用「預設圖檔」是因為隨便給一張圖會誤導玩家（以為那是劇情場景），
 // 中性底色只負責讓白字有對比、版面不塌。
 const FALLBACK_BACKGROUND = 'linear-gradient(160deg, #3a3a3a 0%, #202020 100%)';
 
-// **這一層不需要骨架**（2026-09-03 討論）。道具頁的圖會讓卡片先塌再撐開，
-// 是因為那是卡片、高度由圖片決定；這裡是滿版圖層，容器（Layer）先有尺寸、
-// 圖再填進去，所以從頭到尾不會跳。而且對白文字在圖還沒到之前就讀得到——
-// 在它底下鋪一塊會呼吸的灰色矩形只會跟內容搶注意力。
+// 2026-09-03 判定「這一層不需要骨架」，理由是滿版圖層的容器先有尺寸、版面不會跳。
+// **那個理由今天仍然成立，但它只回答了一半的問題。**
 //
-// 這裡缺的是**淡入**：原本是從漸層瞬間切換成圖片。漸層改成常駐的底層、
-// 圖片疊在上面淡入，載入中看到的就是那個本來就設計過的中性底。
+// 2026-09-14 Dong 回報 MissionStart 在圖片載入前是一塊深灰，看起來不像在載入。
+// 而 9/03 自己就寫過「『載入體驗不好』不是一種病，是至少兩種」——
+// 版面跳動是一種，**看不出在載入是另一種**，而這一層當初只處理了前者。
+//
+// 難的地方在於這塊中性深灰有**雙重身分**：
+//   · 沒填底圖的關卡 → 它就是最終樣貌
+//   · 有底圖但還在載 → 它是暫時樣貌
+// 玩家分不出來，所以「等一下」跟「就是長這樣」看起來一模一樣。
+//
+// ⇒ 所以骨架**只在第二種情況出現**（`showImg && !loaded`），載完或沒填圖都不會有。
+// 它疊在替代底之上、圖片之下，用的是道具頁那一套 MUI Skeleton，
+// 視覺語言一致；`prefers-reduced-motion` 時不動（stillSkeletonSx）。
 function BackgroundLayer({ src, opacity = '0.5' }) {
   const imgRef = useRef(null);
   const [failed, setFailed] = useState(false);
@@ -43,6 +52,28 @@ function BackgroundLayer({ src, opacity = '0.5' }) {
           opacity,
         }}
       />
+      {/* 只有「有圖、但還沒載完」才鋪骨架——見檔頭關於雙重身分的說明。
+          透明度壓得比一般骨架低，因為它疊在深色底上，太亮會蓋掉那塊設計過的中性底。 */}
+      {showImg && !loaded && (
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            ...stillSkeletonSx(reduceMotion),
+          }}
+        >
+          <Skeleton
+            variant="rectangular"
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              bgcolor: 'rgba(255, 255, 255, 0.07)',
+            }}
+          />
+        </Box>
+      )}
       {showImg && (
         <img
           ref={imgRef}

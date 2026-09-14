@@ -63,6 +63,51 @@ const README_NAME = '怎麼把這個遊戲放上網.txt';
 // build 時產生的播放器（見 vite.player.config.js）。
 // 用 new URL 而不是寫死 '/player.zip'：/create 現在住在網站根目錄，但這條路徑
 // 不該預設它永遠在那裡。
+
+// 把遊戲的名字與簡介寫進播放器的 index.html。
+//
+// **為什麼不能只靠 runtime 設 document.title。**
+// 分頁標題確實可以在讀完 config.csv 之後用 JS 換掉（game-provider 有做），
+// 但**分享到 LINE／Facebook 的預覽卡是爬蟲讀 HTML 決定的，而爬蟲不執行 JS**
+// ——那些平台看到的永遠是 HTML 裡那一行寫死的「實境解謎」。
+// 匯出是**唯一知道遊戲名字、又還來得及改 HTML** 的時機。
+//
+// og:image 刻意留空：它必須是**絕對網址**，而匯出的當下不知道創作者會把這包
+// 部署到哪個網域。硬塞相對路徑的話，多數平台會直接忽略，而那比沒有更糟——
+// 你會以為設定好了。README 裡改成教他部署後補一行。
+const escapeHtml = (v) =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const brandTitle = (html, config) => {
+  const title = String(config?.title || '').trim();
+  if (!title) return html;
+  const description = String(config?.description || '').trim();
+  const t = escapeHtml(title);
+  const d = escapeHtml(description);
+
+  const meta = [
+    `    <meta property="og:type" content="website" />`,
+    `    <meta property="og:title" content="${t}" />`,
+    description ? `    <meta property="og:description" content="${d}" />` : '',
+    `    <meta name="twitter:card" content="summary_large_image" />`,
+    `    <meta name="twitter:title" content="${t}" />`,
+    description ? `    <meta name="twitter:description" content="${d}" />` : '',
+    description ? `    <meta name="description" content="${d}" />` : '',
+    `    <!-- 分享預覽圖：要填**完整網址**才有用（爬蟲不會自己補），例如`,
+    `         <meta property="og:image" content="https://你的網域/game/img/封面.jpg" /> -->`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return html
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${t}</title>`)
+    .replace(/<\/head>/, `${meta}\n  </head>`);
+};
+
 const fetchPlayer = async () => {
   try {
     const res = await fetch(new URL(PLAYER_ZIP, window.location.origin).href);
@@ -114,6 +159,21 @@ https://misheng.app/docs/publish/deploy
                     改完直接重新上傳就生效，不用重新匯出
   圖片對照.csv       哪個檔名對應原本哪一條連結、用在哪一格
 ${playable ? '  index.html      播放器。不用改它\n  assets/         播放器的程式碼\n' : ''}
+【想讓分享到 LINE／FB 時出現封面圖嗎】
+
+index.html 裡已經幫你填好遊戲名稱與簡介了，唯一缺的是預覽圖——因為匯出的當下
+還不知道你會把它放到哪個網址，而那個欄位一定要填**完整網址**才有用。
+
+部署完成、拿到網址之後，打開 index.html，找到這一行註解：
+
+  <!-- 分享預覽圖：要填**完整網址**才有用… -->
+
+在它下面加一行（把網址換成你自己的）：
+
+  <meta property="og:image" content="https://你的網域/game/img/封面.jpg" />
+
+存檔、重新上傳就好。不加也不影響遊戲，只是分享出去時沒有圖。
+
 【想知道玩家玩得怎麼樣嗎】
 
 玩家進了哪一關、花了多久、打錯了什麼答案，可以自動流進**你自己的**
@@ -488,7 +548,14 @@ export const buildGamePack = async (
   // 抓不到就退回「只有資料」的包，並在回報裡說清楚——**這一步失敗不該讓整個匯出失敗**，
   // 使用者至少要拿得到自己的東西。
   const player = await fetchPlayer();
+  const config = tables.config?.rows?.[0];
   for (const [path, bytes] of Object.entries(player.files)) {
+    // index.html 要換成這款遊戲的名字。其餘檔案原樣帶過。
+    if (path === 'index.html') {
+      const html = brandTitle(new TextDecoder().decode(bytes), config);
+      files[`${folder}/${path}`] = [utf8(html), { level: 6 }];
+      continue;
+    }
     files[`${folder}/${path}`] = [bytes, { level: 6 }];
   }
 

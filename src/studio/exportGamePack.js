@@ -75,6 +75,30 @@ const README_NAME = '怎麼把這個遊戲放上網.txt';
 // og:image 刻意留空：它必須是**絕對網址**，而匯出的當下不知道創作者會把這包
 // 部署到哪個網域。硬塞相對路徑的話，多數平台會直接忽略，而那比沒有更糟——
 // 你會以為設定好了。README 裡改成教他部署後補一行。
+// 分享卡上那一行副標的長度上限。
+//
+// 超過的話平台會自己截，而**截斷的位置不可控**——Facebook 與 LINE 各有各的規則，
+// 可能斷在半個句子或半個詞中間。自己先截就能挑在標點上斷，斷點是我們決定的。
+//
+// **只影響 meta，不影響封面。** 封面上顯示的仍然是 config.description 的完整內容
+// （GameStartModel 讀的是原值），這裡截的是給爬蟲看的那一份。
+const META_DESC_MAX = 200;
+
+// 截到最近的標點。優先斷在句末（。！？），沒有才退而求其次斷在句中（，、；）。
+// 結尾的標點會被拿掉再接「…」——「。…」看起來像沒寫完的句子加了刪節號。
+const trimForMeta = (text) => {
+  const t = String(text || '')
+    .replace(/\s+/g, ' ') // meta 裡的換行會被當成空白，先收乾淨
+    .trim();
+  if (t.length <= META_DESC_MAX) return t;
+
+  const cut = t.slice(0, META_DESC_MAX);
+  const sentence = cut.match(/^[\s\S]*[。！？!?]/);
+  const clause = cut.match(/^[\s\S]*[，、；,;]/);
+  const base = (sentence || clause || [cut])[0];
+  return `${base.replace(/[。！？!?，、；,;]\s*$/, '')}…`;
+};
+
 const escapeHtml = (v) =>
   String(v ?? '')
     .replace(/&/g, '&amp;')
@@ -85,7 +109,7 @@ const escapeHtml = (v) =>
 const brandTitle = (html, config) => {
   const title = String(config?.title || '').trim();
   if (!title) return html;
-  const description = String(config?.description || '').trim();
+  const description = trimForMeta(config?.description);
   const t = escapeHtml(title);
   const d = escapeHtml(description);
 

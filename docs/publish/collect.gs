@@ -122,33 +122,61 @@ function onOpen() {
 //    遊戲的下拉選單」的理由。
 
 function ensureSessions() {
-  ensureSessionsSheet_(SpreadsheetApp.getActiveSpreadsheet());
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const fixed = ensureSessionsSheet_(ss);
   SpreadsheetApp.getUi().alert(
-    '「' + SESSIONS_NAME + '」表已經在了。\n\n' +
-    '填好時間段之後，回到「謎生 → 重算報表」，報表就會照場次分開。\n' +
-    '一列都不填的話，報表跟以前一樣把全部算成一份。'
+    '「' + SESSIONS_NAME + '」表已經在了。' +
+    (fixed ? '\n\n（順便修好了舊版留下的說明列與「（範例）」字樣。）' : '') +
+    '\n\n填好時間段之後，回到「謎生 → 重算報表」，報表就會照場次分開。\n' +
+    '一列都不填的話，報表跟以前一樣把全部算成一份。\n\n' +
+    '⚠️ 每一列的「開始」與「結束」至少要填一個，只填名稱的列會被跳過' +
+    '（報表最上面會告訴你跳過了哪幾列）。'
   );
 }
 
+// 建立「場次」表；已經存在的話順便修掉舊版留下的兩個問題，回傳有沒有修過。
+//
+// **說明文字絕對不能寫在 A:C 的資料範圍內。** 第一版寫在第 5 列 A 欄，於是它被
+// readSessions_ 當成一個場次名稱讀進去，而且它沒有時間限制＝涵蓋全部資料——
+// 報表看起來「有分場次」，實際上只有一段叫「說明：…」的假場次
+//（Dong 2026-09-14 實際撞到）。現在說明放在 E1，資料永遠只在 A:C。
 function ensureSessionsSheet_(ss) {
   let sh = ss.getSheetByName(SESSIONS_NAME);
-  if (sh) return sh;
-  sh = ss.insertSheet(SESSIONS_NAME);
-  sh.getRange(1, 1, 1, 3).setValues([['場次名稱', '開始（含）', '結束（不含）']]);
-  sh.getRange(2, 1, 2, 3).setValues([
-    ['（範例）試玩測試', '', '2026-09-20 08:00'],
-    ['（範例）正式活動', '2026-09-20 08:00', ''],
-  ]);
-  sh.getRange(5, 1).setValue(
-    '說明：開始或結束留空＝那一邊不限。把「（範例）」那兩列改成你自己的場次，' +
-    '或整列刪掉。一列都沒有的話，報表會把全部資料算成一份。'
+  let fixed = false;
+
+  if (!sh) {
+    sh = ss.insertSheet(SESSIONS_NAME);
+    sh.getRange(1, 1, 1, 3).setValues([['場次名稱', '開始（含）', '結束（不含）']]);
+    sh.getRange(1, 1, 1, 3).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 170);
+    sh.setColumnWidth(2, 150);
+    sh.setColumnWidth(3, 150);
+  }
+
+  // 舊版的殘留：A 欄那段說明、以及會被靜默跳過的「（範例）」字樣。
+  // **兩個都要清掉而不是繼續容忍**——前者會變成一個假場次，
+  // 後者會讓人以為自己已經設定好了。
+  if (sh.getLastRow() >= 2) {
+    const rng = sh.getRange(2, 1, sh.getLastRow() - 1, 1);
+    const names = rng.getValues();
+    for (let i = 0; i < names.length; i++) {
+      const v = String(names[i][0] || '');
+      if (v.indexOf('說明：') === 0) { names[i][0] = ''; fixed = true; }
+      else if (v.indexOf('（範例）') === 0) { names[i][0] = v.slice(4); fixed = true; }
+    }
+    if (fixed) rng.setValues(names);
+  }
+
+  // 說明放在資料範圍外（E1），順便當成表頭旁邊的提示
+  sh.getRange(1, 5).setValue(
+    '每列一個場次。「開始」與「結束」至少填一個，兩邊都空的列會被跳過。' +
+    '時間格式：2026-09-20 08:00。一列都沒有的話，報表把全部資料算成一份。'
   );
-  sh.getRange(1, 1, 1, 3).setFontWeight('bold');
-  sh.setFrozenRows(1);
-  sh.setColumnWidth(1, 160);
-  sh.setColumnWidth(2, 150);
-  sh.setColumnWidth(3, 150);
-  return sh;
+  sh.getRange(1, 5).setFontColor('#666').setFontSize(10);
+  sh.setColumnWidth(5, 420);
+
+  return fixed;
 }
 
 // 試算表的日期欄可能回 Date，也可能回字串（看使用者怎麼填的）。
@@ -157,20 +185,35 @@ function toDate_(v) {
   if (v instanceof Date) return v;
   const t = String(v || '').trim();
   if (!t) return null;
-  const d = new Date(t.replace(/-/g, '/')); // Safari/舊 runtime 對 'YYYY-MM-DD hh:mm' 較挑
+  const d = new Date(t.replace(/-/g, '/')); // 'YYYY-MM-DD hh:mm' 在部分 runtime 上較挑
   return isNaN(d.getTime()) ? null : d;
 }
 
+// 讀場次設定。回傳 { list, skipped }：
+//
+// **被跳過的列要回報出去，不能默默吃掉。** 第一版靜默跳過不合格的列，
+// 結果 Dong 填好了時間、名稱卻留著「（範例）」前綴，於是設定完全沒生效而畫面上
+// 看不出任何異狀。這跟去重那邊「少一列資料看不出來」是同一個判斷，
+// 而我在同一個檔案裡犯了它。
+//
+// **要求至少填一個時間**：兩邊都不限的場次等於「全部」，那本來就該用「不填任何列」
+// 來表達。這個約束同時讓任何被誤植到 A 欄的文字（說明、備註）自動出局。
 function readSessions_(ss) {
   const sh = ss.getSheetByName(SESSIONS_NAME);
-  if (!sh || sh.getLastRow() < 2) return [];
+  if (!sh || sh.getLastRow() < 2) return { list: [], skipped: [] };
   const vals = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
-  return vals.map(function (r) {
-    return { name: String(r[0] || '').trim(), from: toDate_(r[1]), to: toDate_(r[2]) };
-  }).filter(function (x) {
-    // 名稱空白、或範例列沒被改過就跳過——不然第一次用的人會拿到兩段空報表
-    return x.name && x.name.indexOf('（範例）') !== 0;
+  const list = [];
+  const skipped = [];
+  vals.forEach(function (r, i) {
+    const name = String(r[0] || '').trim();
+    const from = toDate_(r[1]);
+    const to = toDate_(r[2]);
+    if (!name && !from && !to) return;            // 整列空白，正常
+    if (!name) { skipped.push([i + 2, '（沒有名稱）']); return; }
+    if (!from && !to) { skipped.push([i + 2, name]); return; }
+    list.push({ name: name, from: from, to: to });
   });
+  return { list: list, skipped: skipped };
 }
 
 function inSession_(r, s) {
@@ -241,7 +284,17 @@ function rebuildReport() {
   //
   // 沒設定場次時 sessions 是空陣列，走的是跟以前一模一樣的那條路（全部一段），
   // 既有的試算表不會看到任何差別。
-  const sessions = readSessions_(ss);
+  const sessConf = readSessions_(ss);
+  const sessions = sessConf.list;
+
+  // **被跳過的列一定要講出來。** 不講的話，填了設定卻沒生效的人會看著一張
+  // 「全部算成一份」的報表，完全不知道自己的設定被忽略了。
+  if (sessConf.skipped.length) {
+    push('⚠️ 「' + SESSIONS_NAME + '」表有 ' + sessConf.skipped.length +
+         ' 列被跳過（開始與結束都沒填）：');
+    sessConf.skipped.forEach(function (x) { push('第 ' + x[0] + ' 列', x[1]); });
+    push('');
+  }
 
   if (sessions.length === 0) {
     reportSlice_(push, rows);

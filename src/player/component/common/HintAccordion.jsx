@@ -17,6 +17,8 @@ const HintAccordion = ({
   onExpand,
   onUnlock,
   remainingMinutes,
+  fullScreenIndex,
+  onToggleFullScreen,
 }) => {
   // expanded 要再 && 一次 isUnlocked，不能只靠 disabled。
   //
@@ -57,7 +59,14 @@ const HintAccordion = ({
           （提示文字本來就在 bundle 或 CSV 裡，這擋不住真的想挖的人，但沒有理由
           把它放在右鍵兩下就看得到的地方。） */}
       <AccordionDetails>
-        {isUnlocked && <HintContent hint={hint} index={index} />}
+        {isUnlocked && (
+          <HintContent
+            hint={hint}
+            index={index}
+            fullScreenIndex={fullScreenIndex}
+            onToggleFullScreen={onToggleFullScreen}
+          />
+        )}
       </AccordionDetails>
     </Accordion>
   );
@@ -76,6 +85,8 @@ HintAccordion.propTypes = {
   isExpanded: PropTypes.bool.isRequired,
   onExpand: PropTypes.func.isRequired,
   onUnlock: PropTypes.func.isRequired,
+  fullScreenIndex: PropTypes.number,
+  onToggleFullScreen: PropTypes.func.isRequired,
 };
 
 export default HintAccordion;

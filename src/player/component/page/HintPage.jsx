@@ -30,6 +30,12 @@ const HintPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false); // Dialog 的開關
   const [currentHintIndex, setCurrentHintIndex] = useState(null); // 當前選擇的提示索引
   const [expandedHints, setExpandedHints] = useState([]);
+  // 哪一張提示圖正在放大。**整頁一份**，同 PropPage／StoryPage——
+  // 「同時只有一張圖在放大」是整頁的不變式，放在 HintContent 裡就變成每則一份，
+  // 其他則的放大鈕會浮在放大的圖上面（見 HintContent 檔頭）。
+  const [fullScreenIndex, setFullScreenIndex] = useState(null);
+  const handleToggleFullScreen = (index) =>
+    setFullScreenIndex((prev) => (prev === index ? null : index));
 
   const currentMission = getMissionById(currentMissionId);
 
@@ -73,6 +79,8 @@ const HintPage = () => {
   const autoExpandArmed = useRef(true);
   useEffect(() => {
     setExpandedHints([]);
+    // 放大狀態也是索引，換關之後指到的是另一則提示（理由同上）
+    setFullScreenIndex(null);
     autoExpandArmed.current = true;
   }, [currentMissionId]);
 
@@ -163,6 +171,8 @@ const HintPage = () => {
               hintRemainingMinutes(hintRemainingMs(hint, startedAt, now)) ??
               undefined
             }
+            fullScreenIndex={fullScreenIndex}
+            onToggleFullScreen={handleToggleFullScreen}
           />
         )}
         emptyText="No hints available"

@@ -68,17 +68,58 @@ export const hintKeyOf = (hint) =>
 export const isHintUnlocked = (unlockedForMission, hint, index) =>
   Boolean(unlockedForMission?.[hintKeyOf(hint)] || unlockedForMission?.[index]);
 
-// 時間到、但還沒被解鎖的那些索引。
+// 這一則的到期時刻（epoch ms）。null ＝ 沒設 timer，或還不知道何時進的關。
 //
-// 提示頁拿它去解鎖；導覽列拿它的長度當小紅點的數字。**小紅點會自己消失**——
-// 玩家一打開提示頁，這些就被解鎖了，於是這個清單變空。不需要另外記「看過了沒」。
-export const dueHintIndexes = (hints, missionStartedAt, unlockedForMission, now) => {
+// **它是推導出來的，不存。** 進關時刻與 timer 都在手上，多存一份只會多一個
+// 會跟事實不同步的地方。
+export const hintDueAt = (hint, missionStartedAt) => {
+  const ms = hintTimerMs(hint);
+  if (ms === null || !missionStartedAt) return null;
+  return missionStartedAt + ms;
+};
+
+// 時間到、但還沒被解鎖的那些索引 ＝ **現在該解鎖哪幾則**。
+//
+// 只有一個呼叫者：game-provider 那條每 10 秒跑一次的自動解鎖 effect。
+//
+// **這個問題跟「有什麼是新的」是兩件事**（後者見 freshHintIndexes）。原本兩者
+// 共用同一個答案——導覽列的紅點數就是這個陣列的長度，而它會歸零是因為玩家一打開
+// 提示頁，這些就被解鎖了。也就是說**通知的清除是解鎖的副作用**，兩件事被綁在一起。
+//
+// 綁著就沒辦法把解鎖移出提示頁，而不移出去，`hint_auto_unlock` 的時間戳記的是
+// 「玩家打開提示分頁的時刻」而不是「提示到期的時刻」：填 5 分鐘與 10 分鐘的兩則，
+// 在第 12 分鐘打開提示頁時會在同一秒各記一筆（Dong 2026-09-20 從遙測表上看出來）。
+export const autoUnlockIndexes = (hints, missionStartedAt, unlockedForMission, now) => {
   if (!Array.isArray(hints) || !missionStartedAt) return [];
   const out = [];
   hints.forEach((hint, index) => {
     if (isHintUnlocked(unlockedForMission, hint, index)) return;
     const remaining = hintRemainingMs(hint, missionStartedAt, now);
     if (remaining === 0) out.push(index);
+  });
+  return out;
+};
+
+// **在玩家上次看提示頁之後才到期的**那些索引 ＝ 有什麼是新的。
+//
+// 導覽列的紅點與「進頁自動展開」都問這個。解鎖搬去全域之後，「到期但還沒解鎖」
+// 永遠是空集合，所以通知不能再靠它——改成拿到期時刻跟 seenAt 比。
+//
+// **seenAt 沒有值時視為 0**（＝什麼都還沒看過）。這一格有兩種情況：玩家從來沒開過
+// 提示頁，以及舊存檔還沒有這個欄位。兩者要的行為一樣——把已經到期的都當成新的，
+// 也就是跟改動前一模一樣的畫面。
+//
+// **刻意不看解鎖狀態。** 手動解鎖過的提示不該因此變成「新的」，而它本來就不會：
+// 判準只有到期時刻。反過來，時間到而玩家沒看到，就算它已經被自動解鎖了，
+// 對他來說仍然是新的——那正是紅點要講的事。
+export const freshHintIndexes = (hints, missionStartedAt, seenAt, now) => {
+  if (!Array.isArray(hints) || !missionStartedAt) return [];
+  const since = seenAt || 0;
+  const out = [];
+  hints.forEach((hint, index) => {
+    const dueAt = hintDueAt(hint, missionStartedAt);
+    if (dueAt === null) return;
+    if (dueAt > since && dueAt <= now) out.push(index);
   });
   return out;
 };

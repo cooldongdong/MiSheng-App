@@ -7,7 +7,7 @@ import HintAccordion from '../common/HintAccordion';
 import ConfirmDialog from '../common/ConfirmDialog';
 import useHintTick from '../../hook/useHintTick';
 import {
-  dueHintIndexes,
+  freshHintIndexes,
   hintKeyOf,
   hintRemainingMs,
   hintRemainingMinutes,
@@ -23,6 +23,8 @@ const HintPage = () => {
     unlockedHints,
     unlockHint,
     missionStartedAt,
+    hintsSeenAt,
+    markHintsSeen,
   } = useContext(GameContext);
   // 同 BottomNavigation：進關時刻一變就立刻重算（見 useHintTick 的說明）
   const now = useHintTick(missionStartedAt?.[currentMissionId]);
@@ -84,15 +86,15 @@ const HintPage = () => {
     autoExpandArmed.current = true;
   }, [currentMissionId]);
 
-  // 時間到的提示自動解鎖。
+  // 把「剛到期的」攤開給他看，然後記下他看到哪個時刻為止。
   //
-  // 放在提示頁而不是全域，是因為**玩家沒在看的時候解不解鎖沒有差別**——他打開
-  // 這一頁的那一刻，過期的會一起出現。導覽列的小紅點用同一組判斷（dueHintIndexes）
-  // 自己算，所以「有東西該看了」在別的分頁上也看得到。
+  // **解鎖已經不在這裡了**——它搬去 game-provider 的全域 effect，一到期就做，
+  // 不必等玩家切到這一頁（理由見那邊的註解：留在這裡會讓 hint_auto_unlock 的
+  // 時間戳全部擠在「打開提示分頁的那一秒」）。這一頁剩下的是通知那一半。
   //
   // **自動展開只發生在「剛進到這一頁」那一次。** 從別頁切回來、而且真的有東西
   // 在等他（就是導覽列那顆紅點），直接攤開來給他看；但如果他本來就停在提示頁，
-  // 就只解鎖、不展開——正在讀的人不該被突然長出來的內容把版面推走。
+  // 就不展開——正在讀的人不該被突然長出來的內容把版面推走。
   //
   // 靠的是這個元件切分頁時會卸載（所以每次進來都是新的一輪），
   // 加上換關時重新給一次權限（見上面那個 effect）。
@@ -100,26 +102,32 @@ const HintPage = () => {
   // **權限在「進頁評估完那一次」就繳回，不管有沒有東西到期。** 留到第一次真的
   // 有東西到期才用掉的話，會變成：進頁時什麼都沒到期、人就坐在這一頁，然後某一則
   // 到期時被展開——那正是「他原本就在提示頁」的情況，不該打擾他。
+  //
+  // **順序是先算再標記。** markHintsSeen 會把 seenAt 推到 now，而 fresh 的判準
+  // 正是「到期時刻晚於 seenAt」——反過來寫就是自己把自己清成空的，永遠不會展開。
+  // 同 2026-09-07 那一串「在狀態還沒真正生效時就對它動作」。
   const startedAt = missionStartedAt?.[currentMission?.id];
   useEffect(() => {
     if (!currentMission) return;
-    const due = dueHintIndexes(
+    const fresh = freshHintIndexes(
       currentHints,
       startedAt,
-      unlockedHints[currentMission.id],
+      hintsSeenAt?.[currentMission.id],
       now
     );
     const armed = autoExpandArmed.current;
     // 有資料可以評估了，這一輪就算「進頁的那一次」
     if (currentHints.length > 0 && startedAt) autoExpandArmed.current = false;
 
-    if (due.length === 0) return;
-    // 'auto'＝安全網開的，不是玩家開口要的。見 game-provider 的 unlockHint。
-    due.forEach((index) =>
-      unlockHint(currentMission.id, hintKeyOf(currentHints[index]), 'auto')
-    );
-    if (armed) setExpandedHints((prev) => [...new Set([...prev, ...due])]);
-  }, [now, currentHints, startedAt, unlockedHints, currentMission]);
+    if (armed && fresh.length > 0) {
+      setExpandedHints((prev) => [...new Set([...prev, ...fresh])]);
+    }
+    // 人就在這一頁，所以「到 now 為止到期的」他都看得到了——包含他坐在這裡的
+    // 期間才到期的那些。不標記的話紅點會在他眼前亮起來。
+    markHintsSeen(currentMission.id, now);
+    // markHintsSeen 每次 render 都是新函式，放進 deps 會讓這條 effect 每次都重跑。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now, currentHints, startedAt, hintsSeenAt, currentMission]);
 
   const handleExpand = (index) => {
     setExpandedHints((prev) =>

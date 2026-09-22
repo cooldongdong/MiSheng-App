@@ -117,14 +117,25 @@ const HintPage = () => {
     );
     const armed = autoExpandArmed.current;
     // 有資料可以評估了，這一輪就算「進頁的那一次」
-    if (currentHints.length > 0 && startedAt) autoExpandArmed.current = false;
+    const ready = currentHints.length > 0 && startedAt;
+    if (ready) autoExpandArmed.current = false;
 
     if (armed && fresh.length > 0) {
       setExpandedHints((prev) => [...new Set([...prev, ...fresh])]);
     }
     // 人就在這一頁，所以「到 now 為止到期的」他都看得到了——包含他坐在這裡的
     // 期間才到期的那些。不標記的話紅點會在他眼前亮起來。
-    markHintsSeen(currentMission.id, now);
+    //
+    // **但要等 ready，理由跟上面那一行一樣。** 這個元件掛載時 currentHints 還是
+    // 空的（它由上面那條 effect 在同一個 commit 裡填），所以第一趟一定算出
+    // fresh = []。無條件標記的話，那一趟就把 seenAt 推到了 now，等下一趟資料
+    // 進來時「到期時刻晚於 seenAt」永遠不成立——**提示不再自動展開**
+    //（Dong 2026-09-22 回報）。
+    //
+    // 上面那句「順序是先算再標記」講的是同一件事，但它只管**一次 effect 之內**
+    // 的兩行；真正咬人的順序跨了兩趟 render。**把兩件事綁在同一個 ready 上**，
+    // 就不必再靠人記得它們必須同步。
+    if (ready) markHintsSeen(currentMission.id, now);
     // markHintsSeen 每次 render 都是新函式，放進 deps 會讓這條 effect 每次都重跑。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now, currentHints, startedAt, hintsSeenAt, currentMission]);

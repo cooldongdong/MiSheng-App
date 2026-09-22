@@ -1,4 +1,4 @@
-import { fingerprintOf } from '../../shared/rowKey';
+import { fingerprintOf } from '../../shared/rowKey.js';
 
 // hint.timer：進這一關之後第幾分鐘，自動解鎖這一則提示。單位是分鐘，選填。
 //

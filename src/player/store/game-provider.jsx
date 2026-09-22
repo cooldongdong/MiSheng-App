@@ -17,6 +17,7 @@ import {
   recordEvent,
 } from '../game/telemetry';
 import { hintKeyOf } from '../game/hintTimer';
+import HintAutoUnlock from '../game/HintAutoUnlock';
 
 
 // previewMode：即時轉化（/create）的一次性試玩——不讀也不寫 localStorage，重整即消失
@@ -260,6 +261,16 @@ export const GameProvider = ({
   // 存**絕對時間**而不是累計秒數：這是戶外實境遊戲，玩家會鎖螢幕、走路、接電話，
   // 而「卡了三分鐘就該給提示」講的是牆上時鐘，不是螢幕亮著的時間。
   const [missionStartedAt, setMissionStartedAt] = useState({});
+  // 玩家上一次「看過這一關的提示頁」的時刻（epoch ms），每關一格。
+  //
+  // 它回答的是**「有什麼是新的」**，跟「解鎖了沒」是兩件事。原本不需要它，因為
+  // 自動解鎖只發生在提示頁上，於是「到期但還沒解鎖」正好等於「你還沒看到」——
+  // 通知的清除是解鎖的副作用。解鎖搬到全域之後那個等式不成立了（見下面的
+  // 自動解鎖 effect），所以「看過了沒」得自己有一份紀錄。
+  //
+  // **存的是一個時刻，不是每一則的旗標。** 到期時刻算得出來（hintDueAt），
+  // 所以一格時間戳就夠了——而一份會跟事實不同步的狀態，面積愈小愈好。
+  const [hintsSeenAt, setHintsSeenAt] = useState({});
   const [customPairs, setCustomPairs] = useState({});
   // 這一局記了幾則行為事件。只拿來決定「下載紀錄」那顆鈕要不要出現——
   // 讓它自己每次 render 去讀一次 localStorage 並 JSON.parse 太浪費。
@@ -310,6 +321,11 @@ export const GameProvider = ({
     );
     setMissionStartedAt(
       JSON.parse(localStorage.getItem(getStorageKey('missionStartedAt'))) || {}
+    );
+    // 舊存檔沒有這一格，讀回 {} 就是「什麼都還沒看過」——
+    // 那會讓已經到期的全部算成新的，也就是跟這個改動之前一樣的畫面。
+    setHintsSeenAt(
+      JSON.parse(localStorage.getItem(getStorageKey('hintsSeenAt'))) || {}
     );
     setCustomPairs(
       JSON.parse(localStorage.getItem(getStorageKey('customPairs'))) || {}
@@ -425,6 +441,14 @@ export const GameProvider = ({
   useEffect(() => {
     if (!gameId || previewMode) return;
     localStorage.setItem(
+      getStorageKey('hintsSeenAt'),
+      JSON.stringify(hintsSeenAt)
+    );
+  }, [hintsSeenAt]);
+
+  useEffect(() => {
+    if (!gameId || previewMode) return;
+    localStorage.setItem(
       getStorageKey('customPairs'),
       JSON.stringify(customPairs)
     );
@@ -507,6 +531,7 @@ export const GameProvider = ({
     localStorage.removeItem(`${gameId}_currentMissionId`);
     localStorage.removeItem(`${gameId}_unlockedHints`);
     localStorage.removeItem(`${gameId}_missionStartedAt`);
+    localStorage.removeItem(`${gameId}_hintsSeenAt`);
     localStorage.removeItem(`${gameId}_customPairs`);
     // 行為紀錄與 sid 一起清掉——留著的話新的一局會被算成舊的那一場
     clearEvents(gameId);
@@ -573,6 +598,18 @@ export const GameProvider = ({
       },
     }));
   };
+
+  // 記下「這一關的提示頁，玩家看到哪個時刻為止」。提示頁每一次心跳都會呼叫。
+  //
+  // **值相同就原樣回傳 prev。** 呼叫端的 effect 把 hintsSeenAt 放在 deps 裡，
+  // 每次都產生新物件的話它會自己餵自己、永遠跑不完。
+  const markHintsSeen = (missionId, at) => {
+    if (missionId === undefined || missionId === null || missionId === '') return;
+    setHintsSeenAt((prev) =>
+      prev[missionId] === at ? prev : { ...prev, [missionId]: at }
+    );
+  };
+
 
   // 更新任務的完成狀態
   const updateMissionStatus = (missionId, status = 'incomplete') => {
@@ -696,6 +733,8 @@ export const GameProvider = ({
         unlockedHints,
         setUnlockedHints,
         unlockHint,
+        hintsSeenAt,
+        markHintsSeen,
         missionStartedAt,
         startMission,
         updateMissionStatus,
@@ -717,6 +756,10 @@ export const GameProvider = ({
         setOverlayChromeVisible,
       }}
     >
+      {/* 提示的自動解鎖。掛在這裡而不是寫成上面的一條 effect，是為了把 10 秒心跳
+          關在它自己的重繪裡——context value 每次 render 都是新物件，心跳放在
+          provider 本體等於讓所有 consumer 每 10 秒重繪一次。它不畫任何東西。 */}
+      <HintAutoUnlock />
       {children}
     </GameContext.Provider>
   );

@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import { Badge, BottomNavigation, BottomNavigationAction } from '@mui/material';
 import { GameContext } from '../store/game-context';
 import useHintTick from '../hook/useHintTick';
-import { dueHintIndexes } from '../game/hintTimer';
+import { freshHintIndexes } from '../game/hintTimer';
 import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
 import HomeRepairServiceRoundedIcon from '@mui/icons-material/HomeRepairServiceRounded';
 import QuestionAnswerRoundedIcon from '@mui/icons-material/QuestionAnswerRounded';
@@ -70,24 +70,26 @@ const secondarySx = { color: 'text.disabled' };
 // 用 data 屬性而不是 ref，是因為導覽是**另一棵子樹**裡的元件，
 // 而它要指的是這一排裡的某一顆——ref 得一路傳出去，data 屬性只要 querySelector。
 export default function FixedBottomNavigation({ value, onChange }) {
-  const { hintData, currentMissionId, unlockedHints, missionStartedAt } =
+  const { hintData, currentMissionId, hintsSeenAt, missionStartedAt } =
     useContext(GameContext);
   // 進關時刻一變就立刻重算，不必等下一次心跳（見 useHintTick 的說明）
   const now = useHintTick(missionStartedAt?.[currentMissionId]);
 
-  // 「時間到了但還沒被解鎖」的數量。
-  //
-  // 不需要額外記「玩家看過了沒」——他一打開提示頁，那些就被解鎖了，這個數字
-  // 自然歸零。少一份狀態，就少一個會跟事實不同步的地方。
+  // 「在你上次看提示頁之後才到期」的數量。
   //
   // 為什麼要有這顆紅點：自動解鎖的提示是靜靜出現在提示頁的，而**卡住的人正盯著
   // 謎題，不會想到去翻提示頁**——沒有這個訊號，這個功能救不到它要救的人。
-  const dueCount = dueHintIndexes(
+  //
+  // 原本問的是「到期但還沒解鎖」，歸零靠的是「玩家一打開提示頁那些就被解鎖了」
+  // ——也就是**通知的清除是解鎖的副作用**。自動解鎖搬到 provider、變成一到期就做
+  // 之後，那個集合永遠是空的，紅點會整個消失。所以改成拿到期時刻跟 hintsSeenAt
+  // 比（見 hintTimer 的 freshHintIndexes）。語意沒變，只是不再借別人的副作用。
+  const dueCount = freshHintIndexes(
     Array.isArray(hintData)
       ? hintData.filter((row) => row.missionId === currentMissionId)
       : [],
     missionStartedAt?.[currentMissionId],
-    unlockedHints?.[currentMissionId],
+    hintsSeenAt?.[currentMissionId],
     now
   ).length;
 

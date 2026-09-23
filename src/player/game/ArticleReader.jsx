@@ -24,7 +24,8 @@ const TAP_MS = 400;
 
 // 卡片與滿版共用同一份內容。**抽成一個函式而不是兩段 JSX**：兩份會分岔，而分岔的
 // 症狀是「放大之後少了一段」這種沒有人會回報、只會覺得怪的東西。
-export const ArticleBody = ({ row, text, getImg, scrollRef }) => (
+// preview＝故事頁清單裡的節錄：不捲動、不接管手勢（見下方 touchAction）。
+export const ArticleBody = ({ row, text, getImg, scrollRef, preview = false }) => (
   <>
     {row.title && (
       <Typography
@@ -50,11 +51,15 @@ export const ArticleBody = ({ row, text, getImg, scrollRef }) => (
       sx={{
         flex: 1,
         minHeight: 0,
-        overflowY: 'auto',
+        overflowY: preview ? 'hidden' : 'auto',
         // **不要改成 pan-y。** 理由與 TalkText 完全相同：宣告 pan-y 等於把垂直手勢
         // 整段交給瀏覽器，而它在手指按下那一刻就取得所有權、不會中途交還——於是
         // 「讀到底才翻頁」永遠不會發生。維持 none，捲動由 useSwipeFlow 自己做。
-        touchAction: 'none',
+        //
+        // **節錄例外**：它不捲動，而它在故事頁的清單裡——那一頁是瀏覽器自己捲的
+        // （ContentList 宣告 pan-y）。這裡寫 none 的話，手指從文章卡片上開始滑，
+        // 整個清單就滑不動。
+        touchAction: preview ? 'pan-y' : 'none',
         pr: 1,
         mr: -1,
       }}
@@ -75,6 +80,7 @@ ArticleBody.propTypes = {
   text: PropTypes.string.isRequired,
   getImg: PropTypes.func.isRequired,
   scrollRef: PropTypes.object,
+  preview: PropTypes.bool,
 };
 
 // 滿版閱讀。掛上就是打開，onClose 關掉——開不開由呼叫端的 state 決定。

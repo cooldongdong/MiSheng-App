@@ -1,0 +1,12 @@
+#!/bin/sh
+# 把 .git/hooks/ 底下同名的本機 hook 接回來。
+#
+# 為什麼需要這支：`npm install` 的 prepare 會把 core.hooksPath 設成 .githooks，
+# 而一旦設了 hooksPath，git 就整個不看 .git/hooks/——維護者機器上的本機 hook
+# （例如自動備份）會安靜地停止執行，不報錯。2026-09-21 起實際發生過：
+# 備份 hook 從那天起一次都沒跑，commit 只有本機一份。
+#
+# 這支本身不做任何事：沒有本機 hook 的 clone（包括外部貢獻者）完全不受影響。
+local_hook="$(git rev-parse --git-common-dir)/hooks/$(basename "$0")"
+[ -x "$local_hook" ] && exec "$local_hook" "$@"
+exit 0

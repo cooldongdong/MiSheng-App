@@ -112,6 +112,10 @@
 右上角有一顆放大鈕，可以把文章攤開成滿版來讀。
 :::
 
+::: tip 想讓玩家之後還讀得到
+在這一列的 `story` 欄打勾，這一關解完後文章會收進故事頁。見 [rundown 的 story 欄](/sheet/rundown#收進故事頁-story)。
+:::
+
 ## Article 的排版寫法
 
 `Article` 的 `text` 支援六種寫法，**其他 model 不支援**。

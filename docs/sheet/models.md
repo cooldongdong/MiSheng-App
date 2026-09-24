@@ -6,7 +6,7 @@
 |---|---|---|
 | `Talk` | 對白。最常用的一種 | `text` |
 | `Article` | 一整頁可以捲的長文（導覽解說、地方誌） | `text` |
-| `Img` | 一張圖 | `url` |
+| `Img` | 一張圖 | `backgroundImg` |
 | `Quiz` | 選擇題 | 見下面 |
 | `MissionAnswerInput` | 讓玩家打答案 | `missionId` |
 | `CustomValueInput` | 讓玩家打一段字（例如取名字） | `customKey` |

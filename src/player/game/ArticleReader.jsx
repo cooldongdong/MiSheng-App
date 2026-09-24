@@ -22,20 +22,17 @@ const DISMISS_VELOCITY = 0.6;
 const TAP_SLOP = 8;
 const TAP_MS = 400;
 
-// 滿版時縮小鈕與面板的位置（距離都是「可視底部往上」）。
+// 滿版面板的下框線離可視底部多遠。
 //
-// **縮小鈕的中心線＝面板的下框線。**（Dong 2026-09-24）跟卡片上的放大鈕同一種
-// 樣子：一半掛在框外、一半咬進框裡。所以面板底由按鈕位置算出來，不另外給數字
-// ——兩個分開寫的數字，下一次有人只改其中一個，按鈕就不再騎在線上了。
-//
-// 按鈕的位置（20px）不動：它是單手在戶外按的，而且跟看圖放大的縮小鈕在同一個點。
+// **縮小鈕的中心線＝面板的下框線**（Dong 2026-09-24），跟卡片上的放大鈕同一種
+// 樣子：一半掛在框外、一半咬進框裡。這件事由構造保證——縮小鈕是面板的子元素，
+// 貼在面板底邊上——所以這裡只有面板的數字，沒有按鈕的數字。
+const PANEL_BOTTOM = 48;
 const FAB_SIZE = 56; // MUI Fab 預設尺寸
-const FAB_BOTTOM = 20;
-const PANEL_BOTTOM = FAB_BOTTOM + FAB_SIZE / 2; // 48
 // 文字捲到底時，最後一行要停在按鈕上方：
-// 按鈕頂端在 76px，面板底 48px、內距 24px → 捲動區底在 72px，
-// 差 4px，再加 12px 讓字不要貼著按鈕。
-const FAB_CLEARANCE = FAB_BOTTOM + FAB_SIZE - PANEL_BOTTOM - 24 + 12; // 16
+// 按鈕有一半（28px）咬進面板，面板內距 24px → 咬進捲動區 4px，
+// 再加 12px 讓字不要貼著按鈕。
+const FAB_CLEARANCE = FAB_SIZE / 2 - 24 + 12; // 16
 
 // 卡片與滿版共用同一份內容。**抽成一個函式而不是兩段 JSX**：兩份會分岔，而分岔的
 // 症狀是「放大之後少了一段」這種沒有人會回報、只會覺得怪的東西。
@@ -269,30 +266,36 @@ export const ArticleFullscreen = ({ row, text, onClose }) => {
             scrollRef={scrollRef}
             endSpace={FAB_CLEARANCE}
           />
+
+          {/* 縮小鈕。**是面板的子元素，不是舞台的。**
+              原本跟 ZoomableImage 一樣掛在舞台上、自己定位，於是往下拖曳關閉時
+              面板跟著手指下滑縮小，按鈕卻留在原地（Dong 2026-09-24 回報）。
+              放進面板之後它自動吃到面板的位移與縮放，也自動騎在下框線上。
+
+              **pointer 事件要自己擋下來**：面板身上掛著拖曳／點一下收介面的手勢，
+              不擋的話按下按鈕會先被當成「點一下」把介面收起來。
+              「點一下」收介面照舊會帶走它（chromeMotionSx）。 */}
+          <Fab
+            onClick={() => onClose()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            sx={{
+              ...chromeMotionSx(chromeHidden, {
+                from: 'bottom',
+                base: 'translateX(-50%)',
+              }),
+              position: 'absolute',
+              bottom: -FAB_SIZE / 2,
+              left: '50%',
+              zIndex: 2,
+              backgroundColor: '#fff',
+              color: '#37474F',
+            }}
+          >
+            <CloseFullscreenRoundedIcon />
+          </Fab>
         </Paper>
 
-        {/* 縮小鈕。位置與動作照抄 ZoomableImage 的那一顆：畫面正下方、會跟著
-            「點一下」收起來。動作樣式下在 Fab 自己身上——外框只要有 transform
-            就會變成定位基準。 */}
-        <Fab
-          onClick={() => onClose()}
-          sx={{
-            ...chromeMotionSx(chromeHidden, {
-              from: 'bottom',
-              base: 'translateX(-50%)',
-            }),
-            position: 'absolute',
-            // 舞台往下多蓋了一條導覽列的高度，這裡要加回來，否則按鈕會有一半
-            // 掉到畫面外（Dong 2026-09-05 在 Android 回報過同一件事）。
-            bottom: NAV_HEIGHT + FAB_BOTTOM,
-            left: '50%',
-            zIndex: 2,
-            backgroundColor: '#fff',
-            color: '#37474F',
-          }}
-        >
-          <CloseFullscreenRoundedIcon />
-        </Fab>
       </FullscreenStage>
   );
 };

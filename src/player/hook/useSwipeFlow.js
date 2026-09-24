@@ -205,7 +205,19 @@ const useSwipeFlow = ({
   const springBack = useCallback(() => {
     setT({ y: 0, ms: SPRING_MS });
     // 卡片要陪著頁面一起回去，不能先消失
-    timers.current.push(setTimeout(() => setPeek(null), SPRING_MS));
+    //
+    // **彈回去之後要歸零成 REST，不能停在 { y: 0, ms: SPRING_MS }。**
+    // 下面的 style 只有在 y 與 ms 都是 0 時才拿掉 transform；停在後者的話，
+    // 容器會一直掛著 translateY(0px)，而有 transform 的元素會變成 fixed 後代的
+    // 定位基準——放大的文章／圖的舞台就被關進遊戲區，整組往上偏一條導覽列的高度。
+    // 症狀是「拖了一下沒翻頁之後，放大的面板底下空一大截」（Dong 2026-09-24 手機截圖；
+    // 桌機跳頁不經過拖曳，所以量不到）。
+    timers.current.push(
+      setTimeout(() => {
+        setPeek(null);
+        setT(REST);
+      }, SPRING_MS)
+    );
   }, []);
 
   const finish = useCallback(

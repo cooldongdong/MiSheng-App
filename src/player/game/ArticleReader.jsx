@@ -22,10 +22,15 @@ const DISMISS_VELOCITY = 0.6;
 const TAP_SLOP = 8;
 const TAP_MS = 400;
 
+// 滿版面板的文字捲到底時，最後一行要停在縮小鈕上方。
+// 按鈕頂端在可視底部上方 76px，面板底在 16px、內距 24px → 捲動區底在 40px，
+// 差 36px，再加 12px 讓字不要貼著按鈕。
+const FAB_CLEARANCE = 48;
+
 // 卡片與滿版共用同一份內容。**抽成一個函式而不是兩段 JSX**：兩份會分岔，而分岔的
 // 症狀是「放大之後少了一段」這種沒有人會回報、只會覺得怪的東西。
 // preview＝故事頁清單裡的節錄：不捲動、不接管手勢（見下方 touchAction）。
-export const ArticleBody = ({ row, text, getImg, scrollRef, preview = false }) => (
+export const ArticleBody = ({ row, text, getImg, scrollRef, preview = false, endSpace = 0 }) => (
   <>
     {row.title && (
       <Typography
@@ -71,6 +76,9 @@ export const ArticleBody = ({ row, text, getImg, scrollRef, preview = false }) =
           現在寫 `![說明](檔名)` 自成一行就是一張圖，而且**點得開**——匾額、碑文、
           老照片正是需要湊近看的，那是 backgroundImg 那條路做不到的。 */}
       <RichText text={text} resolveImg={getImg} />
+      {/* 用一個空盒子而不是捲動區的 padding-bottom：捲動容器底部的內距各瀏覽器
+          算不算進可捲範圍並不一致，空盒子一定算。 */}
+      {endSpace > 0 && <Box sx={{ height: endSpace, flexShrink: 0 }} />}
     </Box>
   </>
 );
@@ -81,6 +89,7 @@ ArticleBody.propTypes = {
   getImg: PropTypes.func.isRequired,
   scrollRef: PropTypes.object,
   preview: PropTypes.bool,
+  endSpace: PropTypes.number,
 };
 
 // 滿版閱讀。掛上就是打開，onClose 關掉——開不開由呼叫端的 state 決定。
@@ -222,9 +231,13 @@ export const ArticleFullscreen = ({ row, text, onClose }) => {
             transition: dragging ? 'none' : 'transform 220ms ease',
             top: 56,
             // 舞台刻意往下多蓋一條導覽列，底部的距離要把那 56px 加回來。
-            // 再多留 92px 給浮在畫面正下方的縮小鈕（它 56 高、坐在可視底部上方
-            // 20px，所以頂端在 76px 處），文字才不會捲到按鈕底下。
-            bottom: NAV_HEIGHT + 92,
+            //
+            // **面板一路長到可視底部上方 16px，縮小鈕浮在面板上。**（Dong 2026-09-24）
+            // 原本停在 92px，把縮小鈕（56 高、坐在可視底部上方 20px，頂端在 76px）
+            // 整顆讓在面板外面——等於底部 76px 只拿來放一顆按鈕。看圖放大本來就是
+            // 按鈕蓋在圖上、點一下收介面（ZoomableImage），文章比照辦理。
+            // 被蓋住的那一段靠 FAB_CLEARANCE 讓最後一行捲得到按鈕上方。
+            bottom: NAV_HEIGHT + 16,
             zIndex: 1,
             display: 'flex',
             flexDirection: 'column',
@@ -247,6 +260,7 @@ export const ArticleFullscreen = ({ row, text, onClose }) => {
             text={text}
             getImg={getImg}
             scrollRef={scrollRef}
+            endSpace={FAB_CLEARANCE}
           />
         </Paper>
 

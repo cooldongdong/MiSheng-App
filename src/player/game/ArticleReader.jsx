@@ -22,10 +22,20 @@ const DISMISS_VELOCITY = 0.6;
 const TAP_SLOP = 8;
 const TAP_MS = 400;
 
-// 滿版面板的文字捲到底時，最後一行要停在縮小鈕上方。
-// 按鈕頂端在可視底部上方 76px，面板底在 16px、內距 24px → 捲動區底在 40px，
-// 差 36px，再加 12px 讓字不要貼著按鈕。
-const FAB_CLEARANCE = 48;
+// 滿版時縮小鈕與面板的位置（距離都是「可視底部往上」）。
+//
+// **縮小鈕的中心線＝面板的下框線。**（Dong 2026-09-24）跟卡片上的放大鈕同一種
+// 樣子：一半掛在框外、一半咬進框裡。所以面板底由按鈕位置算出來，不另外給數字
+// ——兩個分開寫的數字，下一次有人只改其中一個，按鈕就不再騎在線上了。
+//
+// 按鈕的位置（20px）不動：它是單手在戶外按的，而且跟看圖放大的縮小鈕在同一個點。
+const FAB_SIZE = 56; // MUI Fab 預設尺寸
+const FAB_BOTTOM = 20;
+const PANEL_BOTTOM = FAB_BOTTOM + FAB_SIZE / 2; // 48
+// 文字捲到底時，最後一行要停在按鈕上方：
+// 按鈕頂端在 76px，面板底 48px、內距 24px → 捲動區底在 72px，
+// 差 4px，再加 12px 讓字不要貼著按鈕。
+const FAB_CLEARANCE = FAB_BOTTOM + FAB_SIZE - PANEL_BOTTOM - 24 + 12; // 16
 
 // 卡片與滿版共用同一份內容。**抽成一個函式而不是兩段 JSX**：兩份會分岔，而分岔的
 // 症狀是「放大之後少了一段」這種沒有人會回報、只會覺得怪的東西。
@@ -232,12 +242,9 @@ export const ArticleFullscreen = ({ row, text, onClose }) => {
             top: 56,
             // 舞台刻意往下多蓋一條導覽列，底部的距離要把那 56px 加回來。
             //
-            // **面板一路長到可視底部上方 16px，縮小鈕浮在面板上。**（Dong 2026-09-24）
-            // 原本停在 92px，把縮小鈕（56 高、坐在可視底部上方 20px，頂端在 76px）
-            // 整顆讓在面板外面——等於底部 76px 只拿來放一顆按鈕。看圖放大本來就是
-            // 按鈕蓋在圖上、點一下收介面（ZoomableImage），文章比照辦理。
-            // 被蓋住的那一段靠 FAB_CLEARANCE 讓最後一行捲得到按鈕上方。
-            bottom: NAV_HEIGHT + 16,
+            // **下框線對齊縮小鈕的中心線**（見 PANEL_BOTTOM）。
+            // 原本停在 92px，把縮小鈕整顆讓在面板外面——底部 76px 只拿來放一顆按鈕。
+            bottom: NAV_HEIGHT + PANEL_BOTTOM,
             zIndex: 1,
             display: 'flex',
             flexDirection: 'column',
@@ -277,7 +284,7 @@ export const ArticleFullscreen = ({ row, text, onClose }) => {
             position: 'absolute',
             // 舞台往下多蓋了一條導覽列的高度，這裡要加回來，否則按鈕會有一半
             // 掉到畫面外（Dong 2026-09-05 在 Android 回報過同一件事）。
-            bottom: NAV_HEIGHT + 20,
+            bottom: NAV_HEIGHT + FAB_BOTTOM,
             left: '50%',
             zIndex: 2,
             backgroundColor: '#fff',

@@ -22,12 +22,14 @@ const DISMISS_VELOCITY = 0.6;
 const TAP_SLOP = 8;
 const TAP_MS = 400;
 
-// 滿版面板的下框線離可視底部多遠。
+// 滿版面板上下各留多少：上框線離頂部、下框線離可視底部，**同一個數字**
+//（Dong 2026-09-24）。上面那 56px 本來就是讓給左上品牌標與右上那排按鈕的，
+// 下面跟著它，畫面才是對稱的。
 //
 // **縮小鈕的中心線＝面板的下框線**（Dong 2026-09-24），跟卡片上的放大鈕同一種
 // 樣子：一半掛在框外、一半咬進框裡。這件事由構造保證——縮小鈕是面板的子元素，
 // 貼在面板底邊上——所以這裡只有面板的數字，沒有按鈕的數字。
-const PANEL_BOTTOM = 48;
+const PANEL_INSET = 56;
 const FAB_SIZE = 56; // MUI Fab 預設尺寸
 // 文字捲到底時，最後一行要停在按鈕上方：
 // 按鈕有一半（28px）咬進面板，面板內距 24px → 咬進捲動區 4px，
@@ -236,13 +238,13 @@ export const ArticleFullscreen = ({ row, text, onClose }) => {
             // 沒有的話看起來像卡住（同 ZoomableImage 的放大圖）。
             transform: `translate(-50%, ${dy}px) scale(${1 - Math.min(dy / 1600, 0.1)})`,
             transition: dragging ? 'none' : 'transform 220ms ease',
-            top: 56,
+            top: PANEL_INSET,
             // 舞台往下多蓋了一條導覽列，超出螢幕的那一截由 aboveVisibleBottom 補回來
             //（/demo 56px、/create 0，見 layout.js）。
             //
-            // **下框線對齊縮小鈕的中心線**（見 PANEL_BOTTOM）。
+            // **下框線對齊縮小鈕的中心線**（見 PANEL_INSET）。
             // 原本停在 92px，把縮小鈕整顆讓在面板外面——底部 76px 只拿來放一顆按鈕。
-            bottom: aboveVisibleBottom(PANEL_BOTTOM),
+            bottom: aboveVisibleBottom(PANEL_INSET),
             zIndex: 1,
             display: 'flex',
             flexDirection: 'column',

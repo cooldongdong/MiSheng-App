@@ -3,7 +3,7 @@ import { Fab, Paper, Typography, Box } from '@mui/material';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import PropTypes from 'prop-types';
 import FullscreenStage from '../component/common/FullscreenStage';
-import { NAV_HEIGHT, OVERLAY_MAX_WIDTH } from '../component/common/layout';
+import { OVERLAY_MAX_WIDTH, aboveVisibleBottom } from '../component/common/layout';
 import { chromeMotionSx, useChromeHidden } from '../hook/useChromeMotion';
 import { GameContext } from '../store/game-context';
 import RichText from './markdownLite';
@@ -237,11 +237,12 @@ export const ArticleFullscreen = ({ row, text, onClose }) => {
             transform: `translate(-50%, ${dy}px) scale(${1 - Math.min(dy / 1600, 0.1)})`,
             transition: dragging ? 'none' : 'transform 220ms ease',
             top: 56,
-            // 舞台刻意往下多蓋一條導覽列，底部的距離要把那 56px 加回來。
+            // 舞台往下多蓋了一條導覽列，超出螢幕的那一截由 aboveVisibleBottom 補回來
+            //（/demo 56px、/create 0，見 layout.js）。
             //
             // **下框線對齊縮小鈕的中心線**（見 PANEL_BOTTOM）。
             // 原本停在 92px，把縮小鈕整顆讓在面板外面——底部 76px 只拿來放一顆按鈕。
-            bottom: NAV_HEIGHT + PANEL_BOTTOM,
+            bottom: aboveVisibleBottom(PANEL_BOTTOM),
             zIndex: 1,
             display: 'flex',
             flexDirection: 'column',

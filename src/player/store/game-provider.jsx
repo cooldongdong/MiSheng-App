@@ -271,6 +271,12 @@ export const GameProvider = ({
   // **存的是一個時刻，不是每一則的旗標。** 到期時刻算得出來（hintDueAt），
   // 所以一格時間戳就夠了——而一份會跟事實不同步的狀態，面積愈小愈好。
   const [hintsSeenAt, setHintsSeenAt] = useState({});
+  // 哪幾關的故事頁，在解完之後被打開過。故事分頁的紅點靠它歸零。
+  //
+  // **旗標就夠，不用像 hintsSeenAt 存時刻。** 提示是一則一則陸續到期的，要知道
+  // 「上次看之後又多了哪些」；故事頁收進來的內容只在「解完」那一刻一次到齊，
+  // 看過一次就全看過了。
+  const [storySeen, setStorySeen] = useState({});
   const [customPairs, setCustomPairs] = useState({});
   // 這一局記了幾則行為事件。只拿來決定「下載紀錄」那顆鈕要不要出現——
   // 讓它自己每次 render 去讀一次 localStorage 並 JSON.parse 太浪費。
@@ -326,6 +332,9 @@ export const GameProvider = ({
     // 那會讓已經到期的全部算成新的，也就是跟這個改動之前一樣的畫面。
     setHintsSeenAt(
       JSON.parse(localStorage.getItem(getStorageKey('hintsSeenAt'))) || {}
+    );
+    setStorySeen(
+      JSON.parse(localStorage.getItem(getStorageKey('storySeen'))) || {}
     );
     setCustomPairs(
       JSON.parse(localStorage.getItem(getStorageKey('customPairs'))) || {}
@@ -448,6 +457,11 @@ export const GameProvider = ({
 
   useEffect(() => {
     if (!gameId || previewMode) return;
+    localStorage.setItem(getStorageKey('storySeen'), JSON.stringify(storySeen));
+  }, [storySeen]);
+
+  useEffect(() => {
+    if (!gameId || previewMode) return;
     localStorage.setItem(
       getStorageKey('customPairs'),
       JSON.stringify(customPairs)
@@ -532,6 +546,7 @@ export const GameProvider = ({
     localStorage.removeItem(`${gameId}_unlockedHints`);
     localStorage.removeItem(`${gameId}_missionStartedAt`);
     localStorage.removeItem(`${gameId}_hintsSeenAt`);
+    localStorage.removeItem(`${gameId}_storySeen`);
     localStorage.removeItem(`${gameId}_customPairs`);
     // 行為紀錄與 sid 一起清掉——留著的話新的一局會被算成舊的那一場
     clearEvents(gameId);
@@ -610,6 +625,13 @@ export const GameProvider = ({
     );
   };
 
+
+  // 記下「這一關解完之後的故事頁，玩家打開過了」。值已經是 true 就原樣回傳 prev，
+  // 理由同 markHintsSeen。
+  const markStorySeen = (missionId) => {
+    if (missionId === undefined || missionId === null || missionId === '') return;
+    setStorySeen((prev) => (prev[missionId] ? prev : { ...prev, [missionId]: true }));
+  };
 
   // 更新任務的完成狀態
   const updateMissionStatus = (missionId, status = 'incomplete') => {
@@ -735,6 +757,8 @@ export const GameProvider = ({
         unlockHint,
         hintsSeenAt,
         markHintsSeen,
+        storySeen,
+        markStorySeen,
         missionStartedAt,
         startMission,
         updateMissionStatus,

@@ -12,6 +12,7 @@
 // 層 6（流程可達性、迴圈、{{變數}} 對應）留 v2。
 
 import { isBlank } from '../rowKey.js';
+import { STORY_MODELS, parseStoryFlag, storyRowsOf } from '../storyFlag.js';
 
 export const REQUIRED_TABLES = ['character', 'config', 'hint', 'mission', 'prop', 'rundown', 'story'];
 
@@ -67,6 +68,9 @@ export const OPTIONAL_FIELDS = {
   // hint.timer＝進這一關之後第幾分鐘自動解鎖這一則（單位：分鐘）
   hint: ['id', 'timer'],
   prop: ['backImg', 'id'],
+  // rundown.story＝這一列（Article／Img）在所屬關卡解完之後要不要收進故事頁。
+  // 解析規則與「所屬關卡」怎麼算，見 shared/storyFlag.js。
+  rundown: ['story'],
   story: ['id'],
 };
 
@@ -416,6 +420,32 @@ export function validateGame(tables) {
       'backgroundImg',
       'Article 不使用 backgroundImg（那是別的頁面的滿版底圖）。文章裡要放圖的話，在 text 裡用 ![說明](檔名) 自成一行——這樣一篇可以放好幾張，位置也由你決定'
     );
+  }
+
+  // ---- 層 2（延伸）：rundown.story ----
+  //
+  // 三種都是「填了卻沒反應」，所以都要講出來；但遊戲照樣玩得下去，一律是提醒：
+  //   ① 值看不懂（ture、O）→ 播放器當作不收
+  //   ② 填在 Article／Img 以外的 model → 那種頁面不會進故事頁
+  //   ③ 往上找不到任何關卡 → 它不屬於任何一關，哪一頁故事頁都不會出現
+  // ③ 用的是跟播放器同一支 storyRowsOf，免得這裡說「會出現」、那裡卻沒有。
+  if (tables.rundown) {
+    for (const { row, i } of rowsOf('rundown')) {
+      if (isEmpty(row.story)) continue;
+      const flag = parseStoryFlag(row.story);
+      if (flag === null) {
+        warn('rundown', sheetRow(i), 'story', `story「${row.story}」看不懂，目前當作不收進故事頁。要收的話勾核取方塊，或填 TRUE／Y／是；不收就留空`);
+        continue;
+      }
+      if (flag && !STORY_MODELS.includes(norm(row.model))) {
+        warn('rundown', sheetRow(i), 'story', `story 只對 ${STORY_MODELS.join('／')} 有效，${row.model || '沒有 model 的列'} 不會進故事頁`);
+      }
+    }
+    const resolveMission = (v) => (isNoMission(v) || !missionIds.has(norm(v)) ? null : norm(v));
+    for (const { index, missionId } of storyRowsOf(tables.rundown.rows, resolveMission)) {
+      if (missionId !== null) continue;
+      warn('rundown', sheetRow(index), 'story', '這一列往上找不到屬於哪一關（它前面沒有任何一列填了 missionId），所以不會出現在任何故事頁。在這一列填上 missionId 就好');
+    }
   }
 
   // ---- 層 2（延伸）：兩種「開始」的 missionId 規則相反 ----

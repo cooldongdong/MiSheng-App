@@ -6,7 +6,7 @@
 |---|---|---|
 | `Talk` | 對白。最常用的一種 | `text` |
 | `Article` | 一整頁可以捲的長文（導覽解說、地方誌） | `text` |
-| `Img` | 一張圖 | `url` |
+| `Img` | 一張圖 | `backgroundImg` |
 | `Quiz` | 選擇題 | 見下面 |
 | `MissionAnswerInput` | 讓玩家打答案 | `missionId` |
 | `CustomValueInput` | 讓玩家打一段字（例如取名字） | `customKey` |
@@ -110,6 +110,10 @@
 `Article` 不強迫讀完——按 NEXT 或往上滑就走了。它是補充，不是關卡。
 
 右上角有一顆放大鈕，可以把文章攤開成滿版來讀。
+:::
+
+::: tip 想讓玩家之後還讀得到
+在這一列的 `story` 欄打勾，這一關解完後文章會收進故事頁。見 [rundown 的 story 欄](/sheet/rundown#收進故事頁-story)。
 :::
 
 ## Article 的排版寫法

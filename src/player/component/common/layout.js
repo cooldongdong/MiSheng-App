@@ -19,6 +19,22 @@ export const NAV_HEIGHT = 56;
 // （flowPalette 曾經有三份色票複本，最舊那份停在被否決過的配色上。）
 export const OVERLAY_MAX_WIDTH = 600;
 
+// 全螢幕舞台的底邊，超出可視範圍多少（px）。由 FullscreenStage 量好寫進 CSS 變數。
+//
+// **為什麼要量，不能寫死 NAV_HEIGHT。** 舞台往下多蓋一條導覽列（見 FullscreenStage ②），
+// 但那一條落在哪裡取決於舞台的定位基準：
+//   · /demo —— 基準是視窗，多蓋的 56px 在螢幕外，裡面的東西要加回 56 才看得到
+//   · /create —— #main-container 掛了 transform（GameShell），基準是遊戲區，
+//     多蓋的 56px 正好補滿導覽列那一條，一點都沒有超出
+// 原本一律加 NAV_HEIGHT，於是在 /create 裡縮小鈕離底 76px、文章面板離底 104px，
+// 整組往上偏了一條導覽列（Dong 2026-09-24 手機截圖）。
+//
+// 還沒量到之前退回 NAV_HEIGHT，也就是改動之前的行為。
+export const STAGE_OVERSHOOT_VAR = '--stage-overshoot';
+/** 「從可視範圍底部往上 px」在舞台座標裡的 bottom 值。 */
+export const aboveVisibleBottom = (px = 0) =>
+  `calc(var(${STAGE_OVERSHOOT_VAR}, ${NAV_HEIGHT}px) + ${px}px)`;
+
 // 對話框要 portal 到哪裡。
 //
 // **MUI 的 Dialog／Modal 用 portal 掛到 `document.body`，而 portal 不是後代。**

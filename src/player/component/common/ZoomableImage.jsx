@@ -4,7 +4,7 @@ import { Box, Fab, Paper } from '@mui/material';
 import { GameContext } from '../../store/game-context';
 import { usePhotoGestures } from '../../hook/usePhotoGestures';
 import { chromeMotionSx, useChromeHidden } from '../../hook/useChromeMotion';
-import { NAV_HEIGHT, OVERLAY_MAX_WIDTH } from './layout';
+import { OVERLAY_MAX_WIDTH, aboveVisibleBottom } from './layout';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
 import SkeletonImage from './SkeletonImage';
@@ -174,12 +174,13 @@ const ZoomableImage = ({
             style={{
               width: '100%',
               maxWidth: `${OVERLAY_MAX_WIDTH}px`,
-              // 舞台刻意比可視範圍高出一條導覽列（見上面），所以圖片的高度上限與
-              // 垂直中心都要把那 56px 扣回來——不然圖會有一截被切在畫面外
+              // 舞台往下多蓋了一條導覽列（見上面），所以圖片的高度上限與垂直中心都要
+              // 把超出螢幕的那一截扣回來——不然圖會有一截被切在畫面外
               //（Dong 2026-09-05 在 iOS 回報「圖片下方會超出螢幕」）。
-              maxHeight: `calc(100% - ${NAV_HEIGHT}px)`,
+              // 那一截在 /demo 是 56px、在 /create 是 0，由舞台量好（aboveVisibleBottom）。
+              maxHeight: `calc(100% - ${aboveVisibleBottom(0)})`,
               position: 'absolute',
-              top: `calc(50% - ${NAV_HEIGHT / 2}px)`,
+              top: `calc(50% - ${aboveVisibleBottom(0)} / 2)`,
               left: '50%',
               margin: 0,
               // 縮放／平移（我們自己算的）＋ 下滑關閉的位移。
@@ -209,9 +210,11 @@ const ZoomableImage = ({
                 base: 'translateX(-50%)',
               }),
               position: 'absolute',
-              // 舞台刻意往下多蓋一條導覽列的高度（見上面），所以這裡要把那 56px
-              // 加回來，否則按鈕會有一半掉到畫面外（Dong 2026-09-05 在 Android 回報）。
-              bottom: NAV_HEIGHT + 20,
+              // 舞台往下多蓋了一條導覽列（見上面），超出螢幕的那一截要加回來，否則
+              // 按鈕會有一半掉到畫面外（Dong 2026-09-05 在 Android 回報）。
+              // 只加「超出的那一截」而不是固定 56px：/create 裡根本沒有超出，
+              // 加了按鈕就離底 76px（Dong 2026-09-24）。
+              bottom: aboveVisibleBottom(20),
               left: '50%',
               zIndex: 2, // 在圖片之上
               backgroundColor: '#fff',

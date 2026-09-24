@@ -1,6 +1,7 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Box } from '@mui/material';
 import PropTypes from 'prop-types';
-import { NAV_HEIGHT } from './layout';
+import { NAV_HEIGHT, STAGE_OVERSHOOT_VAR } from './layout';
 
 // 全螢幕的「舞台」。放大的圖與 Article 的滿版閱讀共用這一個。
 //
@@ -38,8 +39,33 @@ import { NAV_HEIGHT } from './layout';
 // 一放大底色就從 #0e0f11 跳成 #08090a——差一階，而 Dong 一眼就看出來了
 //（2026-09-12：「為什麼我這邊看起來顏色是不一樣的？」）。
 // 兩個 token 名字都像，差別只在「遊戲欄裡面」與「遊戲欄旁邊」，而舞台蓋的是前者。
-const FullscreenStage = ({ children, onBackdropClick, backdrop = 'game.bg' }) => (
+//
+// ④ **裡面的東西要對齊「看得到的底部」時，用 aboveVisibleBottom（layout.js），
+//    不要自己加 NAV_HEIGHT。** 多蓋的那一條有沒有超出螢幕，要看舞台的定位基準，
+//    /demo 與 /create 不一樣——所以這裡量好，寫進 CSS 變數給子孫用。
+//    視窗大小會變（手機工具列收放、轉向），所以 resize 時重量。
+const FullscreenStage = ({ children, onBackdropClick, backdrop = 'game.bg' }) => {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const visibleBottom = window.visualViewport?.height ?? window.innerHeight;
+      const overshoot = Math.max(0, Math.round(el.getBoundingClientRect().bottom - visibleBottom));
+      el.style.setProperty(STAGE_OVERSHOOT_VAR, `${overshoot}px`);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  return (
   <Box
+    ref={ref}
     data-no-swipe
     sx={{
       position: 'fixed',
@@ -62,7 +88,8 @@ const FullscreenStage = ({ children, onBackdropClick, backdrop = 'game.bg' }) =>
     />
     {children}
   </Box>
-);
+  );
+};
 
 FullscreenStage.propTypes = {
   children: PropTypes.node,

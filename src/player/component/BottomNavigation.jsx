@@ -3,6 +3,7 @@ import { Badge, BottomNavigation, BottomNavigationAction } from '@mui/material';
 import { GameContext } from '../store/game-context';
 import useHintTick from '../hook/useHintTick';
 import { freshHintIndexes } from '../game/hintTimer';
+import { useMissionStories } from '../hook/useMissionStories';
 import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
 import HomeRepairServiceRoundedIcon from '@mui/icons-material/HomeRepairServiceRounded';
 import QuestionAnswerRoundedIcon from '@mui/icons-material/QuestionAnswerRounded';
@@ -70,8 +71,13 @@ const secondarySx = { color: 'text.disabled' };
 // 用 data 屬性而不是 ref，是因為導覽是**另一棵子樹**裡的元件，
 // 而它要指的是這一排裡的某一顆——ref 得一路傳出去，data 屬性只要 querySelector。
 export default function FixedBottomNavigation({ value, onChange }) {
-  const { hintData, currentMissionId, hintsSeenAt, missionStartedAt } =
-    useContext(GameContext);
+  const {
+    hintData,
+    currentMissionId,
+    hintsSeenAt,
+    missionStartedAt,
+    storySeen,
+  } = useContext(GameContext);
   // 進關時刻一變就立刻重算，不必等下一次心跳（見 useHintTick 的說明）
   const now = useHintTick(missionStartedAt?.[currentMissionId]);
 
@@ -92,6 +98,18 @@ export default function FixedBottomNavigation({ value, onChange }) {
     hintsSeenAt?.[currentMissionId],
     now
   ).length;
+
+  // 故事頁的紅點：這一關解完、收進了幾篇，而解完之後還沒打開過故事頁。
+  //
+  // **只跟著目前這一關**（2026-09-24 與 Dong 定案）。故事頁只列目前這一關，
+  // 讓前幾關沒看的也亮著的話，紅點說有、點進去卻是新一關的東西。實際上它亮在
+  // 「作答完到進下一關」那幾頁——正是玩家剛讀完或剛滑過文章、該被告知
+  // 「它收進故事頁了」的時候。
+  //
+  // story 表的圖不算：它們進關就看得到，沒有「解鎖」的那一刻。
+  const { mission: storyMission, rows: storyRows } = useMissionStories();
+  const storyCount =
+    storyMission && !storySeen?.[storyMission.id] ? storyRows.length : 0;
 
   return (
     <BottomNavigation
@@ -144,7 +162,11 @@ export default function FixedBottomNavigation({ value, onChange }) {
       <BottomNavigationAction
         data-tour="stories"
         label="故事"
-        icon={<AutoStoriesRoundedIcon />}
+        icon={
+          <Badge badgeContent={storyCount} color="error">
+            <AutoStoriesRoundedIcon />
+          </Badge>
+        }
         sx={secondarySx}
       />
     </BottomNavigation>

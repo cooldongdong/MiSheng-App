@@ -45,3 +45,12 @@ export const arcPoints = (cx, cy, r, from = 0, to = Math.PI * 2, n = 48) =>
 
 export const roughCircle = (cx, cy, r, opts) => roughPoly(arcPoints(cx, cy, r, 0, Math.PI * 2, 40).slice(0, -1), opts);
 
+// 一排雲：底部封閉的半圓連續邊，當「一層紙」用。i 讓每一朵大小有點差
+export const cloudBand = (y, r, { width = 360, height = 780, wobble = 0.15 } = {}) => {
+  let d = `M -20 ${height} L -20 ${y}`;
+  for (let x = -20, i = 0; x < width + 20; x += r * 2, i += 1) {
+    const rr = r * (1 - wobble + ((i * 37) % 7) / (7 / (wobble * 2)));
+    d += ` a ${rr} ${rr} 0 0 1 ${r * 2} 0`;
+  }
+  return `${d} L ${width + 20} ${height} Z`;
+};

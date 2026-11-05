@@ -3,7 +3,6 @@ import { MotionConfig, motion, useScroll } from 'motion/react';
 
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
 import Hero from './home/Hero';
-import StyleSample from './home/StyleSample';
 import RowToScreen from './home/RowToScreen';
 import Playground from './home/Playground';
 import Features from './home/Features';
@@ -51,7 +50,6 @@ const HomeApp = () => (
       <ColorSchemeToggle />
     </Box>
     <Hero />
-    <StyleSample />
     <RowToScreen />
     <Playground />
     <Features />

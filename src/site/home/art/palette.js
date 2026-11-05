@@ -16,5 +16,3 @@ export const INK = {
   skin: '#f1e1d4', // 臉：鏽橘的極淡版，仍在同一個色相裡
 };
 
-// 全部插畫共用的線寬（畫布座標 360 寬時）。粗細一致，才會像同一隻筆畫的
-export const STROKE = 4;

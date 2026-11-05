@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Typography } from '@mui/material';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { demoImg } from './demoImages';
 import { ART_BY_IMG } from './art';
 
 // 遊戲對話畫面的「長相複本」：立繪鋪滿、下半漸層到墨色、底部是說話者＋對白。
@@ -38,9 +37,8 @@ const useTypewriter = (text, enabled) => {
 // layoutIds：給 hero 的變形動畫用——說話者與對白各自從試算表的那一格飛過來
 const GameScreen = ({ img, speaker, text = '', typewriter = true, layoutIds = {}, children }) => {
   const shown = useTypewriter(text, typewriter);
-  // 有重畫的插畫就用插畫，沒有才退回 demo 的照片
+  // 立繪一律用重畫的插畫；查不到（例如角色名字打錯）就是一片墨色底，跟遊戲裡一樣
   const Art = ART_BY_IMG[img];
-  const src = Art ? null : demoImg(img);
   return (
     <Box sx={{ position: 'absolute', inset: 0, color: '#fff', fontSize: '5.6cqw' }}>
       <AnimatePresence initial={false}>
@@ -55,24 +53,6 @@ const GameScreen = ({ img, speaker, text = '', typewriter = true, layoutIds = {}
           >
             <Art />
           </motion.div>
-        )}
-        {src && (
-          <motion.img
-            key={src}
-            src={src}
-            alt=""
-            initial={{ opacity: 0, scale: 1.06 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
         )}
       </AnimatePresence>
       <Box

@@ -5,6 +5,7 @@ import ColorSchemeToggle from '../shared/ColorSchemeToggle';
 import Hero from './home/Hero';
 import RowToScreen from './home/RowToScreen';
 import Playground from './home/Playground';
+import Features from './home/Features';
 import Outro from './home/Outro';
 
 // 官網首頁。整頁是一條說明線，每一段只回答一個問題：
@@ -51,6 +52,7 @@ const HomeApp = () => (
     <Hero />
     <RowToScreen />
     <Playground />
+    <Features />
     <Outro />
   </MotionConfig>
 );

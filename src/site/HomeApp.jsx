@@ -4,6 +4,7 @@ import { MotionConfig, motion, useScroll } from 'motion/react';
 import ColorSchemeToggle from '../shared/ColorSchemeToggle';
 import Hero from './home/Hero';
 import RowToScreen from './home/RowToScreen';
+import Playground from './home/Playground';
 import Outro from './home/Outro';
 
 // 官網首頁。整頁是一條說明線，每一段只回答一個問題：
@@ -49,6 +50,7 @@ const HomeApp = () => (
     </Box>
     <Hero />
     <RowToScreen />
+    <Playground />
     <Outro />
   </MotionConfig>
 );

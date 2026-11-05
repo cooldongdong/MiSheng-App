@@ -8,6 +8,9 @@ import LibaiMoonBlocks from './art/libai/LibaiMoonBlocks';
 import LibaiBlocksToast from './art/libai/LibaiBlocksToast';
 import LibaiPapercut from './art/libai/LibaiPapercut';
 import LibaiSymbol from './art/libai/LibaiSymbol';
+import LibaiSwissPoster from './art/libai/LibaiSwissPoster';
+import LibaiSwissGlyph from './art/libai/LibaiSwissGlyph';
+import LibaiSwissGrid from './art/libai/LibaiSwissGrid';
 import { INK } from './art/palette';
 
 // 暫時的：插畫風格樣張，給 Dong 確認方向用。風格定案後整段刪掉，
@@ -31,6 +34,32 @@ const LIBAI = [
   ['H　極簡符號', '月亮就是臉，只留帽子、眼睛、鬍子。像一枚 logo。', LibaiSymbol],
 ];
 
+// 第三輪：瑞士平面風
+const SWISS = [
+  ['I 瑞士海報', '六欄網格，人只用矩形與半圓；直排粗黑「旁白」本身就是構圖。', LibaiSwissPoster],
+  ['J 字即圖', '一個巨大的「白」字就是臉，戴上鏽橘幞頭、掛上鬍子。', LibaiSwissGlyph],
+  ['K 模組網格', '3×4 方格，每格一個幾何形，進場時一格一格排上去。', LibaiSwissGrid],
+];
+
+const Grid = ({ items }) => (
+  <Box
+    sx={{
+      mt: 2,
+      display: 'grid',
+      gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3, 1fr)' },
+      gap: 3,
+      alignItems: 'start',
+    }}
+  >
+    {items.map(([label, note, Art]) => (
+      <Frame key={label} ratio="360 / 720" label={label} note={note}>
+        <Art />
+      </Frame>
+    ))}
+  </Box>
+);
+Grid.propTypes = { items: PropTypes.array.isRequired };
+
 const StyleSample = () => (
   <Box component="section" sx={{ px: 2, py: 10 }}>
     <Box sx={{ maxWidth: 1160, mx: 'auto' }}>
@@ -38,22 +67,11 @@ const StyleSample = () => (
         插畫樣張（確認風格用，定案後拿掉）
       </Typography>
 
-      <Typography sx={{ mt: 4, color: 'text.secondary' }}>李白：選一個</Typography>
-      <Box
-        sx={{
-          mt: 2,
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3, 1fr)' },
-          gap: 3,
-          alignItems: 'start',
-        }}
-      >
-        {LIBAI.map(([label, note, Art]) => (
-          <Frame key={label} ratio="360 / 600" label={label} note={note}>
-            <Art />
-          </Frame>
-        ))}
-      </Box>
+      <Typography sx={{ mt: 4, color: 'text.secondary' }}>李白：瑞士平面風（第三輪）</Typography>
+      <Grid items={SWISS} />
+
+      <Typography sx={{ mt: 6, color: 'text.secondary' }}>李白：剪影與積木（第二輪）</Typography>
+      <Grid items={LIBAI} />
 
       <Typography sx={{ mt: 6, color: 'text.secondary' }}>其他（上一輪的）</Typography>
       <Box

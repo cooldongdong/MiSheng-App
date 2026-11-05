@@ -12,13 +12,31 @@ import { INK } from './palette';
 
 const SceneCtx = createContext(null);
 
-export const PaperScene = ({ width = 360, height = 780, bg = INK.paperDeep, shadow = 3, slice = true, children }) => {
+// 紙纖維：用 CSS 背景圖鋪在插畫上面，而不是畫布裡的 feTurbulence 濾鏡。
+// 實測：同一段有好幾張會動的插畫時，濾鏡版每一幀都重算雜訊（道具段落約 52fps）；
+// 背景圖只柵格化一次、之後重複貼，看起來一樣。
+const NOISE = encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.2  0 0 0 0 0.22  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"
+).replace(/%2523/g, '%23');
+const WRAP = { position: 'relative', display: 'block', width: '100%', height: '100%' };
+const GRAIN = {
+  position: 'absolute',
+  inset: 0,
+  pointerEvents: 'none',
+  backgroundImage: `url("data:image/svg+xml,${NOISE}")`,
+};
+
+// fit：top＝鋪滿、靠上對齊（手機立繪，主體在上半）；cover＝鋪滿、置中；contain＝整張放得進去
+const FIT = { top: 'xMidYMin slice', cover: 'xMidYMid slice', contain: 'xMidYMid meet' };
+
+export const PaperScene = ({ width = 360, height = 780, bg = INK.paperDeep, shadow = 3, fit = 'top', children }) => {
   // useId 會給 ":r1:" 這種字串；冒號放進 url(#...) 會讓瀏覽器找不到濾鏡
   const id = `pp${useId().replace(/:/g, '')}`;
   return (
+    <span style={WRAP}>
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio={slice ? 'xMidYMin slice' : 'xMidYMid meet'}
+      preserveAspectRatio={FIT[fit]}
       width="100%"
       height="100%"
       aria-hidden
@@ -28,16 +46,13 @@ export const PaperScene = ({ width = 360, height = 780, bg = INK.paperDeep, shad
         <filter id={`${id}-s`} x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy={shadow} stdDeviation={shadow} floodColor={INK.ink} floodOpacity="0.28" />
         </filter>
-        <filter id={`${id}-g`} x="0" y="0" width="100%" height="100%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n" />
-          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.15  0 0 0 0 0.2  0 0 0 0 0.22  0 0 0 0.09 0" />
-        </filter>
       </defs>
-      {bg && <rect width={width} height={height} fill={bg} />}
+      {/* 底紙與紙纖維往外多鋪一圈：cover 裁切時畫布外面也看得到，不能露出沒有紙的邊 */}
+      {bg && <rect x={-width} y={-height} width={width * 3} height={height * 3} fill={bg} />}
       <SceneCtx.Provider value={`url(#${id}-s)`}>{children}</SceneCtx.Provider>
-      {/* 紙纖維：蓋在最上層 */}
-      <rect width={width} height={height} filter={`url(#${id}-g)`} style={{ pointerEvents: 'none' }} />
     </svg>
+    <span style={GRAIN} />
+    </span>
   );
 };
 PaperScene.propTypes = {
@@ -45,7 +60,7 @@ PaperScene.propTypes = {
   height: PropTypes.number,
   bg: PropTypes.string,
   shadow: PropTypes.number,
-  slice: PropTypes.bool,
+  fit: PropTypes.oneOf(Object.keys(FIT)),
   children: PropTypes.node,
 };
 

@@ -51,7 +51,8 @@ export const PaperScene = ({ width = 360, height = 780, bg = INK.paperDeep, shad
       {bg && <rect x={-width} y={-height} width={width * 3} height={height * 3} fill={bg} />}
       <SceneCtx.Provider value={`url(#${id}-s)`}>{children}</SceneCtx.Provider>
     </svg>
-    <span style={GRAIN} />
+    {/* 沒有底紙就不疊紙纖維：只會在頁面上留下一塊淡灰的方塊 */}
+    {bg && <span style={GRAIN} />}
     </span>
   );
 };

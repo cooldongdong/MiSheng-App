@@ -11,6 +11,9 @@ import LibaiSymbol from './art/libai/LibaiSymbol';
 import LibaiSwissPoster from './art/libai/LibaiSwissPoster';
 import LibaiSwissGlyph from './art/libai/LibaiSwissGlyph';
 import LibaiSwissGrid from './art/libai/LibaiSwissGrid';
+import LibaiPaperLayers from './art/libai/LibaiPaperLayers';
+import LibaiWindowFlower from './art/libai/LibaiWindowFlower';
+import LibaiTornCollage from './art/libai/LibaiTornCollage';
 import { INK } from './art/palette';
 
 // 暫時的：插畫風格樣張，給 Dong 確認方向用。風格定案後整段刪掉，
@@ -32,6 +35,13 @@ const LIBAI = [
   ['F　積木舉杯', 'D 的色塊臉，加上 B 的動作：把葫蘆舉向月亮。', LibaiBlocksToast],
   ['G　剪紙鏤空', 'E 反過來：夜色的墨底，人是剪掉的紙。', LibaiPapercut],
   ['H　極簡符號', '月亮就是臉，只留帽子、眼睛、鬍子。像一枚 logo。', LibaiSymbol],
+];
+
+// 第四輪：剪紙感
+const PAPER = [
+  ['L 層疊紙雕', '四層紙前後疊出景深，每層投陰影，各層以不同幅度漂動。', LibaiPaperLayers],
+  ['M 傳統窗花', '一整張紅紙，圖案全是剪掉的洞；帽、眼、鬍是留下來沒剪的紙。', LibaiWindowFlower],
+  ['N 撕紙拼貼', '手撕的毛邊、底下露白色紙纖維，每塊歪一點，一塊塊貼上去。', LibaiTornCollage],
 ];
 
 // 第三輪：瑞士平面風
@@ -67,7 +77,10 @@ const StyleSample = () => (
         插畫樣張（確認風格用，定案後拿掉）
       </Typography>
 
-      <Typography sx={{ mt: 4, color: 'text.secondary' }}>李白：瑞士平面風（第三輪）</Typography>
+      <Typography sx={{ mt: 4, color: 'text.secondary' }}>李白：剪紙感（第四輪）</Typography>
+      <Grid items={PAPER} />
+
+      <Typography sx={{ mt: 6, color: 'text.secondary' }}>李白：瑞士平面風（第三輪）</Typography>
       <Grid items={SWISS} />
 
       <Typography sx={{ mt: 6, color: 'text.secondary' }}>李白：剪影與積木（第二輪）</Typography>

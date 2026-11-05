@@ -2,10 +2,12 @@ import PropTypes from 'prop-types';
 import { Box, Typography } from '@mui/material';
 import Mizhiyin from './art/Mizhiyin';
 import DiaryWheel from './art/DiaryWheel';
-import LibaiChibi from './art/libai/LibaiChibi';
 import LibaiSilhouette from './art/libai/LibaiSilhouette';
-import LibaiLine from './art/libai/LibaiLine';
 import LibaiBlocks from './art/libai/LibaiBlocks';
+import LibaiMoonBlocks from './art/libai/LibaiMoonBlocks';
+import LibaiBlocksToast from './art/libai/LibaiBlocksToast';
+import LibaiPapercut from './art/libai/LibaiPapercut';
+import LibaiSymbol from './art/libai/LibaiSymbol';
 import { INK } from './art/palette';
 
 // 暫時的：插畫風格樣張，給 Dong 確認方向用。風格定案後整段刪掉，
@@ -19,11 +21,14 @@ const Frame = ({ children, ratio, label, note }) => (
 );
 Frame.propTypes = { children: PropTypes.node, ratio: PropTypes.string, label: PropTypes.string, note: PropTypes.string };
 
+// 第二輪：Dong 選了 B、D，往這兩個方向延伸。A（Q 版）、C（線描）出局，檔案留到定案再刪
 const LIBAI = [
-  ['A　Q 版', '大頭、圓眼、腮紅，從牆後探頭。', LibaiChibi],
-  ['B　剪影', '舉杯邀明月。整身一塊墨，靠輪廓辨識。', LibaiSilhouette],
-  ['C　線描', '一支筆畫到底，微醺左右晃。只有葫蘆上色。', LibaiLine],
-  ['D　幾何積木', '圓、半圓、方塊拼成，偏海報感。', LibaiBlocks],
+  ['B　剪影', '上一輪。舉杯邀明月，側面剪影。', LibaiSilhouette],
+  ['D　幾何積木', '上一輪。圓、半圓、方塊拼成的正面。', LibaiBlocks],
+  ['E　剪影 × 積木', 'B 的構圖、D 的零件。正面剪影，水平帽翅，舉杯敬月。', LibaiMoonBlocks],
+  ['F　積木舉杯', 'D 的色塊臉，加上 B 的動作：把葫蘆舉向月亮。', LibaiBlocksToast],
+  ['G　剪紙鏤空', 'E 反過來：夜色的墨底，人是剪掉的紙。', LibaiPapercut],
+  ['H　極簡符號', '月亮就是臉，只留帽子、眼睛、鬍子。像一枚 logo。', LibaiSymbol],
 ];
 
 const StyleSample = () => (
@@ -38,7 +43,7 @@ const StyleSample = () => (
         sx={{
           mt: 2,
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+          gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3, 1fr)' },
           gap: 3,
           alignItems: 'start',
         }}

@@ -20,7 +20,7 @@ const fill = (type) => (row) =>
 export const buildTables = ({ model, speaker, text, answer }) => ({
   character: table('character', CHARACTERS.map((name) => ({ name }))),
   config: table('config', [{ id: 'demo', title: 'MiSheng 的多列宇宙' }]),
-  mission: table('mission', [{ id: '1', title: '李白的字謎', answer }]),
+  mission: table('mission', [{ id: '1', title: '旁白的字謎', answer }]),
   hint: table('hint', []),
   prop: table('prop', []),
   story: table('story', []),

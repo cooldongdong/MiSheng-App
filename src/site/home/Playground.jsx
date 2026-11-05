@@ -21,8 +21,8 @@ import { STRAIGHT } from './demoImages';
 const INITIAL = {
   model: 'Talk',
   speaker: '旁白',
-  text: '「木」和「子」疊在一起，是什麼字？',
-  answer: '李',
+  text: '一口咬掉牛尾巴，猜一個字。',
+  answer: '告',
 };
 
 // 「故意弄壞它」依序套用：每一種都是創作者真的會犯的錯
@@ -138,7 +138,7 @@ const Phone = ({ cells, blocking }) => {
         </GameScreen>
       )}
       {screen !== 'talk' && (
-        <GameScreen img="fengmian.jpg" speaker="第一章" text="李白的字謎" typewriter={false}>
+        <GameScreen img="fengmian.jpg" speaker="第一章" text="旁白的字謎" typewriter={false}>
           {screen === 'answer' ? (
             <Box
               component={motion.form}
@@ -335,7 +335,7 @@ const Playground = () => {
     { rowNo: 4, cells: { model: 'MissionStart', speaker: '', text: '' } },
     { rowNo: 5, cells: { model: 'MissionAnswerInput', speaker: '', text: '' } },
   ];
-  const missionRows = [{ rowNo: 2, cells: { id: '1', title: '李白的字謎' }, editable: ['answer'] }];
+  const missionRows = [{ rowNo: 2, cells: { id: '1', title: '旁白的字謎' }, editable: ['answer'] }];
 
   return (
     <Box component="section" sx={{ px: 2, py: { xs: 10, md: 16 } }}>

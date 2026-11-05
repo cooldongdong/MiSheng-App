@@ -41,12 +41,13 @@ const wave = (() => {
 
 const Mizhiyin = () => (
   <PaperScene>
-    {/* 上方的雲：倒過來的雲帶 */}
+    {/* 上方的雲：把雲帶繞畫布中心轉 180°，y 會變成 780 - y。
+        要邊緣落在 150／110，原本就得在 630／670——第一版直接填 150，整片雲蓋到了漩渦後面 */}
     <Sheet drift={4} duration={11}>
-      <path d={cloudBand(150, 30)} fill={INK.line} transform="rotate(180 180 390)" />
+      <path d={cloudBand(630, 30)} fill={INK.line} transform="rotate(180 180 390)" />
     </Sheet>
     <Sheet drift={6} duration={9}>
-      <path d={cloudBand(110, 22)} fill={INK.paper} transform="rotate(180 180 390)" />
+      <path d={cloudBand(670, 22)} fill={INK.paper} transform="rotate(180 180 390)" />
     </Sheet>
 
     {/* 漩渦 */}

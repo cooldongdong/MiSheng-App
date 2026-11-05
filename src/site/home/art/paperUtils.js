@@ -54,3 +54,21 @@ export const cloudBand = (y, r, { width = 360, height = 780, wobble = 0.15 } = {
   }
   return `${d} L ${width + 20} ${height} Z`;
 };
+
+// 不規則的雲邊：每一朵的半徑在 minR～maxR 之間隨機（固定種子），弧也不一定是半圓。
+// cloudBand 的半圓一樣大，排成一整排會像布幕的鋸齒；頁面上大面積的雲要用這個。
+export const cloudEdge = (y, { minR = 30, maxR = 80, width = 1440, height = 260, seed = 1, jitter = 14, flat = 1.08 } = {}) => {
+  const rand = rng(seed);
+  let x = -maxR;
+  let d = `M ${x} ${height} L ${x} ${y}`;
+  let cy = y;
+  while (x < width + maxR) {
+    const r = minR + rand() * (maxR - minR);
+    const ny = y + (rand() - 0.5) * jitter;
+    // flat＝弧半徑／半弦長。1 是正半圓（鼓起 r）；1.5 只鼓起約 0.38r，雲就扁成一層紙邊
+    d += ` A ${r * flat} ${r * flat} 0 0 1 ${x + r * 2} ${ny}`;
+    x += r * 2;
+    cy = ny;
+  }
+  return `${d} L ${x} ${cy} L ${x} ${height} Z`;
+};

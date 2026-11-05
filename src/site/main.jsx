@@ -11,10 +11,12 @@ import HomeApp from './HomeApp.jsx';
 // ——結果是 2026-08-29 Dong 回報的那個 bug：系統是深色時，首頁是一片白，點進 /create
 // 或 /demo 會閃一下。那不是「首頁少一個功能」，是三個入口對同一件事有兩種答案。
 //
-// 只有字體是首頁自己的。襯線是官網的調性，但把它升成全站等於順手改掉 /create 與遊戲
-// 的字體——那是另一個決定，不該藏在「首頁加深色模式」裡面。
+// 只有字體是首頁自己的。升成全站等於順手改掉 /create 與遊戲的字體——那是另一個決定。
+//
+// 2026-11 首頁改版從襯線換成黑體：插畫定成「疊紙」之後，粗黑體配圓潤的紙片才是同一個語氣；
+// 襯線在這頁讀起來像出版品，跟手作紙雕的調性打架。
 const theme = createAppTheme({
-  typography: { fontFamily: '"Noto Serif TC", serif' },
+  typography: { fontFamily: '"Noto Sans TC", sans-serif' },
 });
 
 createRoot(document.getElementById('root')).render(

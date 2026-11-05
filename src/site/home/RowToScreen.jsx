@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Typography, useMediaQuery } from '@mui/material';
-import { AnimatePresence, motion, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react';
 import MiniSheet from './MiniSheet';
 import { tint } from './tint';
 import PhoneFrame from './PhoneFrame';
@@ -140,7 +140,6 @@ const RowToScreen = () => {
   const [i, setI] = useState(0);
   const wide = useMediaQuery((t) => t.breakpoints.up('md'));
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
-  const bar = useTransform(scrollYProgress, [0, 1], ['0%', '100%']);
 
   useMotionValueEvent(scrollYProgress, 'change', (p) => {
     const next = Math.min(STEPS.length - 1, Math.max(0, Math.floor(p * STEPS.length)));
@@ -168,12 +167,9 @@ const RowToScreen = () => {
         }}
       >
         <Box sx={{ width: '100%', maxWidth: 1160, mx: 'auto' }}>
-          <Typography sx={{ color: 'secondary.main', letterSpacing: 3, fontSize: '0.85rem', fontWeight: 700 }}>
-            怎麼運作
-          </Typography>
           <Typography
             component="h2"
-            sx={{ fontWeight: 800, fontSize: { xs: '1.6rem', md: '2.4rem' }, mt: 1, color: 'text.primary' }}
+            sx={{ fontWeight: 900, fontSize: { xs: '1.7rem', md: '2.6rem' }, color: 'text.primary' }}
           >
             一列，就是一個畫面。
           </Typography>
@@ -237,15 +233,10 @@ const RowToScreen = () => {
                 </AnimatePresence>
               </Box>
 
-              {/* 進度：第幾步 */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
-                <Box sx={{ flex: 1, maxWidth: 240, height: 3, bgcolor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-                  <Box component={motion.div} style={{ width: bar }} sx={{ height: '100%', bgcolor: 'secondary.main' }} />
-                </Box>
-                <Typography sx={{ fontSize: '0.8rem', color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
-                  {i + 1} / {STEPS.length}
-                </Typography>
-              </Box>
+              {/* 第幾步：只寫數字，不畫進度條 */}
+              <Typography sx={{ mt: 1, fontSize: '0.85rem', color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+                {i + 1} / {STEPS.length}
+              </Typography>
             </Box>
 
             <Box sx={{ justifySelf: 'center' }}>

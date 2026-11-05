@@ -346,9 +346,6 @@ const Playground = () => {
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
         >
-          <Typography sx={{ color: 'secondary.main', letterSpacing: 3, fontSize: '0.85rem', fontWeight: 700 }}>
-            親手試試
-          </Typography>
           <Typography component="h2" sx={{ fontWeight: 800, fontSize: { xs: '1.6rem', md: '2.4rem' }, mt: 1, color: 'text.primary' }}>
             改一格，遊戲就跟著變。
             <br />

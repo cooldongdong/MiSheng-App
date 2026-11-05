@@ -49,7 +49,7 @@ const Outro = () => (
             endIcon={<ArrowForwardRoundedIcon />}
             sx={{ borderRadius: 99, px: 3.5, py: 1.4, textTransform: 'none', fontSize: '1rem', boxShadow: 'none' }}
           >
-            把你的試算表變成遊戲
+            開始做遊戲
           </Button>
           <Button
             href="/demo"
@@ -66,7 +66,7 @@ const Outro = () => (
               '&:hover': { borderColor: 'text.secondary' },
             }}
           >
-            先玩 demo「多列宇宙」
+            玩玩 demo
           </Button>
         </Stack>
       </Box>

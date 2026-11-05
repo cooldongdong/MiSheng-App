@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
-import { LayoutGroup, motion, useReducedMotion } from 'motion/react';
+import { LayoutGroup, motion, useReducedMotion, useScroll } from 'motion/react';
 import MiniSheet from './MiniSheet';
 import { tint } from './tint';
 import PhoneFrame from './PhoneFrame';
 import GameScreen from './GameScreen';
+import PaperClouds from './PaperClouds';
+import BrandMark from '../../shared/BrandMark';
 
 // Hero：同一張卡片在「試算表」與「遊戲畫面」之間來回變形。
 //
@@ -29,72 +32,67 @@ const IDS = { speaker: 'hero-speaker', text: 'hero-text' };
 
 const SPRING = { type: 'spring', stiffness: 170, damping: 24 };
 
-const HEADLINE = [
-  { text: '把一份試算表，', accent: false },
-  { text: '變成手機就能玩的', accent: false, br: true },
-  { text: '實境解謎。', accent: true },
-];
+// 標題：三行，一行一行從底下升上來（每行有自己的遮罩，像紙從縫裡抽出來）。
+// 「實境解謎」底下墊一條歪一點的鏽橘紙膠帶，延續插畫的疊紙語言——
+// 不是逐字模糊浮現：那是 AI 生成頁面最常見的開場，跟這一頁的手作感也不合。
+const LINES = ['把一份試算表，', '變成手機就能玩的'];
 
-// 標題逐字浮現。用字元而不是整行，是為了讓「打字」的語感跟遊戲的打字機對白呼應
-const Headline = () => {
-  let i = 0;
-  return (
-    <Typography
-      component="h1"
-      sx={{
-        fontWeight: 800,
-        fontSize: { xs: '2.2rem', sm: '3rem', md: '3.4rem' },
-        lineHeight: 1.25,
-        letterSpacing: '0.01em',
-        color: 'text.primary',
-      }}
+const Rise = ({ children, delay }) => (
+  <Box component="span" sx={{ display: 'block', overflow: 'hidden', pb: '0.08em' }}>
+    <motion.span
+      initial={{ y: '105%' }}
+      animate={{ y: 0 }}
+      transition={{ delay, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      style={{ display: 'block' }}
     >
-      {HEADLINE.map((seg) => [
-        seg.br && <br key={`${seg.text}-br`} />,
+      {children}
+    </motion.span>
+  </Box>
+);
+Rise.propTypes = { children: PropTypes.node, delay: PropTypes.number };
+
+const Headline = () => (
+  <Typography
+    component="h1"
+    sx={{
+      fontWeight: 900,
+      fontSize: { xs: '2.3rem', sm: '3.1rem', md: '3.6rem' },
+      lineHeight: 1.2,
+      letterSpacing: '-0.01em',
+      color: 'text.primary',
+    }}
+  >
+    {LINES.map((l, i) => (
+      <Rise key={l} delay={0.1 + i * 0.12}>
+        {l}
+      </Rise>
+    ))}
+    <Rise delay={0.34}>
+      <Box component="span" sx={{ position: 'relative', display: 'inline-block', whiteSpace: 'nowrap' }}>
         <Box
-          key={seg.text}
-          component="span"
-          // 每一段不准從中間斷行：「實境／解謎」被拆兩行，重點就斷了
-          sx={{ position: 'relative', display: 'inline-block', whiteSpace: 'nowrap', color: seg.accent ? 'secondary.main' : 'inherit' }}
-        >
-          {[...seg.text].map((ch) => {
-            const d = 0.15 + i++ * 0.035;
-            return (
-              <motion.span
-                key={`${seg.text}-${d}`}
-                initial={{ opacity: 0, y: '0.35em', filter: 'blur(8px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ delay: d, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                style={{ display: 'inline-block' }}
-              >
-                {ch}
-              </motion.span>
-            );
-          })}
-          {seg.accent && (
-            // 底線畫出來：解謎的「圈起重點」
-            <Box
-              component={motion.span}
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ delay: 0.15 + i * 0.035 + 0.2, duration: 0.7, ease: [0.65, 0, 0.35, 1] }}
-              sx={{
-                position: 'absolute',
-                left: 0,
-                right: '0.9em',
-                bottom: '0.02em',
-                height: '0.12em',
-                borderRadius: 1,
-                bgcolor: tint('secondary', 0.35),
-                transformOrigin: 'left',
-              }}
-            />
-          )}
-        </Box>,
-      ])}
-    </Typography>
-  );
-};
+          component={motion.span}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ delay: 0.9, duration: 0.5, ease: [0.65, 0, 0.35, 1] }}
+          sx={{
+            position: 'absolute',
+            left: '-0.12em',
+            right: '-0.12em',
+            bottom: '0.08em',
+            height: '0.42em',
+            bgcolor: tint('secondary', 0.28),
+            transformOrigin: 'left',
+            rotate: '-1.5deg',
+            boxShadow: '0 2px 4px rgba(38,50,56,.12)',
+          }}
+        />
+        <Box component="span" sx={{ position: 'relative' }}>
+          實境解謎。
+        </Box>
+      </Box>
+    </Rise>
+  </Typography>
+);
 
 const Morph = () => {
   const reduce = useReducedMotion();
@@ -211,30 +209,10 @@ const Morph = () => {
   );
 };
 
-// 背景：試算表的格線，滑鼠移到哪亮到哪。
-// 位置寫進 CSS 變數，不進 React state——游標每動一下都 re-render 整個 hero 不值得。
-const useSpotlight = () => {
-  const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    const onMove = (e) => {
-      const r = el.getBoundingClientRect();
-      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
-      el.style.setProperty('--my', `${e.clientY - r.top}px`);
-    };
-    el.addEventListener('pointermove', onMove);
-    return () => el.removeEventListener('pointermove', onMove);
-  }, []);
-  return ref;
-};
-
-const grid = (t, a) =>
-  `linear-gradient(rgba(${t.vars.palette.text.primaryChannel} / ${a}) 1px, transparent 1px) 0 0 / 44px 44px,
-   linear-gradient(90deg, rgba(${t.vars.palette.text.primaryChannel} / ${a}) 1px, transparent 1px) 0 0 / 44px 44px`;
-
 const Hero = () => {
-  const ref = useSpotlight();
+  const ref = useRef(null);
+  // 捲出 hero 的進度：底部的紙雲各自用不同速度往上推，景深就出來了
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
   return (
     <Box
       ref={ref}
@@ -246,27 +224,8 @@ const Hero = () => {
         display: 'flex',
         alignItems: 'center',
         px: 2,
-        py: { xs: 10, md: 6 },
-        '--mx': '70%',
-        '--my': '40%',
-        // 底層：淡淡的格線，往邊緣淡出
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          inset: 0,
-          background: (t) => grid(t, 0.06),
-          maskImage: 'radial-gradient(ellipse at 50% 40%, #000 30%, transparent 75%)',
-          pointerEvents: 'none',
-        },
-        // 上層：游標附近的格線比較亮
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          inset: 0,
-          background: (t) => grid(t, 0.16),
-          maskImage: 'radial-gradient(240px circle at var(--mx) var(--my), #000, transparent 70%)',
-          pointerEvents: 'none',
-        },
+        pt: { xs: 10, md: 8 },
+        pb: { xs: 16, md: 18 },
       }}
     >
       <Box
@@ -283,26 +242,29 @@ const Hero = () => {
         }}
       >
         <Box>
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+          {/* 品牌：logo＋名字。整頁唯一一個標題上方的小字 */}
+          <Stack
+            component={motion.div}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
+            direction="row"
+            alignItems="center"
+            spacing={1}
           >
-            <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 4 }}>
-              MISHENG · 謎生
-            </Typography>
-          </motion.div>
-          <Box sx={{ mt: 1.5 }}>
+            <BrandMark size={34} />
+            <Typography sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '0.05em' }}>謎生 MiSheng</Typography>
+          </Stack>
+          <Box sx={{ mt: 3 }}>
             <Headline />
           </Box>
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.6 }}
+            transition={{ delay: 0.8, duration: 0.6 }}
           >
-            <Typography sx={{ color: 'text.secondary', fontSize: '1.1rem', mt: 3, lineHeight: 1.9, maxWidth: 520 }}>
-              一列對白，就是一個畫面。填好試算表，貼上連結，手機掃一下就開玩——
-              不用寫程式，也不用架伺服器。
+            <Typography sx={{ color: 'text.secondary', fontSize: '1.1rem', mt: 3, lineHeight: 1.9, maxWidth: 480 }}>
+              試算表的一列，就是遊戲的一個畫面。填好、貼上連結，手機掃一下就能玩。
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4 }}>
               <Button
@@ -310,9 +272,18 @@ const Hero = () => {
                 variant="contained"
                 size="large"
                 endIcon={<ArrowForwardRoundedIcon />}
-                sx={{ borderRadius: 99, px: 3.5, py: 1.4, textTransform: 'none', fontSize: '1rem', boxShadow: 'none' }}
+                sx={{
+                  borderRadius: 99,
+                  px: 3.5,
+                  py: 1.4,
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  boxShadow: 'none',
+                  '&:active': { transform: 'translateY(1px)' },
+                }}
               >
-                把你的試算表變成遊戲
+                開始做遊戲
               </Button>
               <Button
                 href="/demo"
@@ -324,46 +295,29 @@ const Hero = () => {
                   py: 1.4,
                   textTransform: 'none',
                   fontSize: '1rem',
+                  fontWeight: 700,
                   color: 'text.primary',
                   borderColor: 'divider',
                   '&:hover': { borderColor: 'text.secondary' },
+                  '&:active': { transform: 'translateY(1px)' },
                 }}
               >
-                先玩 demo
+                玩玩 demo
               </Button>
             </Stack>
           </motion.div>
         </Box>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
           <Morph />
         </motion.div>
       </Box>
 
-      {/* 往下捲的提示 */}
-      <Box
-        component={motion.div}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1, y: [0, 6, 0] }}
-        transition={{ opacity: { delay: 1.6 }, y: { delay: 1.6, duration: 1.8, repeat: Infinity } }}
-        sx={{
-          position: 'absolute',
-          bottom: 20,
-          left: '50%',
-          translate: '-50% 0',
-          fontSize: '0.8rem',
-          color: 'text.disabled',
-          letterSpacing: 2,
-          display: { xs: 'none', md: 'block' },
-          zIndex: 1,
-        }}
-      >
-        往下看它怎麼運作 ↓
-      </Box>
+      <PaperClouds progress={scrollYProgress} />
     </Box>
   );
 };

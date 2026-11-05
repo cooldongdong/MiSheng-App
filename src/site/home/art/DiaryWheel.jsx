@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import { motion, useReducedMotion } from 'motion/react';
 import { INK } from './palette';
 import { PaperScene, Sheet } from './paperKit';
@@ -26,7 +27,7 @@ const SYMBOLS = [
 
 // 旋轉原點＝這一組的外框中心（motion 對 SVG 的預設）。兩組都以一個置中的圓為底，外框中心就是轉盤中心
 
-const DiaryWheel = () => {
+const DiaryWheel = ({ fit = 'contain' }) => {
   const reduce = useReducedMotion();
   const [step, setStep] = useState(0);
 
@@ -39,7 +40,7 @@ const DiaryWheel = () => {
   const spring = { type: 'spring', stiffness: 140, damping: 14 };
 
   return (
-    <PaperScene width={400} height={400} slice={false}>
+    <PaperScene width={400} height={400} fit={fit}>
       <Sheet>
         <rect x="34" y="24" width="340" height="352" rx="14" fill={INK.ink} />
       </Sheet>
@@ -92,5 +93,7 @@ const DiaryWheel = () => {
     </PaperScene>
   );
 };
+
+DiaryWheel.propTypes = { fit: PropTypes.string };
 
 export default DiaryWheel;

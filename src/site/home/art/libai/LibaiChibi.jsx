@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { INK, STROKE } from './palette';
+import { INK, STROKE } from '../palette';
 
 // 旁白（李白），Q 版：大頭、沒有脖子、圓眼、腮紅，手上抱一個酒葫蘆，從牆後探出來。
 //
@@ -14,7 +14,7 @@ const CX = 176; // 頭的中心
 const CY = 300;
 const R = 112; // 頭的半徑
 
-const Libai = () => (
+const LibaiChibi = () => (
   <svg viewBox="0 0 360 780" preserveAspectRatio="xMidYMin slice" width="100%" height="100%" aria-hidden>
     <rect width="360" height="780" fill={INK.paper} />
 
@@ -91,4 +91,4 @@ const Libai = () => (
   </svg>
 );
 
-export default Libai;
+export default LibaiChibi;

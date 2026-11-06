@@ -20,7 +20,7 @@ import BrandMark from '../../shared/BrandMark';
 
 const COLUMNS = [
   { key: 'model', width: '6.4em' },
-  { key: 'speaker', width: '6.2em' },
+  { key: 'speaker', width: '7em' },
   { key: 'text', width: '1fr' },
 ];
 const ROWS = [
@@ -199,7 +199,7 @@ const Morph = () => {
       ref={box}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      sx={{ position: 'relative', width: { xs: 310, sm: 440 }, mx: 'auto', display: 'flex', flexDirection: 'column' }}
+      sx={{ position: 'relative', width: { xs: 330, sm: 460 }, mx: 'auto', display: 'flex', flexDirection: 'column' }}
     >
       {/* 後面那張紙：試算表，歪一點 */}
       <Box sx={{ rotate: '-2deg', transformOrigin: 'center' }}>
@@ -213,8 +213,9 @@ const Morph = () => {
       </Box>
 
       {/* 前面那張紙：手機，壓住試算表的下緣 */}
-      <Box sx={{ mt: '-34px', alignSelf: 'flex-end', mr: { xs: 1, sm: 3 }, rotate: '2deg', position: 'relative', zIndex: 2 }}>
-        <PhoneFrame width={{ xs: 200, sm: 230 }}>
+      <Box sx={{ mt: '-14px', alignSelf: 'flex-end', mr: { xs: 0, sm: 1 }, rotate: '2deg', position: 'relative', zIndex: 2 }}>
+        {/* 原本 230 寬，對白字小到看不清楚；放大後用 dvh 封頂，矮螢幕不會整個 hero 撐出一屏 */}
+        <PhoneFrame width={{ xs: 240, sm: 'min(300px, 40dvh)' }}>
           <PlayerScreen page={{ model: 'Talk', speaker: shown.speaker, text: shown.text }} typewriter={!reduce} />
         </PhoneFrame>
       </Box>

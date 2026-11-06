@@ -36,12 +36,13 @@ const PhoneFrame = ({ width = 280, children, sx }) => (
       <Box
         sx={{
           position: 'absolute',
-          top: 10,
+          // 尺寸全用 cqw（螢幕寬的百分比）：寫死 px 的話，小手機上動態島會大到蓋住半個螢幕頂
+          top: '3.5cqw',
           left: '50%',
           transform: 'translateX(-50%)',
           width: '32%',
-          height: 22,
-          borderRadius: 11,
+          height: '9cqw',
+          borderRadius: 99,
           bgcolor: '#000',
           zIndex: 5,
         }}

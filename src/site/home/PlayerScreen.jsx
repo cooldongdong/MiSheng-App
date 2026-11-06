@@ -701,12 +701,22 @@ const useBox = () => {
  *   Article                        title, body（字串＝一段；{ h } ＝小標）
  * children：疊在整個畫面最上面（不跟著縮放），例如「改一格看看」的擋下來遮罩
  */
+const FULL_BLEED = new Set([
+  "Talk",
+  "Quiz",
+  "CustomValueInput",
+  "MissionAnswerInput",
+]);
+
 const PlayerScreen = ({ page, typewriter = true, children }) => {
   const [ref, { w, h }] = useBox();
   const s = w / BASE_W;
   const H = s ? h / s : 0;
   const vh = H - STATUS_BAR; // 瀏覽器的可視高度：dvh 的基準
   const Model = MODELS[page.model];
+  // 滿版的那幾種（底是立繪或背景圖）讓圖一路鋪到狀態列底下，不露出 game.bg 那條底色。
+  // 卡片型（封面、關卡開場、Img、Article）卡片外本來就是底色，跟真的一樣，不動
+  const bleed = FULL_BLEED.has(page.model) ? STATUS_BAR : 0;
 
   return (
     <Box
@@ -747,10 +757,10 @@ const PlayerScreen = ({ page, typewriter = true, children }) => {
             <Box
               sx={{
                 position: "absolute",
-                top: 0,
+                top: -bleed,
                 left: 0,
                 width: "100%",
-                height: `calc(100% - ${NAV_HEIGHT}px)`,
+                height: `calc(100% - ${NAV_HEIGHT - bleed}px)`,
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",

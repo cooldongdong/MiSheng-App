@@ -5,6 +5,7 @@ import ColorSchemeToggle from '../shared/ColorSchemeToggle';
 import Hero from './home/Hero';
 import RowToScreen from './home/RowToScreen';
 import ModelsProps from './home/ModelsProps';
+import NavTour from './home/NavTour';
 import Playground from './home/Playground';
 import Features from './home/Features';
 import HowTo from './home/HowTo';
@@ -14,6 +15,7 @@ import Outro from './home/Outro';
 //   Hero        這是什麼？        → 你的試算表，一列一列飛進玩家的手機
 //   RowToScreen 怎麼運作？        → 一列＝一個畫面，欄位決定畫面長什麼樣（捲動敘事）
 //   ModelsProps 能做出什麼？      → model 的八種畫面、prop 的四種道具（翻牌＋拼貼）
+//   NavTour     玩家手上還有什麼？ → 底部導覽列五顆，各吃一張表（手機上的按鈕真的能按）
 //   Playground  真的這麼簡單？    → 自己改一格、自己解謎、自己弄壞它看 validator 擋（互動）
 //   HowTo       我要怎麼開始？    → Google 試算表＋/create，或在自己電腦跑（切換＋步驟）
 //   Features    還有什麼要知道的？ → 不用寫程式、掃碼開玩、資料在你手上、開源
@@ -35,6 +37,7 @@ const HomeApp = () => (
     <Hero />
     <RowToScreen />
     <ModelsProps />
+    <NavTour />
     <Playground />
     <HowTo />
     <Features />

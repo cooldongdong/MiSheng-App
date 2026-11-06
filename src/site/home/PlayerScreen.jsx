@@ -544,6 +544,8 @@ const ZoomCard = ({ Art, title, height = 220 }) => (
     elevation={10}
     sx={{
       display: "flex",
+      width: "100%",
+      flexShrink: 0,
       borderRadius: "10px",
       position: "relative",
       overflow: "hidden",

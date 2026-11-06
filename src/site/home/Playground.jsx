@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Stack, Typography } from '@mui/material';
-import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
+import { Box, Menu, MenuItem, Stack, Typography } from '@mui/material';
+import { keyframes } from '@mui/material/styles';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import { AnimatePresence, motion } from 'motion/react';
 import { validateGame } from '../../shared/validator/validateGame.js';
 import { buildTables, CHARACTERS } from './playgroundTables';
@@ -30,11 +33,41 @@ const MISTAKES = [
   { label: 'model 拼錯', patch: { model: 'Tlak' } },
 ];
 
+// text 不用 1fr 撐滿整欄：一句對白用不到那麼寬，表太寬反而顯得格子小、看不出哪格能改
 const COLUMNS = [
-  { key: 'model', width: '9.5em' },
-  { key: 'speaker', width: '8em' },
+  { key: 'model', width: '7.5em' },
+  { key: 'speaker', width: '7.5em' },
   { key: 'text', width: '1fr' },
 ];
+
+// 可以動的格子長得像一個輸入框：底色、細框、右邊一個圖示。
+// 第一版是虛線框＋格子裡的原生 select，Dong 的回饋是「看不出那裡可以編輯」「下拉好醜」
+const field = {
+  all: 'unset',
+  boxSizing: 'border-box',
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 0.5,
+  px: 1,
+  py: 0.5,
+  borderRadius: '8px',
+  font: 'inherit',
+  color: 'inherit',
+  bgcolor: 'background.default',
+  border: '1px solid',
+  borderColor: (t) => `rgba(${t.vars.palette.secondary.mainChannel} / 0.45)`,
+  transition: 'border-color 150ms, box-shadow 150ms',
+  '&:hover': { borderColor: 'secondary.main' },
+};
+const fieldFocus = {
+  borderColor: 'secondary.main',
+  boxShadow: (t) => `0 0 0 3px rgba(${t.vars.palette.secondary.mainChannel} / 0.25)`,
+};
+const pulse = keyframes`
+  0%, 60%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  20% { box-shadow: inset 0 0 0 2px rgba(178, 89, 31, .6); }
+`;
 const ROW = 3; // 可以改的那一列（試算表列號）
 
 const Step = ({ n, children }) => (
@@ -73,6 +106,8 @@ const chip = {
 
 const Playground = () => {
   const [cells, setCells] = useState(INITIAL);
+  const [menuAt, setMenuAt] = useState(null); // speaker 選單掛在哪一格
+  const [touched, setTouched] = useState(false); // 動過任何一格就不再提示
   const issues = useMemo(() => validateGame(buildTables({ ...cells, answer: '告' })), [cells]);
   const errors = issues.filter((it) => it.level === 'error');
   const flagged = new Set(errors.map((it) => `${it.row}.${it.column}`));
@@ -88,57 +123,39 @@ const Playground = () => {
     if (r.editable && key === 'text') {
       return (
         <Box
-          component="input"
-          value={cells.text}
-          aria-label="rundown 表第 3 列的對白"
-          onChange={(e) => setCells((c) => ({ ...c, text: e.target.value }))}
-          sx={{ all: 'unset', width: '100%', font: 'inherit', cursor: 'text' }}
-        />
+          component="label"
+          onClick={() => setTouched(true)}
+          sx={{ ...field, cursor: 'text', '&:focus-within': fieldFocus }}
+        >
+          <Box
+            component="input"
+            value={cells.text}
+            aria-label="rundown 表第 3 列的對白"
+            onChange={(e) => setCells((c) => ({ ...c, text: e.target.value }))}
+            sx={{ all: 'unset', flex: 1, minWidth: 0, font: 'inherit' }}
+          />
+          <EditRoundedIcon aria-hidden sx={{ fontSize: '1.1em', color: 'secondary.main', flexShrink: 0 }} />
+        </Box>
       );
     }
-    // speaker 做成 Google 試算表「資料驗證」那種下拉：選項就是 character 表裡的名字。
-    // 用原生 select（鍵盤、手機都能用），只把外觀換成格子裡的字＋▼
     if (r.editable && key === 'speaker') {
-      // 「角色名字打錯」會塞進一個不在清單裡的名字，選單裡也要有它，不然 select 會顯示成空的
-      const names = CHARACTERS.includes(cells.speaker) ? CHARACTERS : [cells.speaker, ...CHARACTERS];
       return (
-        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <Box
-            component="select"
-            value={cells.speaker}
-            aria-label="rundown 表第 3 列的 speaker"
-            onChange={(e) =>
-              setCells((c) => ({
-                ...c,
-                speaker: e.target.value,
-                model: 'Talk',
-              }))
-            }
-            sx={{
-              all: 'unset',
-              width: '100%',
-              font: 'inherit',
-              cursor: 'pointer',
-              pr: '1.6em',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {names.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
+        <Box
+          component="button"
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={Boolean(menuAt)}
+          aria-label={`rundown 表第 3 列的 speaker：${cells.speaker}`}
+          onClick={(e) => {
+            setMenuAt(e.currentTarget);
+            setTouched(true);
+          }}
+          sx={{ ...field, cursor: 'pointer', '&:focus-visible': fieldFocus }}
+        >
+          <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left' }}>
+            {cells.speaker}
           </Box>
-          <ArrowDropDownRoundedIcon
-            aria-hidden
-            sx={{
-              position: 'absolute',
-              right: 0,
-              fontSize: '1.6em',
-              pointerEvents: 'none',
-              color: 'secondary.main',
-            }}
-          />
+          <ExpandMoreRoundedIcon aria-hidden sx={{ fontSize: '1.2em', color: 'secondary.main', flexShrink: 0 }} />
         </Box>
       );
     }
@@ -147,8 +164,10 @@ const Playground = () => {
 
   const cellSx = (r, key) => {
     if (r.rowNo !== ROW) return {};
+    const editable = key === 'text' || key === 'speaker';
     if (flagged.has(`${ROW}.${key}`)) {
       return {
+        ...(editable && { p: '3px' }),
         outline: '2px solid',
         outlineColor: 'error.main',
         outlineOffset: -2,
@@ -157,13 +176,16 @@ const Playground = () => {
         fontWeight: 700,
       };
     }
-    // 可以動的兩格：虛線框，跟步驟 ①② 對得上（順序照欄位由左到右）
-    if (key === 'text' || key === 'speaker') {
+    if (editable) {
       return {
-        outline: '2px dashed',
-        outlineColor: 'secondary.main',
-        outlineOffset: -3,
-        bgcolor: tint('secondary', 0.08),
+        p: '3px',
+        // 還沒動過之前，兩格輪流亮一下：告訴第一次來的人「這裡可以按」。動過一次就停
+        ...(!touched && {
+          '@media (prefers-reduced-motion: no-preference)': {
+            animation: `${pulse} 2.4s ease-in-out infinite`,
+            animationDelay: key === 'text' ? '1.2s' : '0s',
+          },
+        }),
       };
     }
     return {};
@@ -207,7 +229,7 @@ const Playground = () => {
           </Typography>
 
           <Stack spacing={1}>
-            <Step n={1}>點 speaker 那格的 ▼，換一個人說</Step>
+            <Step n={1}>點 speaker 那格，換一個人說</Step>
             <Step n={2}>點 text 那格，改掉對白</Step>
           </Stack>
           <MiniSheet
@@ -217,8 +239,61 @@ const Playground = () => {
             active={ROW}
             renderCell={renderCell}
             cellSx={cellSx}
-            sx={{ mt: 2 }}
+            sx={{ mt: 2.5, maxWidth: '38em', fontSize: { xs: '0.85rem', sm: '1.05rem' } }}
           />
+
+          {/* speaker 的選單：選項＝character 表裡的名字，跟 Google 試算表「資料驗證」的下拉一樣只能選表裡有的 */}
+          <Menu
+            anchorEl={menuAt}
+            open={Boolean(menuAt)}
+            onClose={() => setMenuAt(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: -6, horizontal: 'left' }}
+            slotProps={{
+              paper: {
+                elevation: 0,
+                sx: {
+                  minWidth: 180,
+                  borderRadius: '14px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  boxShadow: '0 18px 40px -20px rgba(38,50,56,.5)',
+                },
+              },
+              list: { role: 'listbox', sx: { p: 0.75 } },
+            }}
+          >
+            <Typography sx={{ px: 1.25, pt: 0.5, pb: 0.75, fontSize: '0.75rem', color: 'text.secondary' }}>
+              character 表裡的角色
+            </Typography>
+            {CHARACTERS.map((name) => {
+              const on = cells.speaker === name;
+              return (
+                <MenuItem
+                  key={name}
+                  role="option"
+                  aria-selected={on}
+                  selected={on}
+                  onClick={() => {
+                    setCells((c) => ({ ...c, speaker: name, model: 'Talk' }));
+                    setMenuAt(null);
+                  }}
+                  sx={{
+                    borderRadius: '8px',
+                    gap: 1,
+                    fontWeight: on ? 700 : 400,
+                    color: on ? 'secondary.main' : 'text.primary',
+                    '&.Mui-selected, &.Mui-selected:hover': { bgcolor: tint('secondary', 0.12) },
+                  }}
+                >
+                  <Box component="span" sx={{ flex: 1 }}>
+                    {name}
+                  </Box>
+                  {on && <CheckRoundedIcon sx={{ fontSize: '1.1rem' }} />}
+                </MenuItem>
+              );
+            })}
+          </Menu>
 
           {/* 填錯的示範 */}
           <Box

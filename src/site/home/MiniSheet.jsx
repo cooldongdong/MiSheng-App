@@ -31,7 +31,6 @@ const MiniSheet = ({
   tab = 'rundown',
   renderCell,
   cellSx,
-  layoutIds = {},
   sx,
 }) => {
   const template = `2.2em ${columns.map((c) => c.width || '1fr').join(' ')}`;
@@ -108,8 +107,8 @@ const MiniSheet = ({
                   renderCell(r, c.key)
                 ) : (
                   <Box
-                    component={motion.span}
-                    layoutId={layoutIds[`${r.rowNo}.${c.key}`]}
+                    component="span"
+                    data-cell={`${r.rowNo}.${c.key}`}
                     sx={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' }}
                   >
                     {r.cells[c.key]}
@@ -165,7 +164,6 @@ MiniSheet.propTypes = {
   tab: PropTypes.string,
   renderCell: PropTypes.func,
   cellSx: PropTypes.func,
-  layoutIds: PropTypes.object,
   sx: PropTypes.object,
 };
 

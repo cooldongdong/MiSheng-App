@@ -34,8 +34,8 @@ const useTypewriter = (text, enabled) => {
   return text.slice(0, n);
 };
 
-// layoutIds：給 hero 的變形動畫用——說話者與對白各自從試算表的那一格飛過來
-const GameScreen = ({ img, speaker, text = '', typewriter = true, layoutIds = {}, children }) => {
+// data-slot：hero 要知道說話者與對白在手機上的位置，才能讓試算表的格子飛過去落在那裡
+const GameScreen = ({ img, speaker, text = '', typewriter = true, children }) => {
   const shown = useTypewriter(text, typewriter);
   // 立繪一律用重畫的插畫；查不到（例如角色名字打錯）就是一片墨色底，跟遊戲裡一樣
   const Art = ART_BY_IMG[img];
@@ -78,16 +78,14 @@ const GameScreen = ({ img, speaker, text = '', typewriter = true, layoutIds = {}
       >
         {speaker && (
           <Typography
-            component={motion.div}
-            layoutId={layoutIds.speaker}
+            data-slot="speaker"
             sx={{ fontWeight: 700, fontSize: '0.95em', mb: '0.6em', opacity: 0.95, fontFamily: 'inherit' }}
           >
             {speaker}
           </Typography>
         )}
         <Typography
-          component={motion.div}
-          layoutId={layoutIds.text}
+          data-slot="text"
           sx={{ fontSize: '0.85em', lineHeight: 1.7, minHeight: '3.4em', fontFamily: 'inherit' }}
         >
           {shown}
@@ -108,7 +106,6 @@ GameScreen.propTypes = {
   speaker: PropTypes.string,
   text: PropTypes.string,
   typewriter: PropTypes.bool,
-  layoutIds: PropTypes.shape({ speaker: PropTypes.string, text: PropTypes.string }),
   children: PropTypes.node,
 };
 

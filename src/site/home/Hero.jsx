@@ -194,15 +194,47 @@ const Morph = () => {
 
   const shown = PLAY[screen].cells;
 
+  const legend = (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div key={screen} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+        <Box component="span" sx={{ color: 'secondary.main', fontWeight: 800 }}>
+          第 {PLAY[screen].rowNo} 列
+        </Box>
+        ，就是玩家看到的這一頁 →
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  // 構圖：sm 以上兩張紙左右並排，手機壓住試算表的右緣、垂直置中——
+  // 表 → 手機的方向跟紙條飛的方向一致，也跟閱讀方向一致。
+  // 原本是上下疊，手機放大之後整組變得又瘦又高，試算表縮在左上角，看起來像兩樣不相干的東西。
+  // 窄螢幕放不下並排，才退回上下疊。
   return (
     <Box
       ref={box}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      sx={{ position: 'relative', width: { xs: 330, sm: 460 }, mx: 'auto', display: 'flex', flexDirection: 'column' }}
+      sx={{
+        position: 'relative',
+        width: '100%',
+        maxWidth: { xs: 360, sm: 640 },
+        mx: 'auto',
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) auto' },
+        alignItems: 'center',
+      }}
     >
-      {/* 後面那張紙：試算表，歪一點 */}
-      <Box sx={{ rotate: '-2deg', transformOrigin: 'center' }}>
+      {/* 後面那張紙：試算表，歪一點；右邊多伸 56px 進手機底下 */}
+      <Box
+        sx={{
+          gridRow: 1,
+          gridColumn: 1,
+          mr: { sm: '-56px' },
+          rotate: '-2deg',
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
         <MiniSheet
           id="hero"
           columns={COLUMNS}
@@ -210,45 +242,50 @@ const Morph = () => {
           active={PLAY[i].rowNo}
           sx={{ boxShadow: '0 18px 40px -24px rgba(38,50,56,.45)' }}
         />
+        <Box sx={{ display: { xs: 'none', sm: 'block' }, mt: 2.5, pr: '72px', fontSize: '0.85rem', color: 'text.secondary' }}>
+          {legend}
+        </Box>
       </Box>
 
-      {/* 前面那張紙：手機，壓住試算表的下緣 */}
-      <Box sx={{ mt: '-14px', alignSelf: 'flex-end', mr: { xs: 0, sm: 1 }, rotate: '2deg', position: 'relative', zIndex: 2 }}>
-        {/* 原本 230 寬，對白字小到看不清楚；放大後用 dvh 封頂，矮螢幕不會整個 hero 撐出一屏 */}
-        <PhoneFrame width={{ xs: 240, sm: 'min(300px, 40dvh)' }}>
+      {/* 前面那張紙：手機 */}
+      <Box
+        sx={{
+          gridRow: { xs: 2, sm: 1 },
+          gridColumn: { xs: 1, sm: 2 },
+          justifySelf: { xs: 'end', sm: 'auto' },
+          mt: { xs: '-14px', sm: 0 },
+          mr: { xs: 1, sm: 0 },
+          rotate: '2deg',
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
+        {/* 寬度用 dvh 封頂：矮螢幕上手機不會比一屏還高 */}
+        <PhoneFrame width={{ xs: 230, sm: 'min(290px, 34dvh)' }}>
           <PlayerScreen page={{ model: 'Talk', speaker: shown.speaker, text: shown.text }} typewriter={!reduce} />
         </PhoneFrame>
+      </Box>
+
+      {/* 窄螢幕：圖例放在手機左邊的空位 */}
+      <Box
+        sx={{
+          display: { xs: 'block', sm: 'none' },
+          position: 'absolute',
+          left: 4,
+          bottom: 120,
+          maxWidth: 96,
+          fontSize: '0.8rem',
+          lineHeight: 1.6,
+          color: 'text.secondary',
+        }}
+      >
+        {legend}
       </Box>
 
       {/* 飛行中的紙條 */}
       <AnimatePresence>
         {phase === 'fly' && flights.map(({ key, ...f }) => <Flyer key={key} {...f} />)}
       </AnimatePresence>
-
-      {/* 圖例：第幾列 → 手機上的這一頁 */}
-      <Box
-        sx={{
-          position: 'absolute',
-          left: { xs: 4, sm: 0 },
-          bottom: { xs: 120, sm: 140 },
-          maxWidth: { xs: 80, sm: 120 },
-          fontSize: '0.8rem',
-          lineHeight: 1.6,
-          color: 'text.secondary',
-        }}
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={screen} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <Box component="span" sx={{ color: 'secondary.main', fontWeight: 800 }}>
-              第 {PLAY[screen].rowNo} 列
-            </Box>
-            <br />
-            就是玩家
-            <br />
-            看到的這一頁 →
-          </motion.div>
-        </AnimatePresence>
-      </Box>
     </Box>
   );
 };
@@ -280,9 +317,9 @@ const Hero = () => {
           maxWidth: 1160,
           mx: 'auto',
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr' },
+          gridTemplateColumns: { xs: '1fr', lg: '1fr 1.15fr' },
           alignItems: 'center',
-          gap: { xs: 6, md: 4 },
+          gap: { xs: 6, lg: 4 },
         }}
       >
         <Box>

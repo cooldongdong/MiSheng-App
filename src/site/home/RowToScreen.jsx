@@ -218,27 +218,28 @@ const RowToScreen = () => {
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 1160, mx: "auto" }}>
-          <Typography
-            component="h2"
-            sx={{
-              fontWeight: 900,
-              fontSize: { xs: "1.7rem", md: "2.6rem" },
-              color: "text.primary",
-            }}
-          >
-            一列，就是一個畫面。
-          </Typography>
-
+          {/* 標題放進左欄、整組靠上對齊：手機上緣跟標題上緣切齊（跟「改一格」同一個構圖） */}
           <Box
             sx={{
-              mt: { xs: 2, md: 5 },
               display: "grid",
               gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
               gap: { xs: 2, md: 6 },
-              alignItems: "center",
+              alignItems: "start",
             }}
           >
             <Box sx={{ minWidth: 0 }}>
+              <Typography
+                component="h2"
+                sx={{
+                  fontWeight: 900,
+                  fontSize: { xs: "1.7rem", md: "2.6rem" },
+                  color: "text.primary",
+                  lineHeight: 1.3,
+                  mb: { xs: 2, md: 5 },
+                }}
+              >
+                一列，就是一個畫面。
+              </Typography>
               <MiniSheet
                 id="rts"
                 columns={wide ? ALL_COLUMNS : NARROW_COLUMNS}

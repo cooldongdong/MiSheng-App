@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Avatar,
+  Badge,
   BottomNavigation,
   BottomNavigationAction,
   Box,
@@ -16,7 +21,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import StorageRoundedIcon from "@mui/icons-material/StorageRounded";
 import HomeRepairServiceRoundedIcon from "@mui/icons-material/HomeRepairServiceRounded";
 import QuestionAnswerRoundedIcon from "@mui/icons-material/QuestionAnswerRounded";
@@ -25,6 +30,11 @@ import AutoStoriesRoundedIcon from "@mui/icons-material/AutoStoriesRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import OpenInFullRoundedIcon from "@mui/icons-material/OpenInFullRounded";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import LockRoundedIcon from "@mui/icons-material/LockRounded";
+import PersonPinCircleRoundedIcon from "@mui/icons-material/PersonPinCircleRounded";
+import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
+import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
 import { ART_BY_IMG } from "./art";
 import { STRAIGHT } from "./demoImages";
 
@@ -408,6 +418,243 @@ const Dialogue = ({ speaker, children }) => {
 };
 Dialogue.propTypes = { speaker: PropTypes.string, children: PropTypes.node };
 
+// ── 導覽列的四個分頁：player/component/page/* ─────────────────
+// PageContainer＋PageTitleText＋ContentList 三件組，四頁共用
+const TabPage = ({ title, children }) => (
+  <Box
+    sx={{
+      width: "100%",
+      height: "100%",
+      boxSizing: "border-box",
+      p: "12%",
+      pb: 0,
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    }}
+  >
+    <Typography
+      className="serif"
+      gutterBottom
+      align="left"
+      sx={{
+        fontFamily: SERIF,
+        fontWeight: 900,
+        fontSize: "48px",
+        color: "text.primary",
+      }}
+    >
+      {title}
+    </Typography>
+    <Stack
+      spacing={2}
+      sx={{ flex: 1, p: "8%", pb: "13%", m: "-8%", mt: "-3%" }}
+    >
+      {children}
+    </Stack>
+  </Box>
+);
+TabPage.propTypes = { title: PropTypes.string, children: PropTypes.node };
+
+// common/MissionItem.jsx：有狀態的關卡亮、有背景圖；還沒開的是一條灰的
+const MissionItem = ({ title, status, active, Art }) => (
+  <Paper
+    elevation={status ? 8 : 0}
+    sx={{
+      display: "flex",
+      borderRadius: "20px",
+      position: "relative",
+      overflow: "hidden",
+      height: 70,
+      minHeight: 70,
+    }}
+  >
+    {status ? (
+      <Background Art={Art} />
+    ) : (
+      <Layer>
+        <Box
+          sx={{
+            width: "100%",
+            height: "100%",
+            background: "#37474F",
+            opacity: 0.5,
+          }}
+        />
+      </Layer>
+    )}
+    {status && (
+      <Layer>
+        <Box
+          sx={{
+            background: "linear-gradient(-90deg,transparent 0%, #37474F 90%)",
+            width: "70%",
+            height: "100%",
+          }}
+        />
+      </Layer>
+    )}
+    <Layer
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        pl: "20px",
+        pr: "20px",
+        color: "#fff",
+        opacity: active ? 1 : 0.5,
+      }}
+    >
+      {active ? (
+        <PersonPinCircleRoundedIcon />
+      ) : status === "complete" ? (
+        <CheckCircleOutlineRoundedIcon />
+      ) : (
+        <BlockRoundedIcon />
+      )}
+      <Typography
+        className="serif"
+        align="left"
+        sx={{
+          fontFamily: SERIF,
+          fontWeight: 600,
+          fontSize: "24px",
+          color: "#fff",
+          ml: "6px",
+          flex: 1,
+        }}
+      >
+        {title}
+      </Typography>
+      <ArrowForwardRoundedIcon
+        sx={{ filter: "drop-shadow(2px 2px 5px rgba(0, 0, 0, 0.3))" }}
+      />
+    </Layer>
+  </Paper>
+);
+MissionItem.propTypes = {
+  title: PropTypes.string,
+  status: PropTypes.string,
+  active: PropTypes.bool,
+  Art: PropTypes.elementType,
+};
+
+// common/ZoomableImage.jsx（zoomInFab='right'）：圖＋左下標題籤＋右下放大鈕
+const ZoomCard = ({ Art, title, height = 220 }) => (
+  <Paper
+    elevation={10}
+    sx={{
+      display: "flex",
+      borderRadius: "10px",
+      position: "relative",
+      overflow: "hidden",
+      height,
+      minHeight: height,
+    }}
+  >
+    <Box sx={{ position: "absolute", inset: 0 }}>
+      <Art fit="cover" />
+    </Box>
+    <Box
+      sx={{
+        position: "absolute",
+        width: "100%",
+        bottom: 10,
+        display: "flex",
+        alignItems: "center",
+        zIndex: 1,
+      }}
+    >
+      {title && (
+        <Box
+          sx={{
+            backgroundColor: "#37474F",
+            borderRadius: "0px 20px 20px 0px",
+            fontSize: 14,
+            letterSpacing: 0.7,
+            color: "#fff",
+            p: "6px",
+            pr: "13px",
+            fontFamily: PLAYER_FONT,
+          }}
+        >
+          {title}
+        </Box>
+      )}
+      <Fab
+        size="small"
+        tabIndex={-1}
+        sx={{
+          backgroundColor: "#fff",
+          color: "#37474F",
+          right: 10,
+          ml: "auto",
+          "&:hover": { backgroundColor: "#fff" },
+        }}
+      >
+        <OpenInFullRoundedIcon />
+      </Fab>
+    </Box>
+  </Paper>
+);
+ZoomCard.propTypes = {
+  Art: PropTypes.elementType,
+  title: PropTypes.string,
+  height: PropTypes.number,
+};
+
+// common/HintAccordion.jsx＋HintContent.jsx＋LockedHintButton.jsx。
+// 鎖著的那則：MUI Accordion 把第一個子元素當標題列，所以真的播放器上只看得到那顆解鎖鈕
+const HintItem = ({ n, hint }) =>
+  hint.locked ? (
+    <Accordion
+      disabled
+      elevation={6}
+      expanded={false}
+      sx={{ borderRadius: "4px", "&:before": { display: "none" } }}
+    >
+      <Box sx={{ width: "100%" }}>
+        <Button
+          variant="contained"
+          color="primary"
+          fullWidth
+          tabIndex={-1}
+          startIcon={<LockRoundedIcon />}
+        >
+          {hint.minutes
+            ? `${hint.minutes} 分鐘後自動解鎖提示 ${n}`
+            : `解鎖提示 ${n}`}
+        </Button>
+      </Box>
+      <AccordionSummary>提示 {n}</AccordionSummary>
+    </Accordion>
+  ) : (
+    <Accordion
+      elevation={6}
+      expanded
+      sx={{ borderRadius: "4px", "&:before": { display: "none" } }}
+    >
+      <AccordionSummary expandIcon={<ExpandMoreIcon />} tabIndex={-1}>
+        <Typography>提示 {n}</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Box sx={{ display: "flex" }}>
+          <Avatar sx={{ mr: "8px" }}>{hint.speaker.slice(0, 1)}</Avatar>
+          <Stack spacing={1}>
+            <Typography
+              variant="body1"
+              align="left"
+              sx={{ height: "40px", lineHeight: "40px", fontWeight: "bold" }}
+            >
+              {hint.speaker}
+            </Typography>
+            <Typography align="left">{hint.text}</Typography>
+          </Stack>
+        </Box>
+      </AccordionDetails>
+    </Accordion>
+  );
+HintItem.propTypes = { n: PropTypes.number, hint: PropTypes.object };
+
 // propTypes 在下面用 forEach 一次掛給八個（它們吃同一組 props），lint 看不出來
 /* eslint-disable react/prop-types */
 const MODELS = {
@@ -604,6 +851,35 @@ const MODELS = {
       </Paper>
     </CardColumn>
   ),
+  // ── 導覽列的四頁（不是 model，借同一個表擺，PlayerScreen 一視同仁）──
+  MissionPage: ({ page }) => (
+    <TabPage title="關卡">
+      {page.missions.map((m) => (
+        <MissionItem key={m.title} {...m} />
+      ))}
+    </TabPage>
+  ),
+  PropPage: ({ page }) => (
+    <TabPage title="道具">
+      {page.props.map((p) => (
+        <ZoomCard key={p.title} {...p} />
+      ))}
+    </TabPage>
+  ),
+  HintPage: ({ page }) => (
+    <TabPage title="提示">
+      {page.hints.map((h, n) => (
+        <HintItem key={n} n={n + 1} hint={h} />
+      ))}
+    </TabPage>
+  ),
+  StoryPage: ({ page }) => (
+    <TabPage title="故事">
+      {page.stories.map((p) => (
+        <ZoomCard key={p.title} {...p} height={260} />
+      ))}
+    </TabPage>
+  ),
 };
 Object.values(MODELS).forEach((M) => {
   M.propTypes = {
@@ -630,9 +906,21 @@ const primarySx = {
 };
 const secondarySx = { color: "text.disabled" };
 
-const NavBar = () => (
+// 哪一頁亮：導覽列的五顆照順序是 關卡／道具／解謎／提示／故事
+const NAV_OF = { MissionPage: 0, PropPage: 1, HintPage: 3, StoryPage: 4 };
+const NAV_ITEMS = [
+  { label: "關卡", Icon: StorageRoundedIcon },
+  { label: "道具", Icon: HomeRepairServiceRoundedIcon },
+  { label: "解謎", Icon: QuestionAnswerRoundedIcon, primary: true },
+  { label: "提示", Icon: TipsAndUpdatesRoundedIcon },
+  { label: "故事", Icon: AutoStoriesRoundedIcon },
+];
+
+// onNav 有給＝這支手機的導覽列真的能按（導覽列那一段）；沒給就只是長相，不搶 tab 焦點
+const NavBar = ({ value, onNav, badge = 0 }) => (
   <BottomNavigation
-    value={2}
+    value={value}
+    onChange={onNav ? (e, v) => onNav(v) : undefined}
     showLabels
     sx={{
       width: "100%",
@@ -641,38 +929,30 @@ const NavBar = () => (
       overflow: "visible",
     }}
   >
-    <BottomNavigationAction
-      tabIndex={-1}
-      label="關卡"
-      icon={<StorageRoundedIcon />}
-      sx={secondarySx}
-    />
-    <BottomNavigationAction
-      tabIndex={-1}
-      label="道具"
-      icon={<HomeRepairServiceRoundedIcon />}
-      sx={secondarySx}
-    />
-    <BottomNavigationAction
-      tabIndex={-1}
-      label="解謎"
-      icon={<QuestionAnswerRoundedIcon />}
-      sx={primarySx}
-    />
-    <BottomNavigationAction
-      tabIndex={-1}
-      label="提示"
-      icon={<TipsAndUpdatesRoundedIcon />}
-      sx={secondarySx}
-    />
-    <BottomNavigationAction
-      tabIndex={-1}
-      label="故事"
-      icon={<AutoStoriesRoundedIcon />}
-      sx={secondarySx}
-    />
+    {NAV_ITEMS.map(({ label, Icon, primary }) => (
+      <BottomNavigationAction
+        key={label}
+        tabIndex={onNav ? 0 : -1}
+        label={label}
+        icon={
+          label === "提示" ? (
+            <Badge badgeContent={badge} color="error">
+              <Icon />
+            </Badge>
+          ) : (
+            <Icon />
+          )
+        }
+        sx={primary ? primarySx : secondarySx}
+      />
+    ))}
   </BottomNavigation>
 );
+NavBar.propTypes = {
+  value: PropTypes.number,
+  onNav: PropTypes.func,
+  badge: PropTypes.number,
+};
 
 // ── 外殼 ────────────────────────────────────────────────────
 
@@ -699,6 +979,9 @@ const useBox = () => {
  *   MissionAnswerInput             title, art, input
  *   Img                            art
  *   Article                        title, body（字串＝一段；{ h } ＝小標）
+ *   MissionPage／PropPage／HintPage／StoryPage  導覽列的四頁：missions／props／hints／stories
+ *   badge：導覽列「提示」上的紅點數字
+ * onNav：給了導覽列就能按，回傳第幾顆（0–4）
  * children：疊在整個畫面最上面（不跟著縮放），例如「改一格看看」的擋下來遮罩
  */
 const FULL_BLEED = new Set([
@@ -708,7 +991,7 @@ const FULL_BLEED = new Set([
   "MissionAnswerInput",
 ]);
 
-const PlayerScreen = ({ page, typewriter = true, children }) => {
+const PlayerScreen = ({ page, typewriter = true, onNav, children }) => {
   const [ref, { w, h }] = useBox();
   const s = w / BASE_W;
   const H = s ? h / s : 0;
@@ -766,9 +1049,26 @@ const PlayerScreen = ({ page, typewriter = true, children }) => {
                 overflow: "hidden",
               }}
             >
-              {Model && (
-                <Model page={page} vh={vh} typewriter={typewriter} />
-              )}
+              {/* 換畫面時只有這一塊淡入淡出；導覽列在外面，不跟著重畫 */}
+              <AnimatePresence initial={false}>
+                {Model && (
+                  <motion.div
+                    key={page.model}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Model page={page} vh={vh} typewriter={typewriter} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </Box>
             <Box
               sx={{
@@ -779,7 +1079,11 @@ const PlayerScreen = ({ page, typewriter = true, children }) => {
                 zIndex: 2,
               }}
             >
-              <NavBar />
+              <NavBar
+                value={NAV_OF[page.model] ?? 2}
+                onNav={onNav}
+                badge={page.badge}
+              />
             </Box>
           </Box>
         </Box>
@@ -790,8 +1094,12 @@ const PlayerScreen = ({ page, typewriter = true, children }) => {
 };
 
 PlayerScreen.propTypes = {
-  page: PropTypes.shape({ model: PropTypes.string.isRequired }).isRequired,
+  page: PropTypes.shape({
+    model: PropTypes.string.isRequired,
+    badge: PropTypes.number,
+  }).isRequired,
   typewriter: PropTypes.bool,
+  onNav: PropTypes.func,
   children: PropTypes.node,
 };
 

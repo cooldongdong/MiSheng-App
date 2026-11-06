@@ -154,18 +154,8 @@ const Models = () => {
 
       <Box sx={{ justifySelf: 'center' }}>
         <PhoneFrame width={{ xs: 240, md: 280 }}>
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={model}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35 }}
-              style={{ position: 'absolute', inset: 0 }}
-            >
-              <PlayerScreen page={MODEL_PAGES[model]} />
-            </motion.div>
-          </AnimatePresence>
+          {/* 換畫面的淡入淡出在 PlayerScreen 裡面做：只換遊戲區，導覽列不動 */}
+          <PlayerScreen page={MODEL_PAGES[model]} />
         </PhoneFrame>
       </Box>
     </Box>

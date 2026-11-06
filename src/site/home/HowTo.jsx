@@ -5,7 +5,7 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import FolderZipRoundedIcon from '@mui/icons-material/FolderZipRounded';
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react';
 import PhoneFrame from './PhoneFrame';
-import GameScreen from './GameScreen';
+import PlayerScreen from './PlayerScreen';
 import { INK } from './art/palette';
 import { tint } from './tint';
 
@@ -176,7 +176,7 @@ const BROWSER = [
         </Box>
         <Box component={motion.div} {...pop} transition={{ ...pop.transition, delay: 1.3 }}>
           <PhoneFrame width={118} sx={{ p: '6px', borderRadius: '22px', '& > div': { borderRadius: '17px' } }}>
-            <GameScreen img="mizhiyin.jpg" speaker="謎之音" text="歡迎來到老街。" typewriter={false} />
+            <PlayerScreen page={{ model: 'Talk', speaker: '謎之音', text: '歡迎來到老街。' }} typewriter={false} />
           </PhoneFrame>
         </Box>
       </Box>

@@ -27,7 +27,7 @@ const PhoneFrame = ({ width = 280, children, sx }) => (
         overflow: 'hidden',
         bgcolor: 'dialogue.surface',
         isolation: 'isolate',
-        // 螢幕是 container：裡面的字級用 cqw，大手機小手機比例一致（見 GameScreen）
+        // 螢幕是 container：疊在畫面上的遮罩字級用 cqw，大手機小手機比例一致
         containerType: 'inline-size',
       }}
     >

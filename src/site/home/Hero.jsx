@@ -6,10 +6,9 @@ import { AnimatePresence, motion, useReducedMotion, useScroll } from 'motion/rea
 import MiniSheet from './MiniSheet';
 import { tint } from './tint';
 import PhoneFrame from './PhoneFrame';
-import GameScreen from './GameScreen';
+import PlayerScreen from './PlayerScreen';
 import PaperClouds from './PaperClouds';
 import BrandMark from '../../shared/BrandMark';
-import { STRAIGHT } from './demoImages';
 
 // Hero：試算表在後、手機在前，像兩張疊在一起的紙。
 //
@@ -216,7 +215,7 @@ const Morph = () => {
       {/* 前面那張紙：手機，壓住試算表的下緣 */}
       <Box sx={{ mt: '-34px', alignSelf: 'flex-end', mr: { xs: 1, sm: 3 }, rotate: '2deg', position: 'relative', zIndex: 2 }}>
         <PhoneFrame width={{ xs: 200, sm: 230 }}>
-          <GameScreen img={STRAIGHT[shown.speaker]} speaker={shown.speaker} text={shown.text} typewriter={!reduce} />
+          <PlayerScreen page={{ model: 'Talk', speaker: shown.speaker, text: shown.text }} typewriter={!reduce} />
         </PhoneFrame>
       </Box>
 

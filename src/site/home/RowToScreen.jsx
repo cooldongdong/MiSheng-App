@@ -1,12 +1,16 @@
-import { useRef, useState } from 'react';
-import PropTypes from 'prop-types';
-import { Box, Typography, useMediaQuery } from '@mui/material';
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react';
-import MiniSheet from './MiniSheet';
-import { tint } from './tint';
-import PhoneFrame from './PhoneFrame';
-import GameScreen from './GameScreen';
-import { STRAIGHT } from './demoImages';
+import { useRef, useState } from "react";
+import PropTypes from "prop-types";
+import { Box, Typography, useMediaQuery } from "@mui/material";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValueEvent,
+  useScroll,
+} from "motion/react";
+import MiniSheet from "./MiniSheet";
+import { tint } from "./tint";
+import PhoneFrame from "./PhoneFrame";
+import PlayerScreen from "./PlayerScreen";
 
 // 第二段：往下捲，一列一列地播。
 //
@@ -15,134 +19,177 @@ import { STRAIGHT } from './demoImages';
 // customKey 存下來的值可以在後面用 {{ }} 叫出來，選項各自一列、parentId 指回題目。
 // 內容全部取自 demo 遊戲的 rundown 表，列號照真的試算表算（表頭是第 1 列）。
 
-const PLAYER_NAME = '小白';
+const PLAYER_NAME = "小白";
 
 const ROWS = [
-  { rowNo: 3, cells: { model: 'Talk', speaker: '謎之音', title: '', text: '你醒啦！', customKey: '' } },
-  { rowNo: 4, cells: { model: 'Talk', speaker: '玩家.', title: '', text: '你是誰？我在哪？', customKey: '' } },
-  { rowNo: 7, cells: { model: 'CustomValueInput', speaker: '謎之音', title: '', text: '你要取什麼酷酷的名字呢？', customKey: 'playerName' } },
-  { rowNo: 8, cells: { model: 'Talk', speaker: '玩家.', title: '', text: '阿，真是抱歉，忘了自我介紹，我是{{playerName}}，請問你是？', customKey: '' } },
-  { rowNo: 13, cells: { model: 'Quiz', speaker: '旁白', title: '', text: '你想聽白話版的還是有遊戲體驗版的？', customKey: '' } },
-  { rowNo: 14, cells: { model: 'Quiz', speaker: '', title: '白話版', text: '', customKey: '' } },
-  { rowNo: 15, cells: { model: 'Quiz', speaker: '', title: '遊戲體驗版', text: '', customKey: '' } },
+  {
+    rowNo: 3,
+    cells: {
+      model: "Talk",
+      speaker: "謎之音",
+      title: "",
+      text: "你醒啦！",
+      customKey: "",
+    },
+  },
+  {
+    rowNo: 4,
+    cells: {
+      model: "Talk",
+      speaker: "玩家.",
+      title: "",
+      text: "你是誰？我在哪？",
+      customKey: "",
+    },
+  },
+  {
+    rowNo: 7,
+    cells: {
+      model: "CustomValueInput",
+      speaker: "謎之音",
+      title: "",
+      text: "你要取什麼酷酷的名字呢？",
+      customKey: "playerName",
+    },
+  },
+  {
+    rowNo: 8,
+    cells: {
+      model: "Talk",
+      speaker: "玩家.",
+      title: "",
+      text: "阿，真是抱歉，忘了自我介紹，我是{{playerName}}，請問你是？",
+      customKey: "",
+    },
+  },
+  {
+    rowNo: 13,
+    cells: {
+      model: "Quiz",
+      speaker: "旁白",
+      title: "",
+      text: "你想聽白話版的還是有遊戲體驗版的？",
+      customKey: "",
+    },
+  },
+  {
+    rowNo: 14,
+    cells: {
+      model: "Quiz",
+      speaker: "",
+      title: "白話版",
+      text: "",
+      customKey: "",
+    },
+  },
+  {
+    rowNo: 15,
+    cells: {
+      model: "Quiz",
+      speaker: "",
+      title: "遊戲體驗版",
+      text: "",
+      customKey: "",
+    },
+  },
 ];
 
 // 每一步：亮哪一列、手機畫什麼、旁邊說什麼、哪幾格要一起圈起來
 const STEPS = [
-  { row: 3, model: 'Talk', note: '一列一句對白。speaker 寫誰在說話，立繪就自動換上。', mark: [] },
-  { row: 4, model: 'Talk', note: '換一個 speaker，畫面就換一個人。', mark: [[4, 'speaker']] },
+  {
+    row: 3,
+    model: "Talk",
+    note: "一列一句對白。speaker 寫誰在說話，立繪就自動換上。",
+    mark: [],
+  },
+  {
+    row: 4,
+    model: "Talk",
+    note: "換一個 speaker，畫面就換一個人。",
+    mark: [[4, "speaker"]],
+  },
   {
     row: 7,
-    model: 'CustomValueInput',
-    note: '換一個 model，這一頁就變成輸入框。玩家填的值存進 customKey。',
-    mark: [[7, 'model'], [7, 'customKey']],
+    model: "CustomValueInput",
+    note: "換一個 model，這一頁就變成輸入框。玩家填的值存進 customKey。",
+    mark: [
+      [7, "model"],
+      [7, "customKey"],
+    ],
   },
   {
     row: 8,
-    model: 'Talk',
-    note: '之後的對白寫 {{playerName}}，就會換成玩家剛剛取的名字。',
-    mark: [[7, 'customKey'], [8, 'text']],
+    model: "Talk",
+    note: "之後的對白寫 {{playerName}}，就會換成玩家剛剛取的名字。",
+    mark: [
+      [7, "customKey"],
+      [8, "text"],
+    ],
   },
   {
     row: 13,
-    model: 'Quiz',
-    note: '選擇題：每個選項各佔一列。選了哪個，故事就往哪裡走。',
-    mark: [[14, 'title'], [15, 'title']],
+    model: "Quiz",
+    note: "選擇題：每個選項各佔一列。選了哪個，故事就往哪裡走。",
+    mark: [
+      [14, "title"],
+      [15, "title"],
+    ],
   },
 ];
 
 const ALL_COLUMNS = [
-  { key: 'model', width: '9.5em' },
-  { key: 'speaker', width: '4.6em' },
-  { key: 'title', width: '6em' },
-  { key: 'text', width: '1fr' },
-  { key: 'customKey', width: '6.6em' },
+  { key: "model", width: "9.5em" },
+  { key: "speaker", width: "4.6em" },
+  { key: "title", width: "6em" },
+  { key: "text", width: "1fr" },
+  { key: "customKey", width: "6.6em" },
 ];
-const NARROW_COLUMNS = ALL_COLUMNS.filter((c) => ['model', 'speaker', 'text'].includes(c.key));
+const NARROW_COLUMNS = ALL_COLUMNS.filter((c) =>
+  ["model", "speaker", "text"].includes(c.key),
+);
 
 const rowOf = (n) => ROWS.find((r) => r.rowNo === n).cells;
 
 const ScreenFor = ({ step }) => {
   const r = rowOf(step.row);
-  const text = r.text.replace('{{playerName}}', PLAYER_NAME);
+  const text = r.text.replace("{{playerName}}", PLAYER_NAME);
+  // Quiz 的選項是同一張表裡 parentId 指回題目的那幾列
+  const options =
+    step.model === "Quiz"
+      ? ROWS.filter(
+          (x) =>
+            x.rowNo > step.row && x.cells.model === "Quiz" && x.cells.title,
+        ).map((x) => x.cells.title)
+      : undefined;
   return (
-    <GameScreen img={STRAIGHT[r.speaker]} speaker={r.speaker} text={text}>
-      {step.model === 'CustomValueInput' && (
-        <Box
-          component={motion.div}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
-          sx={{
-            mt: '0.6em',
-            px: '0.8em',
-            py: '0.55em',
-            borderRadius: '0.6em',
-            bgcolor: 'dialogue.field',
-            color: '#263238',
-            fontSize: '0.85em',
-            display: 'flex',
-            justifyContent: 'space-between',
-          }}
-        >
-          <TypeIn text={PLAYER_NAME} delay={1.4} />
-          <Box component="span" sx={{ color: 'dialogue.onField', fontWeight: 700 }}>
-            送出
-          </Box>
-        </Box>
-      )}
-      {step.model === 'Quiz' &&
-        ['白話版', '遊戲體驗版'].map((o, i) => (
-          <Box
-            key={o}
-            component={motion.div}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 1.2 + i * 0.12 }}
-            sx={{
-              mt: '0.5em',
-              px: '0.8em',
-              py: '0.5em',
-              borderRadius: '0.6em',
-              border: '1px solid rgba(255,255,255,.45)',
-              fontSize: '0.82em',
-              textAlign: 'center',
-            }}
-          >
-            {o}
-          </Box>
-        ))}
-    </GameScreen>
+    <PlayerScreen
+      page={{
+        model: step.model,
+        speaker: r.speaker,
+        text,
+        options,
+        input: step.model === "CustomValueInput" ? PLAYER_NAME : undefined,
+      }}
+    />
   );
 };
 
-// 輸入框裡一個字一個字打出來
-const TypeIn = ({ text, delay }) => (
-  <Box component="span">
-    {[...text].map((ch, i) => (
-      <motion.span
-        key={i}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: delay + i * 0.25, duration: 0.01 }}
-      >
-        {ch}
-      </motion.span>
-    ))}
-  </Box>
-);
-
 ScreenFor.propTypes = { step: PropTypes.object.isRequired };
-TypeIn.propTypes = { text: PropTypes.string.isRequired, delay: PropTypes.number.isRequired };
 
 const RowToScreen = () => {
   const ref = useRef(null);
   const [i, setI] = useState(0);
-  const wide = useMediaQuery((t) => t.breakpoints.up('md'));
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
+  const wide = useMediaQuery((t) => t.breakpoints.up("md"));
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end end"],
+  });
 
-  useMotionValueEvent(scrollYProgress, 'change', (p) => {
-    const next = Math.min(STEPS.length - 1, Math.max(0, Math.floor(p * STEPS.length)));
+  useMotionValueEvent(scrollYProgress, "change", (p) => {
+    const next = Math.min(
+      STEPS.length - 1,
+      Math.max(0, Math.floor(p * STEPS.length)),
+    );
     setI((cur) => (cur === next ? cur : next));
   });
 
@@ -153,23 +200,31 @@ const RowToScreen = () => {
   const rows = wide ? ROWS : ROWS.filter((r) => related.has(r.rowNo));
 
   return (
-    <Box ref={ref} component="section" sx={{ height: `${STEPS.length * 85 + 30}vh`, position: 'relative' }}>
+    <Box
+      ref={ref}
+      component="section"
+      sx={{ height: `${STEPS.length * 85 + 30}vh`, position: "relative" }}
+    >
       <Box
         sx={{
-          position: 'sticky',
+          position: "sticky",
           top: 0,
-          height: '100dvh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
+          height: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
           px: 2,
-          overflow: 'hidden',
+          overflow: "hidden",
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 1160, mx: 'auto' }}>
+        <Box sx={{ width: "100%", maxWidth: 1160, mx: "auto" }}>
           <Typography
             component="h2"
-            sx={{ fontWeight: 900, fontSize: { xs: '1.7rem', md: '2.6rem' }, color: 'text.primary' }}
+            sx={{
+              fontWeight: 900,
+              fontSize: { xs: "1.7rem", md: "2.6rem" },
+              color: "text.primary",
+            }}
           >
             一列，就是一個畫面。
           </Typography>
@@ -177,10 +232,10 @@ const RowToScreen = () => {
           <Box
             sx={{
               mt: { xs: 2, md: 5 },
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
               gap: { xs: 2, md: 6 },
-              alignItems: 'center',
+              alignItems: "center",
             }}
           >
             <Box sx={{ minWidth: 0 }}>
@@ -192,10 +247,10 @@ const RowToScreen = () => {
                 cellSx={(r, key) =>
                   marked.has(`${r.rowNo}.${key}`)
                     ? {
-                        outline: '2px solid',
-                        outlineColor: 'secondary.main',
+                        outline: "2px solid",
+                        outlineColor: "secondary.main",
                         outlineOffset: -2,
-                        bgcolor: tint('secondary', 0.1),
+                        bgcolor: tint("secondary", 0.1),
                         fontWeight: 700,
                       }
                     : {}
@@ -203,7 +258,13 @@ const RowToScreen = () => {
               />
 
               {/* 這一步在講什麼 */}
-              <Box sx={{ mt: { xs: 1.5, md: 3 }, minHeight: { xs: 64, md: 90 }, position: 'relative' }}>
+              <Box
+                sx={{
+                  mt: { xs: 1.5, md: 3 },
+                  minHeight: { xs: 64, md: 90 },
+                  position: "relative",
+                }}
+              >
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={i}
@@ -215,18 +276,25 @@ const RowToScreen = () => {
                     <Box
                       component="code"
                       sx={{
-                        fontSize: '0.8rem',
+                        fontSize: "0.8rem",
                         px: 1,
                         py: 0.25,
                         borderRadius: 1,
-                        bgcolor: tint('secondary', 0.12),
-                        color: 'secondary.main',
+                        bgcolor: tint("secondary", 0.12),
+                        color: "secondary.main",
                         fontWeight: 700,
                       }}
                     >
                       model = {step.model}
                     </Box>
-                    <Typography sx={{ mt: 1, color: 'text.secondary', fontSize: { xs: '0.95rem', md: '1.1rem' }, lineHeight: 1.8 }}>
+                    <Typography
+                      sx={{
+                        mt: 1,
+                        color: "text.secondary",
+                        fontSize: { xs: "0.95rem", md: "1.1rem" },
+                        lineHeight: 1.8,
+                      }}
+                    >
                       {step.note}
                     </Typography>
                   </motion.div>
@@ -234,13 +302,22 @@ const RowToScreen = () => {
               </Box>
 
               {/* 第幾步：只寫數字，不畫進度條 */}
-              <Typography sx={{ mt: 1, fontSize: '0.85rem', color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }}>
+              <Typography
+                sx={{
+                  mt: 1,
+                  fontSize: "0.85rem",
+                  color: "text.disabled",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {i + 1} / {STEPS.length}
               </Typography>
             </Box>
 
-            <Box sx={{ justifySelf: 'center' }}>
-              <PhoneFrame width={{ xs: 'min(190px, 21dvh)', md: 'min(290px, 30dvh)' }}>
+            <Box sx={{ justifySelf: "center" }}>
+              <PhoneFrame
+                width={{ xs: "min(190px, 21dvh)", md: "min(290px, 30dvh)" }}
+              >
                 <ScreenFor step={step} />
               </PhoneFrame>
             </Box>

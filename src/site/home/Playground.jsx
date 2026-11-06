@@ -6,8 +6,7 @@ import { validateGame } from '../../shared/validator/validateGame.js';
 import { buildTables, CHARACTERS } from './playgroundTables';
 import MiniSheet from './MiniSheet';
 import PhoneFrame from './PhoneFrame';
-import GameScreen from './GameScreen';
-import { STRAIGHT } from './demoImages';
+import PlayerScreen from './PlayerScreen';
 import { tint } from './tint';
 
 // 第四段：改一格看看。
@@ -233,7 +232,7 @@ const Playground = () => {
           {/* 手機：即時跟著格子變；有錯就擋下來 */}
           <Box sx={{ justifySelf: 'center', position: { md: 'sticky' }, top: { md: 96 } }}>
             <PhoneFrame width={{ xs: 250, sm: 280 }}>
-              <GameScreen img={STRAIGHT[cells.speaker]} speaker={cells.speaker} text={cells.text} typewriter={false} />
+              <PlayerScreen page={{ model: 'Talk', speaker: cells.speaker, text: cells.text }} typewriter={false} />
               <AnimatePresence>
                 {broken && (
                   <Box

@@ -3,8 +3,8 @@ import PropTypes from 'prop-types';
 import { Box, Typography } from '@mui/material';
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react';
 import PhoneFrame from './PhoneFrame';
-import ModelScreen from './ModelScreens';
-import { MODELS, MODEL_NOTES } from './modelNotes';
+import PlayerScreen from './PlayerScreen';
+import { MODELS, MODEL_NOTES, MODEL_PAGES } from './modelNotes';
 import DiaryWheel from './art/DiaryWheel';
 import { PropImgArt, PropCameraArt, PropOverlayArt } from './art/PropArt';
 import { tint } from './tint';
@@ -163,7 +163,7 @@ const Models = () => {
               transition={{ duration: 0.35 }}
               style={{ position: 'absolute', inset: 0 }}
             >
-              <ModelScreen model={model} />
+              <PlayerScreen page={MODEL_PAGES[model]} />
             </motion.div>
           </AnimatePresence>
         </PhoneFrame>

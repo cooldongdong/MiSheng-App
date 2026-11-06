@@ -366,7 +366,7 @@ const HowTo = () => {
   const Body = BROWSER[step].Body;
 
   return (
-    <Box component="section" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
+    <Box component="section" id="start" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
       <Box ref={ref} sx={{ maxWidth: 1160, mx: 'auto' }}>
         <Typography component="h2" sx={{ fontWeight: 900, fontSize: { xs: '1.7rem', md: '2.6rem' }, color: 'text.primary', lineHeight: 1.3 }}>
           兩種開始的方式。

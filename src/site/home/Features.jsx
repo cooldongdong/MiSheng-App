@@ -65,7 +65,7 @@ Item.propTypes = {
 };
 
 const Features = () => (
-  <Box component="section" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
+  <Box component="section" id="why" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
     <Box sx={{ maxWidth: 1160, mx: 'auto' }}>
       <Typography component="h2" sx={{ fontWeight: 900, fontSize: { xs: '1.7rem', md: '2.6rem' }, color: 'text.primary' }}>
         為什麼是謎生

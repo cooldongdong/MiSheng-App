@@ -247,7 +247,7 @@ const Props = () => (
 );
 
 const ModelsProps = () => (
-  <Box component="section" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
+  <Box component="section" id="screens" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
     <Box sx={{ maxWidth: 1160, mx: 'auto' }}>
       <Models />
       <Props />

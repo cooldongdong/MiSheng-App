@@ -192,7 +192,7 @@ const Playground = () => {
   };
 
   return (
-    <Box component="section" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
+    <Box component="section" id="try" sx={{ px: 2, py: { xs: 10, md: 16 } }}>
       {/* 標題放進左欄：手機的上緣跟標題切齊，不會在標題右邊空一大塊 */}
       <Box
         sx={{

@@ -8,7 +8,6 @@ import { tint } from './tint';
 import PhoneFrame from './PhoneFrame';
 import PlayerScreen from './PlayerScreen';
 import PaperClouds from './PaperClouds';
-import BrandMark from '../../shared/BrandMark';
 
 // Hero：試算表在後、手機在前，像兩張疊在一起的紙。
 //
@@ -323,20 +322,8 @@ const Hero = () => {
         }}
       >
         <Box>
-          {/* 品牌：logo＋名字。整頁唯一一個標題上方的小字 */}
-          <Stack
-            component={motion.div}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            direction="row"
-            alignItems="center"
-            spacing={1}
-          >
-            <BrandMark size={34} />
-            <Typography sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '0.05em' }}>謎生 MiSheng</Typography>
-          </Stack>
-          <Box sx={{ mt: 3 }}>
+          {/* 品牌（logo＋名字）原本在標題上方，頂部導覽列加上之後移到那裡，這裡不重複 */}
+          <Box>
             <Headline />
           </Box>
           <motion.div

@@ -203,6 +203,7 @@ const RowToScreen = () => {
     <Box
       ref={ref}
       component="section"
+      id="how"
       sx={{ height: `${STEPS.length * 85 + 30}vh`, position: "relative" }}
     >
       <Box

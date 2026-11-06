@@ -1,7 +1,6 @@
-import { Box } from '@mui/material';
 import { MotionConfig } from 'motion/react';
 
-import ColorSchemeToggle from '../shared/ColorSchemeToggle';
+import SiteNav from './home/SiteNav';
 import Hero from './home/Hero';
 import RowToScreen from './home/RowToScreen';
 import ModelsProps from './home/ModelsProps';
@@ -30,10 +29,8 @@ import Outro from './home/Outro';
 
 const HomeApp = () => (
   <MotionConfig reducedMotion="user">
-    {/* 右上角＝這一頁的控制項，與 /create、/demo 同一個座標 */}
-    <Box sx={{ position: 'fixed', top: 6, right: 10, zIndex: 10 }}>
-      <ColorSchemeToggle />
-    </Box>
+    {/* 外觀開關住在導覽列的最右邊，仍是右上角，與 /create、/demo 同一個座標 */}
+    <SiteNav />
     <Hero />
     <RowToScreen />
     <ModelsProps />
